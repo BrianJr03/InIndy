@@ -1,0 +1,18 @@
+package jr.brian.inindy.domain.model
+
+data class Post(
+    val id: String,
+    val userId: String,
+    val title: String,
+    val description: String,
+    val latitude: Double,
+    val longitude: Double,
+    val address: String,
+    val startsAt: Long,
+    val endsAt: Long?,
+    val createdAt: Long,
+    val tags: List<PostTag>,
+    val images: List<String>,
+    val rsvpCount: Int,
+    val author: User?
+)

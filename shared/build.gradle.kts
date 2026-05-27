@@ -47,6 +47,20 @@ kotlin {
     }
     
     sourceSets {
+        // Intermediate source set: all targets except wasmJs.
+        // SQLDelight has no wasmJs artifact, so it must live here, not in commonMain.
+        val nonWasmCommonMain by creating {
+            dependsOn(commonMain.get())
+        }
+        androidMain.get().dependsOn(nonWasmCommonMain)
+        iosMain.get().dependsOn(nonWasmCommonMain)
+        jsMain.get().dependsOn(nonWasmCommonMain)
+
+        nonWasmCommonMain.dependencies {
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines)
+        }
+
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.okhttp)
@@ -61,6 +75,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.compose.material)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             // Networking
@@ -68,12 +83,10 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.logging)
-            // Local DB
-            implementation(libs.sqldelight.runtime)
-            implementation(libs.sqldelight.coroutines)
             // DI
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
             // Image loading
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)
