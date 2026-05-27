@@ -1,5 +1,7 @@
 package jr.brian.inindy.util
 
+expect fun currentTimeMillis(): Long
+
 object DateUtil {
     private val months = listOf(
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",

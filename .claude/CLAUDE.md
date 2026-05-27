@@ -2,7 +2,7 @@
 
 ## Project overview
 InIndy is a Kotlin Multiplatform (KMP) + Compose Multiplatform (CMP) social app for Indianapolis.
-Two-tab structure: user-generated local event posts ("Catch Up") + curated Eventbrite events ("Explore").
+Two-tab structure: user-generated local event posts ("Explore") + curated Eventbrite events ("Events").
 Target: Android + iOS. Backend: Supabase (Postgres + PostGIS + Storage). Auth: Supabase Auth.
 
 ## Current focus
@@ -59,7 +59,7 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Geo queries: use PostGIS `ST_DWithin` for proximity — always pass lat/lng + radius in meters
 
 ## Eventbrite API
-- Used for the Explore tab only — read-only, no auth required for public events
+- Used for the Events tab only — read-only, no auth required for public events
 - Base URL: `https://www.eventbriteapi.com/v3/`
 - Key param: `location.address=Indianapolis,IN` + `expand=venue`
 - Cache responses in SQLDelight for 30 min to conserve API quota (500 req/day free tier)

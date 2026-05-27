@@ -79,8 +79,14 @@ private fun ExplorePostFeed(
         item {
             ExploreHeader(onSettingsClick = onSettingsClick)
         }
-        items(items = posts, key = { it.id }) { post ->
-            PostCard(post = post, onRsvpClick = onRsvpClick)
+        items(
+            items = posts,
+            key = { it.id }
+        ) { post ->
+            PostCard(
+                post = post,
+                onRsvpClick = onRsvpClick
+            )
         }
     }
 }

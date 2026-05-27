@@ -15,6 +15,12 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 
 **Core personality:** Vibrant but not loud. Modern but not cold. Simple but not boring.
 
+## Tab structure
+- **Explore** — user-generated posts. People-first. Someone in Indianapolis is doing something and inviting others. Feels like a text from a friend.
+- **Events** — Eventbrite-powered. Event-first. Curated, organized, browsable. Feels like a local calendar.
+
+These two tabs must feel visually and tonally distinct at a glance. See component patterns below.
+
 ---
 
 ## Visual Language
@@ -26,7 +32,7 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 - **Text:** High contrast but not harsh — `#1A1A1A` on light, `#F5F5F0` on dark
 - **Semantic colors:** Success green, warning amber — used sparingly
 - Use `MaterialTheme.colorScheme` tokens — never hardcode hex values in composables
-- Define the full palette in a `InIndyTheme.kt` color scheme
+- Define the full palette in `InIndyTheme.kt`
 
 ### Typography
 - **Display/Headlines:** Rounded or geometric — something with personality. Suggest: `Nunito`, `DM Sans`, or `Plus Jakarta Sans` via Google Fonts
@@ -59,30 +65,63 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 
 ## Component Patterns
 
-### Post Card (Catch Up tab)
+### Explore Tab — Post Card (person-first)
+The post card must feel like a message from a real person, not an event flyer.
+Lead with the human — avatar and name are the first thing seen, not the activity title.
+
 ```
 ┌─────────────────────────────┐
+│  [Avatar 56dp] Marcus       │
+│  "Anyone down for an easy   │
+│   3-miler Saturday morning?"│
+│  ─────────────────────────  │
 │  [Hero photo - 16:9]        │
-│                             │
-│  [Avatar] Name · Time ago   │
-│  Title                      │
-│  📍 Location  🗓 Date/Time  │
-│  [Tag] [Tag]    [RSVP btn]  │
+│  ─────────────────────────  │
+│  📍 Holliday Park  · 8AM    │
+│  [Tag] [Tag]   4 spots · 20m ago  │
+│                  [I'm in →] │
 └─────────────────────────────┘
 ```
-- Photo with gradient scrim at bottom for legibility
+- **Avatar + first name at the top** — not buried below the photo
+- Description in the poster's own casual words — not a formal title
+- "I'm in" not "RSVP" — conversational, low friction
+- Post age ("20 mins ago") shown — reinforces liveness
+- Warm accent color palette — feels social and personal
 - Tags as filled chips with accent color background
-- RSVP button: filled, accent color, `36.dp` height
 
-### Event Card (Explore tab)
-- Lighter visual weight than post cards — these are curated, not personal
-- Eventbrite thumbnail left-aligned, `80x80.dp`, rounded `12.dp`
-- Free badge: green filled chip
+### Events Tab — Event Card (event-first)
+Lighter, cooler, more informational. Feels like browsing a calendar, not a social feed.
+Clearly different from the Explore tab at a glance — do not reuse the post card pattern.
+
+```
+┌─────────────────────────────┐
+│ [Thumbnail │ Event Title     │
+│  80x80dp]  │ Org name        │
+│            │ 📅 Sat Jun 7    │
+│            │ 📍 Venue name   │
+│            │ [Free] or [$10] │
+└─────────────────────────────┘
+```
+- Horizontal layout — thumbnail left, info right
+- Cooler, more neutral color palette than Explore cards
+- "Free" badge: green filled chip — high signal for users
 - Tap opens bottom sheet detail, not a new screen
+- No avatar, no casual language — this is an org, not a person
+- Eventbrite attribution in bottom sheet footer
+
+### Key visual differences between tabs
+| | Explore | Events |
+|---|---|---|
+| Lead element | Person avatar | Event thumbnail |
+| Tone | Casual, personal | Informational |
+| Card layout | Portrait, photo-heavy | Horizontal, compact |
+| CTA | "I'm in" | "View on Eventbrite" |
+| Color warmth | Warm accent | Neutral/cool |
+| Time display | Relative ("20m ago") | Absolute ("Sat Jun 7") |
 
 ### Empty States
 - Illustrated, not just text — use a simple SVG-style `Canvas` drawing or vector asset
-- Warm, encouraging copy: "Nothing here yet — be the first to post!" not "No results found"
+- Warm, encouraging copy: "Be the first to post something!" not "No results found"
 
 ### Loading
 - Shimmer skeleton matching the exact shape of the real content
@@ -92,8 +131,8 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 
 ## Animation & Motion
 - Feed items: stagger fade+slide in on first load — `AnimatedVisibility` with `fadeIn + slideInVertically`
-- Tab switch: `crossfade` between Catch Up and Explore
-- RSVP button: scale pulse on tap — `animateFloatAsState` to `0.95f` then back
+- Tab switch: `crossfade` between Explore and Events
+- "I'm in" button: scale pulse on tap — `animateFloatAsState` to `0.95f` then back
 - Bottom sheet: default `ModalBottomSheet` spring animation is fine — don't override it
 - Keep animations under `300ms` — snappy, not dramatic
 
@@ -104,7 +143,7 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 - Every composable must have a `@Preview` with both light and dark theme
 - Use `LocalContentColor` and `contentColorFor()` for icon/text colors on colored surfaces
 - `Modifier` parameter on every public composable, defaulting to `Modifier`
-- No hardcoded strings in composables — use string resources
+- No hardcoded strings in composables — use `stringResource(Res.string.x)`
 - `contentDescription` on every image and icon for accessibility
 
 ---
@@ -112,9 +151,10 @@ The UI should feel like a **local friend** — approachable, alive, and real. No
 ## What to avoid
 - Pure white or pure black backgrounds
 - Default Material 3 purple tint — replace entirely with InIndy accent color
-- Flat, textureless cards with no depth
+- Making Explore and Events cards look the same — they must feel like different products
+- Formal event-app language ("Register", "RSVP", "Attendees") in the Explore tab
 - Dense layouts with insufficient breathing room
-- Generic placeholder icons (no image icon) — use shimmer instead
+- Generic placeholder icons — use shimmer instead
 - Courier/monospace fonts anywhere in the UI
 - Shadows so heavy they look like floating elements
 

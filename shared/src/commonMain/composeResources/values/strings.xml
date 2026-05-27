@@ -10,9 +10,9 @@
     <string name="home_placeholder_events">Events coming soon</string>
 
     <!-- Post card -->
-    <string name="post_author_anonymous">Anonymous</string>
-    <string name="post_rsvp_count_going">%1$d going</string>
-    <string name="post_rsvp_button">RSVP</string>
+    <string name="post_author_anonymous">Someone in Indy</string>
+    <string name="post_in_count_label">folks are in!</string>
+    <string name="post_im_in_button">I'm in!</string>
 
     <!-- Explore Page -->
     <string name="explore_app_title">InIndy</string>
