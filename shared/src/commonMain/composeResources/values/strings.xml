@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bottom navigation -->
+    <string name="nav_create">Create</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_events">Events</string>
+
+    <!-- Home placeholders -->
+    <string name="home_placeholder_create">Create a post</string>
+    <string name="home_placeholder_events">Events coming soon</string>
+
+    <!-- Post card -->
+    <string name="post_author_anonymous">Anonymous</string>
+    <string name="post_rsvp_count_going">%1$d going</string>
+    <string name="post_rsvp_button">RSVP</string>
+
+    <!-- Explore Page -->
+    <string name="explore_app_title">InIndy</string>
+    <string name="explore_app_title_accent">In</string>
+    <string name="explore_settings_content_description">Open settings</string>
+    <string name="explore_error_title">Something went wrong</string>
+    <string name="explore_error_retry">Try again</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back_content_description">Back</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_dark_mode_title">Dark mode</string>
+    <string name="settings_dark_mode_description">Use the dark theme across the app</string>
+</resources>

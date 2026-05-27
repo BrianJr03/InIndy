@@ -110,6 +110,11 @@ kotlin {
     }
 }
 
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "jr.brian.inindy.resources"
+}
+
 sqldelight {
     databases {
         create("InIndyDatabase") {

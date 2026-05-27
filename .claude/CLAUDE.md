@@ -5,6 +5,10 @@ InIndy is a Kotlin Multiplatform (KMP) + Compose Multiplatform (CMP) social app 
 Two-tab structure: user-generated local event posts ("Catch Up") + curated Eventbrite events ("Explore").
 Target: Android + iOS. Backend: Supabase (Postgres + PostGIS + Storage). Auth: Supabase Auth.
 
+## Current focus
+- Building:
+- Started:
+
 ## Module structure
 ```
 inIndy/
@@ -35,6 +39,18 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 | Serialization | kotlinx.serialization |
 | Coroutines | kotlinx.coroutines |
 
+## String resources
+- All strings defined in `shared/commonMain/composeResources/values/strings.xml`
+- Access via `stringResource(Res.string.key_name)` in all composables
+- Never hardcode user-facing strings in Kotlin files
+- Uses official Compose Multiplatform Resources API (CMP 1.6+)
+
+## Brand
+- Accent color: TBD — update once finalised
+- Typography: TBD — update once finalised
+- Full theme defined in `shared/commonMain/ui/theme/InIndyTheme.kt`
+- Color tokens, type scale, and shapes all live in the theme — never hardcode values in composables
+
 ## Supabase integration
 - All Supabase calls go through Ktor in `shared/commonMain/data/remote/`
 - Base URL: stored in `BuildConfig` / `local.properties` — never hardcoded
@@ -64,6 +80,8 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Naming: `XxxViewModel`, `XxxRepository`, `XxxUseCase`, `XxxDto` (network), `XxxEntity` (DB), `XxxUiState`
 - No magic strings — use `object Constants` or enums
 - Compose: stateless composables wherever possible; hoist state to ViewModel
+- Every public composable takes a `modifier: Modifier = Modifier` parameter
+- Every composable has a `@Preview` for both light and dark theme
 
 ## Gradle
 - Version catalog: `gradle/libs.versions.toml` — all deps declared here, never inline
@@ -73,11 +91,11 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 
 ## Common commands
 ```bash
-./gradlew :shared:indy-build              # Build shared KMP module
-./gradlew :androidApp:assembleDebug  # Android debug APK
-./gradlew :shared:allTests           # Run all shared tests
-./gradlew lint                        # Lint check
-./gradlew :shared:generateSqlDelightInterface  # Regenerate SQLDelight queries
+./gradlew :shared:build                          # Build shared KMP module
+./gradlew :androidApp:assembleDebug              # Android debug APK
+./gradlew :shared:allTests                       # Run all shared tests
+./gradlew lint                                   # Lint check
+./gradlew :shared:generateSqlDelightInterface    # Regenerate SQLDelight queries
 ```
 
 ## Testing
@@ -98,8 +116,12 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Don't store auth tokens in SharedPreferences plaintext — use EncryptedSharedPreferences (Android) / Keychain (iOS) via expect/actual
 - Don't cache Eventbrite images — hotlink from Eventbrite CDN via Coil
 - Don't hardcode the Indianapolis lat/lng — use a `CityConfig` constant in commonMain
+- Don't hardcode user-facing strings — use `stringResource(Res.string.x)` always
+- Don't hardcode colors, typography, or shapes — use `InIndyTheme` tokens always
 
 ## Key files to read first
 - `@shared/commonMain/data/remote/SupabaseClient.kt` — Ktor client setup
 - `@shared/commonMain/domain/model/Post.kt` — core domain model
+- `@shared/commonMain/ui/theme/InIndyTheme.kt` — full theme definition
+- `@shared/commonMain/composeResources/values/strings.xml` — all string resources
 - `@gradle/libs.versions.toml` — all dependency versions
