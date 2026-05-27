@@ -44,6 +44,7 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Access via `stringResource(Res.string.key_name)` in all composables
 - Never hardcode user-facing strings in Kotlin files
 - Uses official Compose Multiplatform Resources API (CMP 1.6+)
+- Do not escape apostrophes or any other applicable characters
 
 ## Brand
 - Accent color: TBD — update once finalised
@@ -118,6 +119,10 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Don't hardcode the Indianapolis lat/lng — use a `CityConfig` constant in commonMain
 - Don't hardcode user-facing strings — use `stringResource(Res.string.x)` always
 - Don't hardcode colors, typography, or shapes — use `InIndyTheme` tokens always
+
+## Agent behavior
+- Never run build, compile, lint, or test commands automatically
+- Never verify work by building — the developer handles all builds
 
 ## Key files to read first
 - `@shared/commonMain/data/remote/SupabaseClient.kt` — Ktor client setup

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import jr.brian.inindy.presentation.explore.ExploreUiState
 import jr.brian.inindy.presentation.explore.ExploreViewModel
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.home_placeholder_create
@@ -37,6 +38,7 @@ import jr.brian.inindy.resources.nav_create
 import jr.brian.inindy.resources.nav_events
 import jr.brian.inindy.resources.nav_explore
 import jr.brian.inindy.ui.explore.ExploreScreen
+import jr.brian.inindy.ui.explore.PostDetailScreen
 import jr.brian.inindy.ui.icons.AddIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.SearchIcon
@@ -55,6 +57,7 @@ fun HomeScreen(
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.EXPLORE) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var detailPostId by remember { mutableStateOf<String?>(null) }
     val exploreUiState by exploreViewModel.uiState.collectAsState()
 
     if (settingsOpen) {
@@ -62,6 +65,19 @@ fun HomeScreen(
             isDarkMode = isDarkMode,
             onToggleDarkMode = onToggleDarkMode,
             onBack = { settingsOpen = false }
+        )
+        return
+    }
+
+    val activePost = detailPostId?.let { id ->
+        (exploreUiState as? ExploreUiState.Success)?.posts?.firstOrNull { it.id == id }
+    }
+    if (activePost != null) {
+        PostDetailScreen(
+            post = activePost,
+            isRsvpd = exploreViewModel.isRsvpd(activePost.id),
+            onBack = { detailPostId = null },
+            onConfirmRsvp = { exploreViewModel.rsvp(activePost.id) }
         )
         return
     }
@@ -102,7 +118,7 @@ fun HomeScreen(
             HomeTab.EXPLORE -> ExploreScreen(
                 uiState = exploreUiState,
                 onRefresh = exploreViewModel::loadPosts,
-                onRsvpClick = { /* TODO: handle RSVP */ },
+                onRsvpClick = { postId -> detailPostId = postId },
                 onSettingsClick = { settingsOpen = true },
                 modifier = Modifier
                     .fillMaxSize()

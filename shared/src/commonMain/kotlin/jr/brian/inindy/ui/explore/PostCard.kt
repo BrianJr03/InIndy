@@ -441,7 +441,7 @@ private fun TagChip(
 }
 
 @Composable
-private fun rememberTickingNowMs(refreshIntervalMs: Long = RELATIVE_TIME_REFRESH_MS): Long {
+internal fun rememberTickingNowMs(refreshIntervalMs: Long = RELATIVE_TIME_REFRESH_MS): Long {
     val now by produceState(initialValue = currentTimeMillis()) {
         while (true) {
             delay(refreshIntervalMs)
@@ -461,7 +461,7 @@ internal fun tagColor(tag: PostTag): Color = when (tag) {
     PostTag.OTHER -> Color(0xFF9E9E9E)
 }
 
-private fun firstTokenOf(displayName: String): String {
+internal fun firstTokenOf(displayName: String): String {
     val trimmed = displayName.trim()
     if (trimmed.isEmpty()) return displayName
     val space = trimmed.indexOf(' ')

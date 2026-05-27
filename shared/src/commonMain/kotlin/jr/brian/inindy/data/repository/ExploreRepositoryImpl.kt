@@ -6,16 +6,41 @@ import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.ExploreRepository
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 
 class ExploreRepositoryImpl : ExploreRepository {
 
-    override fun getPosts(): Flow<Result<List<Post>>> = flow {
+    private val rsvpdPostIds = mutableSetOf<String>()
+    private val postsState = MutableStateFlow(buildInitialPosts())
+
+    override fun getPosts(): Flow<Result<List<Post>>> =
+        postsState.asStateFlow().map { Result.success(it) }
+
+    override suspend fun rsvp(postId: String): Result<Post> {
+        if (postId in rsvpdPostIds) {
+            val existing = postsState.value.firstOrNull { it.id == postId }
+                ?: return Result.failure(IllegalStateException("Post $postId not found"))
+            return Result.success(existing)
+        }
+        val updated = postsState.value.map { post ->
+            if (post.id == postId) post.copy(rsvpCount = post.rsvpCount + 1) else post
+        }
+        val target = updated.firstOrNull { it.id == postId }
+            ?: return Result.failure(IllegalStateException("Post $postId not found"))
+        rsvpdPostIds += postId
+        postsState.value = updated
+        return Result.success(target)
+    }
+
+    override fun isRsvpd(postId: String): Boolean = postId in rsvpdPostIds
+
+    private fun buildInitialPosts(): List<Post> {
         val fifteenMinutesAgo = currentTimeMillis() - 15 * 60_000L
-        val posts = samplePosts.mapIndexed { index, post ->
+        return samplePosts.mapIndexed { index, post ->
             if (index == 0) post.copy(createdAt = fifteenMinutesAgo) else post
         }
-        emit(Result.success(posts))
     }
 
     private companion object {
@@ -41,7 +66,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                     "https://scontent-lhr6-1.xx.fbcdn.net/v/t39.30808-6/707188305_10107786412060083_7223946904420155065_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=110&ccb=1-7&_nc_sid=aa7b47&_nc_ohc=oRiMqJVgfrMQ7kNvwFSMfuE&_nc_oc=AdrKv4kPRRDFV1E3SQ1kf6pmdI5XTw-LEW4oNdG0YmRMLBPEyMLhTtffXipTRhm4Q_g&_nc_zt=23&se=-1&_nc_ht=scontent-lhr6-1.xx&_nc_gid=bDARivlp_CrNula5vr-_0w&_nc_ss=7b2a8&oh=00_Af778BS2bHn38KHOLnf8k_wPr6bgPFJctU570MNbbYCVwA&oe=6A1CD4F1"
                 ),
                 rsvpCount = 12,
-                author = User("u1", "Sarah M.", "https://www.shutterstock.com/image-photo/portrait-happy-confident-smiling-young-600nw-2575711895.jpg")
+                author = User("u1", "Audrea W.", "https://scontent-lhr8-1.cdninstagram.com/v/t51.82787-19/522715287_18510421714020632_8147388195996693606_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDU2LmMyIn0&_nc_ht=scontent-lhr8-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2gHwqiU1pqp7w4C7ZUW644dmOUyF_VrYvB83c03Av56BnbOJuX-65JPi5f_yiRnt_3Y&_nc_ohc=eK5SHrYgn0cQ7kNvwGwz-kK&_nc_gid=pSn6TDr-Nzy5UVWrdHiJUA&edm=AA5fTDYBAAAA&ccb=7-5&oh=00_Af4peqSBIbGyZW4MqaJaBFuxbBwjqGZKsxFv4qEpeEq-1w&oe=6A1D1DAD&_nc_sid=7edfe2")
             ),
             Post(
                 id = "2",

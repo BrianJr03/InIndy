@@ -21,6 +21,17 @@
     <string name="explore_error_title">Something went wrong</string>
     <string name="explore_error_retry">Try again</string>
 
+    <!-- Post detail -->
+    <string name="detail_back_content_description">Back</string>
+    <string name="detail_overview_title">Overview</string>
+    <string name="detail_when_where_title">When &amp; where</string>
+    <string name="detail_whos_in_title">Who's in</string>
+    <string name="detail_ends_label">Ends</string>
+    <string name="detail_map_caption">Approximate location</string>
+    <string name="detail_youre_in_button">You're in! See you there</string>
+    <string name="detail_whos_in_subtitle">folks are joining this one</string>
+    <string name="detail_image_count">%1$d of %2$d</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_back_content_description">Back</string>

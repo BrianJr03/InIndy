@@ -2,14 +2,17 @@ package jr.brian.inindy.presentation.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.usecase.GetExplorePostsUseCase
+import jr.brian.inindy.domain.usecase.RsvpPostUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ExploreViewModel(
-    private val getExplorePosts: GetExplorePostsUseCase
+    private val getExplorePosts: GetExplorePostsUseCase,
+    private val rsvpPost: RsvpPostUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ExploreUiState>(ExploreUiState.Loading)
@@ -30,4 +33,15 @@ class ExploreViewModel(
             }
         }
     }
+
+    fun rsvp(postId: String) {
+        viewModelScope.launch {
+            rsvpPost(postId)
+        }
+    }
+
+    fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
+
+    fun findPost(postId: String): Post? =
+        (_uiState.value as? ExploreUiState.Success)?.posts?.firstOrNull { it.id == postId }
 }
