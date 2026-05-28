@@ -8,6 +8,7 @@ import androidx.compose.ui.viewinterop.UIKitViewController
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
 import platform.AVFoundation.AVPlayer
+import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
@@ -25,19 +26,23 @@ actual fun VideoPlayer(
     autoPlay: Boolean,
     loop: Boolean
 ) {
-    val player = remember(url) {
-        NSURL.URLWithString(url)?.let { AVPlayer(uRL = it) }
+    val playerAndItem = remember(url) {
+        NSURL.URLWithString(url)?.let { nsUrl ->
+            val item = AVPlayerItem(uRL = nsUrl)
+            AVPlayer(playerItem = item) to item
+        }
     }
 
-    DisposableEffect(player, autoPlay, loop) {
-        if (player == null) return@DisposableEffect onDispose {}
+    DisposableEffect(playerAndItem, autoPlay, loop) {
+        if (playerAndItem == null) return@DisposableEffect onDispose {}
+        val (player, item) = playerAndItem
 
         if (autoPlay) player.play()
 
         val observer: Any? = if (loop) {
             NSNotificationCenter.defaultCenter.addObserverForName(
                 name = AVPlayerItemDidPlayToEndTimeNotification,
-                `object` = player.currentItem,
+                `object` = item,
                 queue = null
             ) { _ ->
                 player.seekToTime(kCMTimeZero.readValue())
@@ -55,7 +60,7 @@ actual fun VideoPlayer(
         modifier = modifier,
         factory = {
             AVPlayerViewController().apply {
-                this.player = player
+                this.player = playerAndItem?.first
                 showsPlaybackControls = true
             }
         }

@@ -64,6 +64,7 @@ import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.PostTag
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.model.VideoMedia
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.detail_ends_label
 import jr.brian.inindy.resources.detail_image_count
@@ -85,6 +86,8 @@ import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.ui.icons.PersonIcon
+import jr.brian.inindy.ui.icons.PlayArrowIcon
+import jr.brian.inindy.ui.video.VideoPlayer
 import jr.brian.inindy.util.DateUtil
 import org.jetbrains.compose.resources.stringResource
 
@@ -120,6 +123,7 @@ fun PostDetailScreen(
         ) {
             DetailHero(
                 images = post.images,
+                videos = post.videos,
                 primaryTag = post.tags.firstOrNull() ?: PostTag.OTHER,
                 contentDescription = post.title
             )
@@ -192,10 +196,14 @@ fun PostDetailScreen(
 @Composable
 private fun DetailHero(
     images: List<String>,
+    videos: List<VideoMedia>,
     primaryTag: PostTag,
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
+    val media = images.map { DetailMedia.Image(it) } +
+        videos.map { DetailMedia.Video(it.url, it.thumbnailUrl) }
+
     val scrim = Brush.verticalGradient(
         colors = listOf(
             Color.Black.copy(alpha = 0.55f),
@@ -210,20 +218,27 @@ private fun DetailHero(
             .fillMaxWidth()
             .height(DetailHeroHeight)
     ) {
-        if (images.isEmpty()) {
+        if (media.isEmpty()) {
             TagBackdrop(tag = primaryTag, modifier = Modifier.fillMaxSize())
         } else {
-            val pagerState = rememberPagerState(pageCount = { images.size })
+            val pagerState = rememberPagerState(pageCount = { media.size })
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                AsyncImage(
-                    model = images[page],
-                    contentDescription = contentDescription,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                when (val item = media[page]) {
+                    is DetailMedia.Image -> AsyncImage(
+                        model = item.url,
+                        contentDescription = contentDescription,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    is DetailMedia.Video -> DetailVideoPage(
+                        video = item,
+                        contentDescription = contentDescription,
+                        primaryTag = primaryTag
+                    )
+                }
             }
 
             Box(
@@ -232,7 +247,7 @@ private fun DetailHero(
                     .background(scrim)
             )
 
-            if (images.size > 1) {
+            if (media.size > 1) {
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -246,11 +261,69 @@ private fun DetailHero(
                         text = stringResource(
                             Res.string.detail_image_count,
                             pagerState.currentPage + 1,
-                            images.size
+                            media.size
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+private sealed interface DetailMedia {
+    val url: String
+    data class Image(override val url: String) : DetailMedia
+    data class Video(override val url: String, val thumbnailUrl: String?) : DetailMedia
+}
+
+@Composable
+private fun DetailVideoPage(
+    video: DetailMedia.Video,
+    contentDescription: String,
+    primaryTag: PostTag,
+    modifier: Modifier = Modifier
+) {
+    var playing by remember(video.url) { mutableStateOf(false) }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        if (playing) {
+            VideoPlayer(
+                url = video.url,
+                autoPlay = true,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            if (video.thumbnailUrl != null) {
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = contentDescription,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                TagBackdrop(tag = primaryTag, modifier = Modifier.fillMaxSize())
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.25f))
+                    .clickable { playing = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f)
+                ) {
+                    Icon(
+                        imageVector = PlayArrowIcon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .size(36.dp)
                     )
                 }
             }

@@ -1,24 +1,29 @@
 package jr.brian.inindy.data.local
 
-import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.CFBridgingRelease
-import kotlinx.cinterop.CFBridgingRetain
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.UByteVar
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
-import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFDataCreate
+import platform.CoreFoundation.CFDataGetBytePtr
+import platform.CoreFoundation.CFDataGetLength
+import platform.CoreFoundation.CFDataRef
+import platform.CoreFoundation.CFDictionaryCreateMutable
+import platform.CoreFoundation.CFDictionarySetValue
+import platform.CoreFoundation.CFMutableDictionaryRef
+import platform.CoreFoundation.CFRelease
+import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.CFTypeRefVar
-import platform.Foundation.NSData
-import platform.Foundation.NSMutableDictionary
-import platform.Foundation.NSNumber
-import platform.Foundation.NSString
-import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.create
-import platform.Foundation.dataUsingEncoding
-import platform.Foundation.dictionary
-import platform.Foundation.setObject
+import platform.CoreFoundation.kCFBooleanTrue
+import platform.CoreFoundation.kCFStringEncodingUTF8
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -32,45 +37,65 @@ import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 
-@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@OptIn(ExperimentalForeignApi::class)
 actual class TokenStorage {
 
     actual fun saveToken(token: String) {
         clearToken()
-        val data = (token as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: return
-        val query = baseQuery().apply {
-            setObject(data, forKey = kSecValueData as Any)
+        val bytes = token.encodeToByteArray()
+        bytes.usePinned { pinned ->
+            val cfData = CFDataCreate(
+                null,
+                pinned.addressOf(0).reinterpret<UByteVar>(),
+                bytes.size.convert()
+            )
+            val query = createQuery(data = cfData)
+            SecItemAdd(query, null)
+            CFRelease(query)
+            cfData?.let { CFRelease(it) }
         }
-        val cfQuery = CFBridgingRetain(query) as CFDictionaryRef?
-        SecItemAdd(cfQuery, null)
-        CFBridgingRelease(cfQuery)
     }
 
     actual fun getToken(): String? = memScoped {
-        val query = baseQuery().apply {
-            setObject(NSNumber(bool = true), forKey = kSecReturnData as Any)
-            setObject(kSecMatchLimitOne as Any, forKey = kSecMatchLimit as Any)
-        }
-        val cfQuery = CFBridgingRetain(query) as CFDictionaryRef?
-        val resultVar = alloc<CFTypeRefVar>()
-        val status = SecItemCopyMatching(cfQuery, resultVar.ptr)
-        CFBridgingRelease(cfQuery)
+        val query = createQuery(forRead = true)
+        val result = alloc<CFTypeRefVar>()
+        val status = SecItemCopyMatching(query, result.ptr)
+        CFRelease(query)
         if (status != errSecSuccess) return@memScoped null
-        val nsData = CFBridgingRelease(resultVar.value) as? NSData ?: return@memScoped null
-        NSString.create(nsData, NSUTF8StringEncoding) as String?
+        val resultRef = result.value ?: return@memScoped null
+        val cfData: CFDataRef = resultRef.reinterpret()
+        val length = CFDataGetLength(cfData).toInt()
+        val bytePtr = CFDataGetBytePtr(cfData) ?: run {
+            CFRelease(resultRef)
+            return@memScoped null
+        }
+        val byteArray = bytePtr.reinterpret<ByteVar>().readBytes(length)
+        CFRelease(resultRef)
+        byteArray.decodeToString()
     }
 
     actual fun clearToken() {
-        val query = baseQuery()
-        val cfQuery = CFBridgingRetain(query) as CFDictionaryRef?
-        SecItemDelete(cfQuery)
-        CFBridgingRelease(cfQuery)
+        val query = createQuery()
+        SecItemDelete(query)
+        CFRelease(query)
     }
 
-    private fun baseQuery(): NSMutableDictionary = NSMutableDictionary.dictionary().apply {
-        setObject(kSecClassGenericPassword as Any, forKey = kSecClass as Any)
-        setObject(SERVICE as NSString, forKey = kSecAttrService as Any)
-        setObject(ACCOUNT as NSString, forKey = kSecAttrAccount as Any)
+    private fun createQuery(
+        data: CFDataRef? = null,
+        forRead: Boolean = false
+    ): CFMutableDictionaryRef? {
+        val q = CFDictionaryCreateMutable(null, 0, null, null)
+        CFDictionarySetValue(q, kSecClass, kSecClassGenericPassword)
+        CFDictionarySetValue(q, kSecAttrService, CFStringCreateWithCString(null, SERVICE, kCFStringEncodingUTF8))
+        CFDictionarySetValue(q, kSecAttrAccount, CFStringCreateWithCString(null, ACCOUNT, kCFStringEncodingUTF8))
+        if (data != null) {
+            CFDictionarySetValue(q, kSecValueData, data)
+        }
+        if (forRead) {
+            CFDictionarySetValue(q, kSecReturnData, kCFBooleanTrue)
+            CFDictionarySetValue(q, kSecMatchLimit, kSecMatchLimitOne)
+        }
+        return q
     }
 
     private companion object {

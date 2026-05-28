@@ -11,6 +11,8 @@ plugins {
 }
 
 kotlin {
+    applyDefaultHierarchyTemplate()
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()

@@ -209,3 +209,58 @@ This is the single source of truth — use this extension, never replicate the l
 - `@shared/commonMain/presentation/onboarding/OnboardingViewModel.kt` — onboarding MVI
 - `@shared/commonMain/di/AuthModule.kt` — Koin wiring
 
+## Media
+
+### Photos only — no video at MVP
+- Photos: supported, required for posts (minimum 1, maximum 3)
+- Videos: deferred to v2 — too costly and complex for MVP
+- Never implement video upload without explicit instruction
+
+### Storage stack
+- **Cloudflare R2** — object storage, zero egress fees ($0.015/GB/month writes only)
+- **Cloudflare Images** — CDN + auto-resize ($5/month flat, up to 100k images)
+- Supabase Storage is NOT used for post images — R2 only
+- All public image URLs are Cloudflare CDN URLs — stored in `post_images.storage_url`
+
+### Upload flow
+```
+User picks photo (native picker via expect/actual)
+    ↓
+Compress client-side (expect/actual ImageCompressor)
+    ↓
+Request signed R2 upload URL (Supabase Edge Function)
+    ↓
+Upload directly from device to R2 (never through backend)
+    ↓
+Store CDN URL in post_images table
+    ↓
+Coil loads from CDN URL
+```
+The backend never handles image bytes — only issues signed URLs. Keeps Supabase compute costs low.
+
+### Client-side compression (expect/actual)
+File: `shared/commonMain/data/media/ImageCompressor.kt`
+```kotlin
+expect class ImageCompressor {
+    suspend fun compress(uri: String): ByteArray
+}
+```
+- `androidMain`: `Bitmap.compress()`, JPEG 80%, max 1200px wide
+- `iosMain`: `UIImage.jpegData(compressionQuality: 0.8)`, max 1200px wide
+- Target output: under 1MB per image
+- Never upload uncompressed images
+
+### Cloudflare Image URL pattern
+Always request the appropriate variant via URL params:
+- Feed thumbnail: `?width=600&fit=cover`
+- Detail / full view: `?width=1200&fit=scale-down`
+- Avatar: `?width=200&height=200&fit=cover`
+- Never load full-size images in feed — always use thumbnail variant
+
+### What NOT to do
+- Don't upload images through Supabase Storage — use R2 directly
+- Don't upload uncompressed images — always compress client-side first
+- Don't store raw device URIs in the database — only CDN URLs
+- Don't implement video upload — deferred to v2
+- Don't load full-size images in list/feed views — use Cloudflare resize params
+
