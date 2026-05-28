@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -26,25 +27,26 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import jr.brian.inindy.presentation.explore.ExploreUiState
 import jr.brian.inindy.presentation.explore.ExploreViewModel
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.home_placeholder_create
 import jr.brian.inindy.resources.home_placeholder_events
-import jr.brian.inindy.resources.nav_create
+import jr.brian.inindy.resources.nav_me
 import jr.brian.inindy.resources.nav_events
 import jr.brian.inindy.resources.nav_explore
+import jr.brian.inindy.ui.createpost.CreatePostScreen
 import jr.brian.inindy.ui.explore.ExploreScreen
 import jr.brian.inindy.ui.explore.PostDetailScreen
-import jr.brian.inindy.ui.icons.AddIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
+import jr.brian.inindy.ui.icons.PersonIcon
 import jr.brian.inindy.ui.icons.SearchIcon
+import jr.brian.inindy.ui.me.GroupManagementScreen
+import jr.brian.inindy.ui.me.MeScreen
 import jr.brian.inindy.ui.settings.SettingsScreen
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
-private enum class HomeTab { CREATE, EXPLORE, EVENTS }
+private enum class HomeTab { ME, EXPLORE, EVENTS }
 
 @Composable
 fun HomeScreen(
@@ -55,7 +57,11 @@ fun HomeScreen(
     var selectedTab by remember { mutableStateOf(HomeTab.EXPLORE) }
     var settingsOpen by remember { mutableStateOf(false) }
     var detailPostId by remember { mutableStateOf<String?>(null) }
+    var detailFromMe by remember { mutableStateOf(false) }
+    var createPostOpen by remember { mutableStateOf(false) }
+    var managedGroupId by remember { mutableStateOf<String?>(null) }
     val exploreUiState by exploreViewModel.uiState.collectAsState()
+    val exploreListState = rememberLazyListState()
 
     if (settingsOpen) {
         SettingsScreen(
@@ -66,48 +72,51 @@ fun HomeScreen(
         return
     }
 
-    val activePost = detailPostId?.let { id ->
-        (exploreUiState as? ExploreUiState.Success)?.posts?.firstOrNull { it.id == id }
+    if (createPostOpen) {
+        CreatePostScreen(
+            onClose = { createPostOpen = false },
+            onSubmitted = { createPostOpen = false }
+        )
+        return
     }
-    if (activePost != null) {
+
+    val groupId = managedGroupId
+    if (groupId != null) {
+        GroupManagementScreen(
+            groupId = groupId,
+            onBack = { managedGroupId = null }
+        )
+        return
+    }
+
+    val activePostId = detailPostId
+    if (activePostId != null) {
         PostDetailScreen(
-            post = activePost,
-            isRsvpd = exploreViewModel.isRsvpd(activePost.id),
+            postId = activePostId,
             onBack = { detailPostId = null },
-            onConfirmRsvp = { exploreViewModel.rsvp(activePost.id) },
-            onUnRsvp = { exploreViewModel.unRsvp(activePost.id) }
+            onEdit = { detailPostId = null },
+            allowHostActions = detailFromMe
         )
         return
     }
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                HomeNavItem(
-                    selected = selectedTab == HomeTab.CREATE,
-                    onClick = { selectedTab = HomeTab.CREATE },
-                    icon = AddIcon,
-                    label = Res.string.nav_create
-                )
-                HomeNavItem(
-                    selected = selectedTab == HomeTab.EXPLORE,
-                    onClick = { selectedTab = HomeTab.EXPLORE },
-                    icon = SearchIcon,
-                    label = Res.string.nav_explore
-                )
-                HomeNavItem(
-                    selected = selectedTab == HomeTab.EVENTS,
-                    onClick = { selectedTab = HomeTab.EVENTS },
-                    icon = DateRangeIcon,
-                    label = Res.string.nav_events
-                )
-            }
+            HomeBottomNavBar(
+                selectedTab = selectedTab,
+                onSelect = { selectedTab = it }
+            )
         }
     ) { innerPadding ->
         when (selectedTab) {
-            HomeTab.CREATE -> PlaceholderContent(
-                icon = AddIcon,
-                label = Res.string.home_placeholder_create,
+            HomeTab.ME -> MeScreen(
+                onCreatePostClick = { createPostOpen = true },
+                onPostClick = { postId ->
+                    detailFromMe = true
+                    detailPostId = postId
+                },
+                onGroupClick = { id -> managedGroupId = id },
+                onSettingsClick = { settingsOpen = true },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -115,9 +124,13 @@ fun HomeScreen(
             HomeTab.EXPLORE -> ExploreScreen(
                 uiState = exploreUiState,
                 onRefresh = exploreViewModel::loadPosts,
-                onRsvpClick = { postId -> detailPostId = postId },
+                onRsvpClick = { postId ->
+                    detailFromMe = false
+                    detailPostId = postId
+                },
                 isRsvpd = exploreViewModel::isRsvpd,
                 onSettingsClick = { settingsOpen = true },
+                listState = exploreListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -130,6 +143,33 @@ fun HomeScreen(
                     .padding(innerPadding)
             )
         }
+    }
+}
+
+@Composable
+private fun HomeBottomNavBar(
+    selectedTab: HomeTab,
+    onSelect: (HomeTab) -> Unit
+) {
+    NavigationBar {
+        HomeNavItem(
+            selected = selectedTab == HomeTab.ME,
+            onClick = { onSelect(HomeTab.ME) },
+            icon = PersonIcon,
+            label = Res.string.nav_me
+        )
+        HomeNavItem(
+            selected = selectedTab == HomeTab.EXPLORE,
+            onClick = { onSelect(HomeTab.EXPLORE) },
+            icon = SearchIcon,
+            label = Res.string.nav_explore
+        )
+        HomeNavItem(
+            selected = selectedTab == HomeTab.EVENTS,
+            onClick = { onSelect(HomeTab.EVENTS) },
+            icon = DateRangeIcon,
+            label = Res.string.nav_events
+        )
     }
 }
 

@@ -264,3 +264,39 @@ Always request the appropriate variant via URL params:
 - Don't implement video upload — deferred to v2
 - Don't load full-size images in list/feed views — use Cloudflare resize params
 
+## App navigation structure
+
+### Bottom nav tabs
+```
+[ Me ] [ Explore ] [ Events ]
+```
+- **Me** (index 0) — personal activity hub. Your posts, groups, attendance history, + create post CTA
+- **Explore** (index 1) — neighborhood + group feed. Default selected on first launch after onboarding
+- **Events** (index 2) — Eventbrite-powered curated Indianapolis events
+
+### Me tab screens
+- `MeScreen` — hub with Create CTA, Your Posts, Your Groups, Attendance History sections
+- `CreatePostScreen` — full-screen, pushed from Me CTA. Back returns to Me tab
+- `GroupManagementScreen` — pushed from group card tap. Admin vs member view
+
+### Tab naming rationale
+- "Me" not "Create" or "Profile" — personal hub framing, ownership-first
+- "Explore" — user-generated neighborhood/group posts
+- "Events" — Eventbrite curated events
+
+### V2 features (do not implement now)
+- Draft posts
+- Push notifications
+- Profile edit screen (avatar tap → edit in Me header)
+
+## String resource rules
+- Never escape apostrophes in string resources — plain `'` works fine in CMP composeResources
+- Do NOT use `\'` — it is not needed and will appear as a literal backslash
+- This differs from standard Android `res/values/strings.xml` where escaping is required
+
+## System insets
+- Every new screen's outer Box must include `Modifier.windowInsetsPadding(WindowInsets.safeDrawing)`
+- This ensures top bar buttons sit below the notch/status bar on Android and iOS
+- Scrollable content must clear the home indicator at the bottom
+- Never skip this — missing insets breaks layout on notched and gesture-nav devices
+- Apply to the outermost `Box` or `Scaffold` of every screen, not individual components

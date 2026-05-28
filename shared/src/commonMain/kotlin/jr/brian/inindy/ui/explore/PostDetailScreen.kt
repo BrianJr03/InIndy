@@ -25,6 +25,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,7 +39,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,16 +90,29 @@ import jr.brian.inindy.resources.detail_un_rsvp_dialog_message
 import jr.brian.inindy.resources.detail_un_rsvp_dialog_title
 import jr.brian.inindy.resources.detail_un_rsvp_dismiss
 import jr.brian.inindy.resources.detail_youre_in_button
+import jr.brian.inindy.resources.me_delete_post_confirm
+import jr.brian.inindy.resources.me_delete_post_dialog_message
+import jr.brian.inindy.resources.me_delete_post_dialog_title
+import jr.brian.inindy.resources.me_delete_post_dismiss
 import jr.brian.inindy.resources.post_author_anonymous
+import jr.brian.inindy.resources.post_detail_delete
+import jr.brian.inindy.resources.post_detail_edit
+import jr.brian.inindy.resources.post_detail_loading
+import jr.brian.inindy.resources.post_detail_menu_cd
+import jr.brian.inindy.resources.post_detail_not_found
+import jr.brian.inindy.presentation.post.PostDetailUiState
+import jr.brian.inindy.presentation.post.PostDetailViewModel
 import jr.brian.inindy.ui.components.FloatingBackButton
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
+import jr.brian.inindy.ui.icons.MoreVertIcon
 import jr.brian.inindy.ui.icons.PersonIcon
 import jr.brian.inindy.ui.icons.PlayArrowIcon
 import jr.brian.inindy.ui.video.VideoPlayer
 import jr.brian.inindy.util.DateUtil
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 private val DetailHeroHeight = 320.dp
 private val DetailAvatarSize = 56.dp
@@ -98,17 +121,114 @@ private val DetailMapHeight = 180.dp
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PostDetailScreen(
+    postId: String,
+    onBack: () -> Unit,
+    onEdit: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    allowHostActions: Boolean = false,
+    viewModel: PostDetailViewModel = koinViewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(postId) {
+        viewModel.load(postId)
+    }
+
+    LaunchedEffect(state) {
+        val s = state
+        if (s is PostDetailUiState.Success && s.deleted) onBack()
+    }
+
+    BackHandler(onBack = onBack)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        when (val s = state) {
+            is PostDetailUiState.Loading -> DetailLoadingState()
+            is PostDetailUiState.Error -> DetailErrorState(message = s.message, onBack = onBack)
+            is PostDetailUiState.Success -> if (s.post.id != postId) {
+                DetailLoadingState()
+            } else {
+                PostDetailContent(
+                    post = s.post,
+                    isHost = s.isHost && allowHostActions,
+                    isRsvpd = s.isRsvpd,
+                    onBack = onBack,
+                    onEdit = { onEdit(s.post.id) },
+                    onDelete = viewModel::delete,
+                    onConfirmRsvp = viewModel::rsvp,
+                    onUnRsvp = viewModel::cancelRsvp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailLoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(Res.string.post_detail_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailErrorState(message: String, onBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(Res.string.post_detail_not_found),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(onClick = onBack) { Text("Back") }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun PostDetailContent(
     post: Post,
+    isHost: Boolean,
     isRsvpd: Boolean,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
     onConfirmRsvp: () -> Unit,
     onUnRsvp: () -> Unit,
     modifier: Modifier = Modifier,
     nowMs: Long = rememberTickingNowMs()
 ) {
-    BackHandler(onBack = onBack)
     val accent = tagColor(post.tags.firstOrNull() ?: PostTag.OTHER)
     val scrollState = rememberScrollState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -180,16 +300,155 @@ fun PostDetailScreen(
 
         FloatingBackButton(
             onBack = onBack,
-            modifier = Modifier.align(Alignment.TopCenter)
+            modifier = Modifier.align(Alignment.TopStart)
         )
 
-        StickyRsvpBar(
-            isRsvpd = isRsvpd,
-            accent = accent,
-            onConfirm = onConfirmRsvp,
-            onUnRsvp = onUnRsvp,
-            modifier = Modifier.align(Alignment.BottomCenter)
+        if (isHost) {
+            HostActionsMenu(
+                onEdit = onEdit,
+                onDelete = { showDeleteDialog = true },
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+            HostActionBar(
+                accent = accent,
+                onEdit = onEdit,
+                onDelete = { showDeleteDialog = true },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        } else {
+            StickyRsvpBar(
+                isRsvpd = isRsvpd,
+                accent = accent,
+                onConfirm = onConfirmRsvp,
+                onUnRsvp = onUnRsvp,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(Res.string.me_delete_post_dialog_title)) },
+            text = { Text(stringResource(Res.string.me_delete_post_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text(
+                        text = stringResource(Res.string.me_delete_post_confirm),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(Res.string.me_delete_post_dismiss))
+                }
+            }
         )
+    }
+}
+
+@Composable
+private fun HostActionsMenu(
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier.padding(8.dp)) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            shadowElevation = 6.dp
+        ) {
+            IconButton(onClick = { expanded = true }) {
+                Icon(
+                    imageVector = MoreVertIcon,
+                    contentDescription = stringResource(Res.string.post_detail_menu_cd),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.post_detail_edit)) },
+                onClick = {
+                    expanded = false
+                    onEdit()
+                }
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.post_detail_delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun HostActionBar(
+    accent: Color,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 12.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = stringResource(Res.string.post_detail_delete),
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Button(
+                onClick = onEdit,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = stringResource(Res.string.post_detail_edit),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }
 
@@ -877,7 +1136,7 @@ private fun StickyRsvpBar(
 private fun PostDetailScreenPreview() {
     val createdAt = 1_779_836_400_000L
     MaterialTheme {
-        PostDetailScreen(
+        PostDetailContent(
             post = Post(
                 id = "1",
                 userId = "u1",
@@ -898,8 +1157,11 @@ private fun PostDetailScreenPreview() {
                 rsvpCount = 12,
                 author = User("u1", "Sarah M.", null)
             ),
+            isHost = false,
             isRsvpd = false,
             onBack = {},
+            onEdit = {},
+            onDelete = {},
             onConfirmRsvp = {},
             onUnRsvp = {},
             nowMs = createdAt + 20 * 60_000L
@@ -909,29 +1171,32 @@ private fun PostDetailScreenPreview() {
 
 @Preview
 @Composable
-private fun PostDetailScreenConfirmedPreview() {
+private fun PostDetailScreenHostPreview() {
     val createdAt = 1_779_836_400_000L
     MaterialTheme {
-        PostDetailScreen(
+        PostDetailContent(
             post = Post(
-                id = "2",
-                userId = "u2",
-                title = "Pickup soccer at Garfield Park",
-                description = "Casual game, no skill required. Show up and we'll split teams.",
+                id = "me-1",
+                userId = "me",
+                title = "My Sunday picnic",
+                description = "Bringing a blanket and snacks for everyone.",
                 latitude = 39.7261,
                 longitude = -86.1349,
                 address = "Garfield Park, Indianapolis",
                 startsAt = 1_780_200_000_000L,
                 endsAt = null,
                 createdAt = createdAt,
-                tags = listOf(PostTag.SPORT),
+                tags = listOf(PostTag.PICNIC),
                 images = emptyList(),
                 videos = emptyList(),
                 rsvpCount = 8,
-                author = null
+                author = User("me", "Brian", null)
             ),
-            isRsvpd = true,
+            isHost = true,
+            isRsvpd = false,
             onBack = {},
+            onEdit = {},
+            onDelete = {},
             onConfirmRsvp = {},
             onUnRsvp = {},
             nowMs = createdAt + 45 * 60_000L

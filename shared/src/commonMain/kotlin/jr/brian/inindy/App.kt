@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import jr.brian.inindy.di.appModule
 import jr.brian.inindy.di.authModule
 import jr.brian.inindy.di.platformModule
+import jr.brian.inindy.di.postModule
 import jr.brian.inindy.presentation.root.RootDestination
 import jr.brian.inindy.presentation.root.RootViewModel
 import jr.brian.inindy.ui.auth.AuthNavHost
@@ -37,7 +38,7 @@ fun App(
     var isDarkMode by rememberSaveable { mutableStateOf(systemDark) }
     KoinApplication(application = {
         koinAppDeclaration()
-        modules(appModule, authModule, platformModule)
+        modules(appModule, authModule, postModule, platformModule)
     }) {
         MaterialTheme(
             colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Bottom navigation -->
-    <string name="nav_create">Create</string>
+    <string name="nav_me">Me</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_events">Events</string>
 
@@ -122,4 +122,103 @@
 
     <!-- Splash / loading -->
     <string name="splash_loading">Loading…</string>
+
+    <!-- Me tab -->
+    <string name="me_attendance_rate">%1$d%</string>
+    <string name="me_create_post_cta">+ Create a post</string>
+    <string name="me_section_your_posts">Your Posts</string>
+    <string name="me_section_your_groups">Your Groups</string>
+    <string name="me_section_attendance">Attendance History</string>
+    <string name="me_see_all">See all</string>
+    <string name="me_empty_posts">You haven't posted anything yet</string>
+    <string name="me_empty_groups">Create a group for your crew</string>
+    <string name="me_empty_attendance">Events you attend will show up here</string>
+    <string name="me_create_group_cta">+ Create a group</string>
+    <string name="me_status_upcoming">Upcoming</string>
+    <string name="me_status_past">Past</string>
+    <string name="me_post_rsvp_count">%1$d folks are in</string>
+    <string name="me_role_admin">Admin</string>
+    <string name="me_role_member">Member</string>
+    <string name="me_group_member_count">%1$d members</string>
+    <string name="me_delete_post_dialog_title">Delete this post?</string>
+    <string name="me_delete_post_dialog_message">RSVPs will be canceled. This can't be undone.</string>
+    <string name="me_delete_post_confirm">Delete</string>
+    <string name="me_delete_post_dismiss">Keep it</string>
+
+    <!-- Create post -->
+    <string name="create_post_title">Create a post</string>
+    <string name="create_post_close_cd">Close</string>
+    <string name="create_post_submit">Post</string>
+    <string name="create_post_submitting">Posting…</string>
+    <string name="create_post_section_photos">Photos</string>
+    <string name="create_post_photos_helper">Add up to 3 — pick a great hero shot first.</string>
+    <string name="create_post_add_photo">Add photo</string>
+    <string name="create_post_remove_photo_cd">Remove photo</string>
+    <string name="create_post_section_title">Title</string>
+    <string name="create_post_title_placeholder">What's the plan?</string>
+    <string name="create_post_section_description">Description</string>
+    <string name="create_post_description_placeholder">What's happening? Who should come?</string>
+    <string name="create_post_chars_remaining">%1$d left</string>
+    <string name="create_post_section_location">Location</string>
+    <string name="create_post_use_location">Use my location</string>
+    <string name="create_post_address_placeholder">Search an address</string>
+    <string name="create_post_section_datetime">Date &amp; time</string>
+    <string name="create_post_starts">Starts</string>
+    <string name="create_post_ends">Ends</string>
+    <string name="create_post_pick_date">Pick a date &amp; time</string>
+    <string name="create_post_optional">Optional</string>
+    <string name="create_post_section_audience">Who can see this?</string>
+    <string name="create_post_audience_neighborhood">My neighborhood</string>
+    <string name="create_post_audience_group">A group</string>
+    <string name="create_post_pick_group">Pick a group</string>
+    <string name="create_post_create_new_group">+ Create a new group</string>
+    <string name="create_post_section_tags">Tags</string>
+    <string name="create_post_tags_helper">Pick up to 3 — helps neighbors find your post.</string>
+    <string name="create_post_section_max">Max attendees</string>
+    <string name="create_post_max_no_limit">No limit</string>
+    <string name="create_post_decrease_cd">Decrease</string>
+    <string name="create_post_increase_cd">Increase</string>
+    <string name="create_post_discard_title">Discard post?</string>
+    <string name="create_post_discard_body">You'll lose what you've written.</string>
+    <string name="create_post_discard_confirm">Discard</string>
+    <string name="create_post_discard_dismiss">Keep editing</string>
+    <string name="create_post_success">Posted! Folks will see it shortly.</string>
+
+    <!-- Post detail -->
+    <string name="post_detail_menu_cd">More options</string>
+    <string name="post_detail_edit">Edit post</string>
+    <string name="post_detail_delete">Delete post</string>
+    <string name="post_detail_loading">Loading…</string>
+    <string name="post_detail_not_found">We couldn't find that post.</string>
+    <string name="post_detail_hosted_by">Hosted by %1$s</string>
+
+    <!-- Quick create group -->
+    <string name="quick_group_title">Create a group</string>
+    <string name="quick_group_subtitle">Private circle for your crew.</string>
+    <string name="quick_group_name_label">Group name</string>
+    <string name="quick_group_description_label">What's it about? (optional)</string>
+    <string name="quick_group_create">Create group</string>
+    <string name="quick_group_cancel">Cancel</string>
+
+    <!-- Group management -->
+    <string name="group_back_cd">Back</string>
+    <string name="group_menu_cd">More options</string>
+    <string name="group_members_header">Members (%1$d)</string>
+    <string name="group_pending_header">Pending invites (%1$d)</string>
+    <string name="group_invite_cta">+ Invite members</string>
+    <string name="group_remove_member_cd">Remove member</string>
+    <string name="group_revoke_invite_cd">Revoke invite</string>
+    <string name="group_menu_edit">Edit group info</string>
+    <string name="group_menu_delete">Delete group</string>
+    <string name="group_menu_leave">Leave group</string>
+    <string name="group_delete_dialog_title">Delete this group?</string>
+    <string name="group_delete_dialog_message">Members lose access and every group post is removed. This can't be undone.</string>
+    <string name="group_delete_confirm">Delete group</string>
+    <string name="group_delete_dismiss">Keep group</string>
+    <string name="group_leave_dialog_title">Leave this group?</string>
+    <string name="group_leave_dialog_message">You'll lose access to group posts. You can be re-invited later.</string>
+    <string name="group_leave_confirm">Leave</string>
+    <string name="group_leave_dismiss">Stay</string>
+    <string name="group_invite_link_title">Invite link ready</string>
+    <string name="group_invite_link_dismiss">Done</string>
 </resources>

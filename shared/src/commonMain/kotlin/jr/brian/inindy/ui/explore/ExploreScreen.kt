@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -42,7 +44,8 @@ fun ExploreScreen(
     onRefresh: () -> Unit,
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean = { false },
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         when (uiState) {
@@ -51,7 +54,8 @@ fun ExploreScreen(
                 posts = uiState.posts,
                 onRsvpClick = onRsvpClick,
                 isRsvpd = isRsvpd,
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                listState = listState
             )
             is ExploreUiState.Error -> ExploreErrorContent(
                 message = uiState.message,
@@ -67,10 +71,12 @@ private fun ExplorePostFeed(
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean,
     onSettingsClick: () -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(bottom = 8.dp)
     ) {
         item {

@@ -75,6 +75,7 @@ fun PostCard(
     isRsvpd: Boolean,
     onRsvpClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onCardClick: (String) -> Unit = onRsvpClick,
     nowMs: Long = rememberTickingNowMs()
 ) {
     val displayName = post.author?.fullName
@@ -91,7 +92,8 @@ fun PostCard(
             .padding(
                 horizontal = 16.dp,
                 vertical = 8.dp
-            ),
+            )
+            .clickable { onCardClick(post.id) },
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
