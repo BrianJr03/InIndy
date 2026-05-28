@@ -22,22 +22,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.presentation.explore.ExploreUiState
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.explore_app_title
-import jr.brian.inindy.resources.explore_app_title_accent
 import jr.brian.inindy.resources.explore_error_retry
 import jr.brian.inindy.resources.explore_error_title
 import jr.brian.inindy.resources.explore_settings_content_description
+import jr.brian.inindy.ui.brand.BrandWordmark
 import jr.brian.inindy.ui.icons.SettingsIcon
 import org.jetbrains.compose.resources.stringResource
 
@@ -47,6 +41,7 @@ fun ExploreScreen(
     modifier: Modifier = Modifier,
     onRefresh: () -> Unit,
     onRsvpClick: (String) -> Unit,
+    isRsvpd: (String) -> Boolean = { false },
     onSettingsClick: () -> Unit = {}
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -55,6 +50,7 @@ fun ExploreScreen(
             is ExploreUiState.Success -> ExplorePostFeed(
                 posts = uiState.posts,
                 onRsvpClick = onRsvpClick,
+                isRsvpd = isRsvpd,
                 onSettingsClick = onSettingsClick
             )
             is ExploreUiState.Error -> ExploreErrorContent(
@@ -69,6 +65,7 @@ fun ExploreScreen(
 private fun ExplorePostFeed(
     posts: List<Post>,
     onRsvpClick: (String) -> Unit,
+    isRsvpd: (String) -> Boolean,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -85,6 +82,7 @@ private fun ExplorePostFeed(
         ) { post ->
             PostCard(
                 post = post,
+                isRsvpd = isRsvpd(post.id),
                 onRsvpClick = onRsvpClick
             )
         }
@@ -96,21 +94,6 @@ private fun ExploreHeader(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val fullTitle = stringResource(Res.string.explore_app_title)
-    val accent = stringResource(Res.string.explore_app_title_accent)
-    val accentColor = MaterialTheme.colorScheme.primary
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-
-    val wordmark = buildAnnotatedString {
-        val accentPrefix = if (fullTitle.startsWith(accent)) accent else ""
-        if (accentPrefix.isNotEmpty()) {
-            withStyle(SpanStyle(color = accentColor)) { append(accentPrefix) }
-            append(fullTitle.removePrefix(accentPrefix))
-        } else {
-            withStyle(SpanStyle(color = onSurfaceColor)) { append(fullTitle) }
-        }
-    }
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -118,14 +101,7 @@ private fun ExploreHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = wordmark,
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-0.5).sp
-            ),
-            color = onSurfaceColor
-        )
+        BrandWordmark()
         IconButton(
             onClick = onSettingsClick,
             modifier = Modifier.size(40.dp)

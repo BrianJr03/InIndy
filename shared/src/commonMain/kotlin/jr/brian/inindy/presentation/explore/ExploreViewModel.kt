@@ -40,6 +40,12 @@ class ExploreViewModel(
         }
     }
 
+    fun unRsvp(postId: String) {
+        viewModelScope.launch {
+            rsvpPost.unRsvp(postId)
+        }
+    }
+
     fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
 
     fun findPost(postId: String): Post? =

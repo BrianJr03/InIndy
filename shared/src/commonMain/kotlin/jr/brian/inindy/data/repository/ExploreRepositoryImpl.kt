@@ -3,6 +3,7 @@ package jr.brian.inindy.data.repository
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.PostTag
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.model.VideoMedia
 import jr.brian.inindy.domain.repository.ExploreRepository
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,24 @@ class ExploreRepositoryImpl : ExploreRepository {
         return Result.success(target)
     }
 
+    override suspend fun unRsvp(postId: String): Result<Post> {
+        if (postId !in rsvpdPostIds) {
+            val existing = postsState.value.firstOrNull { it.id == postId }
+                ?: return Result.failure(IllegalStateException("Post $postId not found"))
+            return Result.success(existing)
+        }
+        val updated = postsState.value.map { post ->
+            if (post.id == postId) {
+                post.copy(rsvpCount = (post.rsvpCount - 1).coerceAtLeast(0))
+            } else post
+        }
+        val target = updated.firstOrNull { it.id == postId }
+            ?: return Result.failure(IllegalStateException("Post $postId not found"))
+        rsvpdPostIds -= postId
+        postsState.value = updated
+        return Result.success(target)
+    }
+
     override fun isRsvpd(postId: String): Boolean = postId in rsvpdPostIds
 
     private fun buildInitialPosts(): List<Post> {
@@ -52,7 +71,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 id = "1",
                 userId = "u1",
                 title = "Morning hike at Eagle Creek",
-                description = "Join us for a 5-mile loop through Eagle Creek Park. All skill levels welcome — bring water and snacks!",
+                description = "Join us for a 5-mile loop through Eagle Creek Park. All skill levels welcome. Bring water and snacks!",
                 latitude = 39.8283,
                 longitude = -86.2779,
                 address = "Eagle Creek Park, Indianapolis",
@@ -65,13 +84,14 @@ class ExploreRepositoryImpl : ExploreRepository {
                     "https://scontent-lhr8-2.xx.fbcdn.net/v/t39.30808-6/707406804_10107786395912443_7289282741261028850_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=aa7b47&_nc_ohc=ow66hQadPugQ7kNvwHL2ZFU&_nc_oc=AdoGoKt7icnzPjiUC3-BEal_WSyH308Zkv3pMni4Y1leK4cx_9XQqnOgVoC47H1E1C8&_nc_zt=23&_nc_ht=scontent-lhr8-2.xx&_nc_gid=ns86D6HTF8xagHJWeJTF6g&_nc_ss=7b2a8&oh=00_Af4-yKe9PPlfbRQq37gw-clH4VBd6oH8agXnxKqUIQE3-g&oe=6A1CF9D1",
                     "https://scontent-lhr6-1.xx.fbcdn.net/v/t39.30808-6/707188305_10107786412060083_7223946904420155065_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=110&ccb=1-7&_nc_sid=aa7b47&_nc_ohc=oRiMqJVgfrMQ7kNvwFSMfuE&_nc_oc=AdrKv4kPRRDFV1E3SQ1kf6pmdI5XTw-LEW4oNdG0YmRMLBPEyMLhTtffXipTRhm4Q_g&_nc_zt=23&se=-1&_nc_ht=scontent-lhr6-1.xx&_nc_gid=bDARivlp_CrNula5vr-_0w&_nc_ss=7b2a8&oh=00_Af778BS2bHn38KHOLnf8k_wPr6bgPFJctU570MNbbYCVwA&oe=6A1CD4F1"
                 ),
+                videos = emptyList(),
                 rsvpCount = 12,
                 author = User("u1", "Audrea W.", "https://scontent-lhr8-1.cdninstagram.com/v/t51.82787-19/522715287_18510421714020632_8147388195996693606_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDU2LmMyIn0&_nc_ht=scontent-lhr8-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2gHwqiU1pqp7w4C7ZUW644dmOUyF_VrYvB83c03Av56BnbOJuX-65JPi5f_yiRnt_3Y&_nc_ohc=eK5SHrYgn0cQ7kNvwGwz-kK&_nc_gid=pSn6TDr-Nzy5UVWrdHiJUA&edm=AA5fTDYBAAAA&ccb=7-5&oh=00_Af4peqSBIbGyZW4MqaJaBFuxbBwjqGZKsxFv4qEpeEq-1w&oe=6A1D1DAD&_nc_sid=7edfe2")
             ),
             Post(
                 id = "2",
                 userId = "u2",
-                title = "Indy 5K — Monon Trail",
+                title = "Indy 5K @ Monon Trail",
                 description = "Casual Saturday run along the Monon Trail. We'll meet at the 10th Street trailhead and head north at an easy pace.",
                 latitude = 39.7817,
                 longitude = -86.1567,
@@ -84,14 +104,15 @@ class ExploreRepositoryImpl : ExploreRepository {
                     "https://www.visitindy.com/imager/files_idss_com/C516/DMS_image_3410_e7b4e5d5-5056-854c-b6c0e14aadaa42c5_e45adf5f6bc0c5c2a30a39868f44eab6.jpg",
                     "https://www.railstotrails.org/nitropack_static/pVKvLDLqSrRUaEyiNwEcSJukRyhzZaDI/assets/images/optimized/rev-958f862/www.railstotrails.org/wp-content/uploads/2024/12/Indianas-Monon-Trail_IMG_8344_Photo-by-Robert-Annis.jpg"
                 ),
+                videos = emptyList(),
                 rsvpCount = 8,
                 author = User("u2", "Marcus T.", "https://www.adobe.com/creativecloud/photography/discover/media_131179edca5f92db203e2b78cb8a308605afbc958.png?width=750&format=png&optimize=medium")
             ),
             Post(
                 id = "3",
                 userId = "u3",
-                title = "Community Picnic — Garfield Park",
-                description = "Bring a blanket and your favorite dish for a community potluck. Kids, dogs, and good vibes welcome!",
+                title = "Last Second Picnic!",
+                description = "We're throwing a picnic. Kids, dogs, and good vibes welcome!",
                 latitude = 39.7365,
                 longitude = -86.1425,
                 address = "Garfield Park, Indianapolis",
@@ -104,30 +125,39 @@ class ExploreRepositoryImpl : ExploreRepository {
                     "https://static01.nyt.com/images/2022/07/20/t-magazine/20tmag-mayfield-slide-RNIG/20tmag-mayfield-slide-RNIG-articleLarge.jpg?quality=75&auto=webp&disable=upscale",
 
                 ),
+                videos = emptyList(),
                 rsvpCount = 24,
                 author = User("u3", "Priya K.", "https://qodeinteractive.com/magazine/wp-content/uploads/2019/08/Featured-Stock-1240x623.jpg")
             ),
             Post(
                 id = "4",
                 userId = "u4",
-                title = "Pickup Basketball — Pan Am Plaza",
-                description = "Open run every Sunday morning at Pan Am. Show up and ball. Mixed skill levels, all welcome.",
+                title = "Electric Skateboarding",
+                description = "I'll be hitting the trails today! B&O trail is next!",
                 latitude = 39.7691,
                 longitude = -86.1599,
-                address = "Pan Am Plaza, Indianapolis",
+                address = "B&O Trail on 71st",
                 startsAt = NOW_MS + 4 * 86_400_000L + 8 * 3_600_000L,
                 endsAt = null,
                 createdAt = NOW_MS - 90_000L,
                 tags = listOf(PostTag.SPORT),
-                images = emptyList(),
-                rsvpCount = 6,
-                author = User("u4", "DeShawn W.", null)
+                images = listOf(
+                    "https://www.ridepropel.com/wp-content/uploads/2023/08/Remoteless-Electric-Skateboard1.jpg"
+                ),
+                videos = listOf(
+                    VideoMedia(
+                        url = "https://packaged-media.redd.it/nrnyhmszq0tg1/pb/m2-res_1080p.mp4?m=DASHPlaylist.mpd&var=sgpssan&v=1&e=1779930000&s=cad89802891024b675418b67014c8befac3a097d",
+                        thumbnailUrl = "https://preview.redd.it/gaming-in-a-pinch-v0-vklpmssa1l2h1.jpeg?width=1080&crop=smart&auto=webp&s=a8bb942074243a5a62f3f0762b20b677f9899b3f"
+                    )
+                ),
+                rsvpCount = 2,
+                author = User("u4", "Brian", "https://scontent-lhr6-2.cdninstagram.com/v/t51.2885-19/431616479_700615628948538_2034760349014514351_n.jpg?_nc_cat=105&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy45NjAuQzMifQ%3D%3D&_nc_ohc=JTPUx10jMygQ7kNvwHUrfeH&_nc_oc=AdoWNV3YfvvmX00aCYkXrZK050gZH8ddpm2USKakb1TurGEYy2Z44NidXT3Ujx-QsFY&_nc_zt=24&_nc_ht=scontent-lhr6-2.cdninstagram.com&_nc_ss=7b6a8&oh=00_Af4b9zkCxbX1anrHpwmLFqY1Cy7IqOm7NW1ZrqEOXzHciQ&oe=6A1D3B42")
             ),
             Post(
                 id = "5",
                 userId = "u5",
-                title = "Neighborhood Walk — Broad Ripple",
-                description = "Leisurely walk through Broad Ripple village. We'll stop for coffee and check out local murals. About 3 miles total.",
+                title = "Wine and Walk",
+                description = "Drunkenly walk through Broad Ripple village. About 3 miles total.",
                 latitude = 39.8672,
                 longitude = -86.1414,
                 address = "Broad Ripple Ave, Indianapolis",
@@ -135,9 +165,12 @@ class ExploreRepositoryImpl : ExploreRepository {
                 endsAt = NOW_MS + 5 * 86_400_000L + 13 * 3_600_000L,
                 createdAt = NOW_MS - 5_400_000L,
                 tags = listOf(PostTag.WALK, PostTag.EXPLORE),
-                images = emptyList(),
+                images = listOf(
+                    "https://wineandwalk.hr/wp-content/uploads/2024/09/wine_walk-00636.jpg"
+                ),
+                videos = emptyList(),
                 rsvpCount = 15,
-                author = User("u5", "Jordan L.", null)
+                author = User("u5", "Jordan O.", null)
             )
         )
     }

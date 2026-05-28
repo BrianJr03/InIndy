@@ -1,6 +1,7 @@
 package jr.brian.inindy.ui.explore
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,7 +29,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,18 +47,23 @@ import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.PostTag
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.model.VideoMedia
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.post_author_anonymous
 import jr.brian.inindy.resources.post_im_in_button
 import jr.brian.inindy.resources.post_in_count_label
+import jr.brian.inindy.resources.post_interested_button
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
+import jr.brian.inindy.ui.icons.PlayArrowIcon
+import jr.brian.inindy.ui.video.VideoPlayer
 import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 private const val MAX_POST_IMAGES = 3
+private const val MAX_POST_VIDEOS = 2
 private const val MAX_FOOTER_TAGS = 2
 private const val RELATIVE_TIME_REFRESH_MS = 60_000L
 private val AvatarSize = 48.dp
@@ -63,15 +72,17 @@ private val HeroHeight = 200.dp
 @Composable
 fun PostCard(
     post: Post,
+    isRsvpd: Boolean,
     onRsvpClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     nowMs: Long = rememberTickingNowMs()
 ) {
-    val displayName = post.author?.displayName
+    val displayName = post.author?.fullName
         ?: stringResource(Res.string.post_author_anonymous)
     val firstName = firstTokenOf(displayName)
     val relativeTime = DateUtil.formatRelativeDate(post.createdAt, nowMs)
-    val images = post.images.take(MAX_POST_IMAGES)
+    val media = post.images.take(MAX_POST_IMAGES).map { HeroMedia.Image(it) } +
+        post.videos.take(MAX_POST_VIDEOS).map { HeroMedia.Video(it.url, it.thumbnailUrl) }
     val primaryTag = post.tags.firstOrNull() ?: PostTag.OTHER
 
     ElevatedCard(
@@ -124,7 +135,7 @@ fun PostCard(
             }
 
             PostHero(
-                images = images,
+                media = media,
                 primaryTag = primaryTag,
                 contentDescription = post.title
             )
@@ -139,6 +150,7 @@ fun PostCard(
 
                 FooterRow(
                     tags = post.tags,
+                    isRsvpd = isRsvpd,
                     onRsvpClick = { onRsvpClick(post.id) }
                 )
             }
@@ -238,7 +250,7 @@ private fun Avatar(
 
 @Composable
 private fun PostHero(
-    images: List<String>,
+    media: List<HeroMedia>,
     primaryTag: PostTag,
     contentDescription: String
 ) {
@@ -247,20 +259,27 @@ private fun PostHero(
             .fillMaxWidth()
             .height(HeroHeight)
     ) {
-        if (images.isEmpty()) {
+        if (media.isEmpty()) {
             TagGradientBackground(tag = primaryTag, modifier = Modifier.fillMaxSize())
         } else {
-            val pagerState = rememberPagerState(pageCount = { images.size })
+            val pagerState = rememberPagerState(pageCount = { media.size })
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                AsyncImage(
-                    model = images[page],
-                    contentDescription = contentDescription,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                when (val item = media[page]) {
+                    is HeroMedia.Image -> AsyncImage(
+                        model = item.url,
+                        contentDescription = contentDescription,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    is HeroMedia.Video -> VideoPage(
+                        video = item,
+                        contentDescription = contentDescription,
+                        primaryTag = primaryTag
+                    )
+                }
             }
 
             Box(
@@ -277,14 +296,71 @@ private fun PostHero(
                     )
             )
 
-            if (images.size > 1) {
+            if (media.size > 1) {
                 PageIndicator(
-                    pageCount = images.size,
+                    pageCount = media.size,
                     currentPage = pagerState.currentPage,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 12.dp)
                 )
+            }
+        }
+    }
+}
+
+private sealed interface HeroMedia {
+    val url: String
+    data class Image(override val url: String) : HeroMedia
+    data class Video(override val url: String, val thumbnailUrl: String?) : HeroMedia
+}
+
+@Composable
+private fun VideoPage(
+    video: HeroMedia.Video,
+    contentDescription: String,
+    primaryTag: PostTag
+) {
+    var playing by remember(video.url) { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (playing) {
+            VideoPlayer(
+                url = video.url,
+                autoPlay = true,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            if (video.thumbnailUrl != null) {
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = contentDescription,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                TagGradientBackground(tag = primaryTag, modifier = Modifier.fillMaxSize())
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.25f))
+                    .clickable { playing = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f)
+                ) {
+                    Icon(
+                        imageVector = PlayArrowIcon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .size(36.dp)
+                    )
+                }
             }
         }
     }
@@ -384,6 +460,7 @@ private fun MetaRow(
 @Composable
 private fun FooterRow(
     tags: List<PostTag>,
+    isRsvpd: Boolean,
     onRsvpClick: () -> Unit
 ) {
     Row(
@@ -411,7 +488,10 @@ private fun FooterRow(
             )
         ) {
             Text(
-                text = stringResource(Res.string.post_im_in_button),
+                text = stringResource(
+                    if (isRsvpd) Res.string.post_interested_button
+                    else Res.string.post_im_in_button
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -491,9 +571,20 @@ private fun PostCardPreview() {
                     "https://example.com/photo2.jpg",
                     "https://example.com/photo3.jpg"
                 ),
+                videos = listOf(
+                    VideoMedia(
+                        url = "https://example.com/clip1.mp4",
+                        thumbnailUrl = "https://example.com/clip1-thumb.jpg"
+                    ),
+                    VideoMedia(
+                        url = "https://example.com/clip2.mp4",
+                        thumbnailUrl = null
+                    )
+                ),
                 rsvpCount = 12,
                 author = User("u1", "Sarah M.", null)
             ),
+            isRsvpd = false,
             onRsvpClick = {},
             nowMs = createdAt + 20 * 60_000L
         )
@@ -519,9 +610,11 @@ private fun PostCardNoImagesPreview() {
                 createdAt = createdAt,
                 tags = listOf(PostTag.PICNIC),
                 images = emptyList(),
+                videos = emptyList(),
                 rsvpCount = 4,
                 author = User("u2", "Jordan T.", null)
             ),
+            isRsvpd = true,
             onRsvpClick = {},
             nowMs = createdAt + 3 * 3_600_000L
         )
@@ -547,9 +640,11 @@ private fun PostCardAnonymousPreview() {
                 createdAt = createdAt,
                 tags = listOf(PostTag.SPORT, PostTag.RUN, PostTag.OTHER),
                 images = emptyList(),
+                videos = emptyList(),
                 rsvpCount = 7,
                 author = null
             ),
+            isRsvpd = false,
             onRsvpClick = {},
             nowMs = createdAt + 45 * 60_000L
         )

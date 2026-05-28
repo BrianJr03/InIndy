@@ -1,7 +1,7 @@
 # InIndy — Claude Code Project Memory
 
 ## Project overview
-InIndy is a Kotlin Multiplatform (KMP) + Compose Multiplatform (CMP) social app for Indianapolis.
+InIndy is a Kotlin Multiplatform (CMP) social app for Indianapolis.
 Two-tab structure: user-generated local event posts ("Explore") + curated Eventbrite events ("Events").
 Target: Android + iOS. Backend: Supabase (Postgres + PostGIS + Storage). Auth: Supabase Auth.
 
@@ -44,7 +44,6 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Access via `stringResource(Res.string.key_name)` in all composables
 - Never hardcode user-facing strings in Kotlin files
 - Uses official Compose Multiplatform Resources API (CMP 1.6+)
-- Do not escape apostrophes or any other applicable characters
 
 ## Brand
 - Accent color: TBD — update once finalised
@@ -67,12 +66,39 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Eventbrite models live in `shared/commonMain/data/remote/eventbrite/`
 
 ## Database schema (key tables)
-- `users` — id, display_name, avatar_url, created_at
-- `posts` — id, user_id, title, description, location (PostGIS point), address, starts_at, ends_at, created_at
+
+### Users & identity
+- `users` — id, display_name, full_name, avatar_url, phone_verified, neighborhood_id, created_at
+- `neighborhoods` — id, name, city (default: Indianapolis), slug
+
+### Trust & reputation
+- `user_stats` — user_id (PK), hosted_count, attended_count, rsvp_count, no_show_count, response_rate
+- Attendance rate derived: `attended_count / rsvp_count` — computed, never stored directly
+- `follows` — follower_id, following_id, created_at
+
+### Posts
+- `posts` — id, user_id, group_id (nullable — null = neighborhood post), neighborhood_id, title, description, location (PostGIS point), address, starts_at, ends_at, max_attendees (nullable), created_at
 - `post_images` — id, post_id, storage_url, sort_order
 - `post_tags` — post_id, tag (enum: hike, run, picnic, sport, walk, explore, other)
-- `rsvps` — id, post_id, user_id, created_at
-- Row-level security enabled on all tables — always test queries against anon + authed roles
+- `rsvps` — id, post_id, user_id, status (confirmed/cancelled), created_at
+
+### Groups
+- `groups` — id, name, description, cover_url, created_by, is_open (false = invite-only), created_at
+- `group_members` — group_id, user_id, role (admin/member), joined_at
+- `group_invites` — id, group_id, invited_by, token, expires_at, used_at
+
+### Feed logic
+- Neighborhood feed: posts WHERE group_id IS NULL AND neighborhood_id = user's neighborhood
+- Group feed: posts WHERE group_id = ? AND user is a group_member
+- group_id IS NULL = public neighborhood post; group_id populated = private group post
+- Never expose group posts to non-members under any circumstances
+
+### RLS rules
+- Row-level security enabled on all tables
+- Group posts: only visible to group_members
+- group_invites: only visible to inviter and recipient
+- user_stats: readable by all, writable by DB triggers only
+- Always test queries against anon + authed roles
 
 ## Code style
 - Kotlin idioms: use `data class`, `sealed class`, `object`, extension functions appropriately
@@ -83,6 +109,10 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Compose: stateless composables wherever possible; hoist state to ViewModel
 - Every public composable takes a `modifier: Modifier = Modifier` parameter
 - Every composable has a `@Preview` for both light and dark theme
+
+## Agent behavior
+- Never run build, compile, lint, or test commands automatically
+- Never verify work by building — the developer handles all builds
 
 ## Gradle
 - Version catalog: `gradle/libs.versions.toml` — all deps declared here, never inline
@@ -119,14 +149,63 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Don't hardcode the Indianapolis lat/lng — use a `CityConfig` constant in commonMain
 - Don't hardcode user-facing strings — use `stringResource(Res.string.x)` always
 - Don't hardcode colors, typography, or shapes — use `InIndyTheme` tokens always
-
-## Agent behavior
-- Never run build, compile, lint, or test commands automatically
-- Never verify work by building — the developer handles all builds
+- Don't expose group posts to non-members — enforce at RLS level, not just app level
 
 ## Key files to read first
 - `@shared/commonMain/data/remote/SupabaseClient.kt` — Ktor client setup
 - `@shared/commonMain/domain/model/Post.kt` — core domain model
+- `@shared/commonMain/domain/model/Group.kt` — group model
 - `@shared/commonMain/ui/theme/InIndyTheme.kt` — full theme definition
 - `@shared/commonMain/composeResources/values/strings.xml` — all string resources
 - `@gradle/libs.versions.toml` — all dependency versions
+
+## Auth & onboarding flow
+
+### Navigation routing (root level)
+```
+isSessionValid() == false     → auth_graph (intro → welcome → sign up/in)
+isOnboardingComplete == false → onboarding_graph (profile → neighborhood → interests)
+else                          → main_graph (Explore + Events tabs)
+```
+Always check both gates on app launch and after sign in. Never skip onboarding gate.
+
+### Session
+- Auto sign-in if JWT token is valid on launch — never show auth screen to returning users
+- Token stored via `TokenStorage` expect/actual — `EncryptedSharedPreferences` (Android), Keychain (iOS)
+- `TokenStorage` lives in `shared/commonMain/data/local/TokenStorage.kt`
+
+### Onboarding completion check
+```kotlin
+val User.isOnboardingComplete: Boolean
+    get() = fullName != null && neighborhoodId != null && interests.isNotEmpty()
+```
+This is the single source of truth — use this extension, never replicate the logic elsewhere.
+
+### Auth methods
+- Phone → OTP (6-digit, Supabase handles SMS)
+- Email → magic link (no password — Supabase handles)
+- Google → `SocialAuthProvider` expect/actual → Supabase OAuth
+- Apple → `SocialAuthProvider` expect/actual → Supabase OAuth
+
+### Fake vs real repositories
+- `FakeAuthRepository` — used during development before Supabase is connected
+- `SupabaseAuthRepository` — real implementation, swap in Koin when Supabase is ready
+- Swap location: `shared/commonMain/di/AuthModule.kt` — one line change
+- Never reference `FakeAuthRepository` outside of `AuthModule.kt`
+
+### Social auth
+- Google + Apple SDKs are native — wired via `SocialAuthProvider` expect/actual
+- `androidMain`: uses `CredentialManager` API — requires `GOOGLE_CLIENT_ID` in `local.properties`
+- `iosMain`: uses `ASAuthorizationAppleIDProvider` (Apple) + `GIDSignIn` (Google)
+- ViewModel receives idToken from `SocialAuthProvider`, passes to `AuthRepository` — never handles OAuth directly
+
+### Key auth files
+- `@shared/commonMain/domain/repository/AuthRepository.kt` — interface
+- `@shared/commonMain/domain/repository/OnboardingRepository.kt` — interface
+- `@shared/commonMain/data/repository/FakeAuthRepository.kt` — dev stub
+- `@shared/commonMain/data/local/TokenStorage.kt` — expect/actual token storage
+- `@shared/commonMain/data/social/SocialAuthProvider.kt` — expect/actual social auth
+- `@shared/commonMain/presentation/auth/AuthViewModel.kt` — auth MVI
+- `@shared/commonMain/presentation/onboarding/OnboardingViewModel.kt` — onboarding MVI
+- `@shared/commonMain/di/AuthModule.kt` — Koin wiring
+

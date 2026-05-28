@@ -13,6 +13,7 @@ data class Post(
     val createdAt: Long,
     val tags: List<PostTag>,
     val images: List<String>,
+    val videos: List<VideoMedia>,
     val rsvpCount: Int,
     val author: User?
 )

@@ -12,7 +12,9 @@
     <!-- Post card -->
     <string name="post_author_anonymous">Someone in Indy</string>
     <string name="post_in_count_label">folks are in!</string>
-    <string name="post_im_in_button">I'm in!</string>
+    <string name="post_im_in_button">I'm in! →</string>
+    <string name="post_interested_button">Interested →</string>
+    <string name="post_video_unavailable">Video unavailable on web</string>
 
     <!-- Explore Page -->
     <string name="explore_app_title">InIndy</string>
@@ -30,7 +32,13 @@
     <string name="detail_map_caption">Approximate location</string>
     <string name="detail_youre_in_button">You're in! See you there</string>
     <string name="detail_whos_in_subtitle">folks are joining this one</string>
+    <string name="detail_im_in_button">I'm in!</string>
     <string name="detail_image_count">%1$d of %2$d</string>
+    <string name="detail_un_rsvp_content_description">Cancel your RSVP</string>
+    <string name="detail_un_rsvp_dialog_title">Cancel your RSVP?</string>
+    <string name="detail_un_rsvp_dialog_message">You won't be on the list anymore. You can always RSVP again later.</string>
+    <string name="detail_un_rsvp_confirm">Yes, cancel</string>
+    <string name="detail_un_rsvp_dismiss">Keep me in</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -38,4 +46,80 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_dark_mode_title">Dark mode</string>
     <string name="settings_dark_mode_description">Use the dark theme across the app</string>
+
+    <!-- Intro / splash -->
+    <string name="intro_1_title">Find your people</string>
+    <string name="intro_1_subtitle">Hangs, hikes, runs, and more from neighbors near you.</string>
+    <string name="intro_2_title">Drop a plan</string>
+    <string name="intro_2_subtitle">Post anything you're doing. Folks nearby will jump in.</string>
+    <string name="intro_3_title">Stay connected</string>
+    <string name="intro_3_subtitle">Curated Indy events and neighborhood-only posts, all in one app.</string>
+    <string name="intro_skip">Skip</string>
+    <string name="intro_next">Next</string>
+    <string name="intro_get_started">Get started</string>
+
+    <!-- Welcome -->
+    <string name="welcome_tagline">Your neighborhood, in one tap.</string>
+    <string name="welcome_create_account">Create account</string>
+    <string name="welcome_sign_in">I already have an account</string>
+    <string name="welcome_continue_with_google">Continue with Google</string>
+    <string name="welcome_continue_with_apple">Continue with Apple</string>
+    <string name="welcome_or">or</string>
+    <string name="welcome_legal">By continuing you agree to our Terms &amp; Privacy Policy</string>
+
+    <!-- Sign up entry -->
+    <string name="signup_title">Create your account</string>
+    <string name="signup_subtitle">Choose how you'd like to sign up.</string>
+    <string name="signup_with_phone">Use phone number</string>
+    <string name="signup_with_email">Use email</string>
+    <string name="signin_title">Welcome back</string>
+    <string name="signin_subtitle">Sign in to keep exploring Indy.</string>
+
+    <!-- Phone -->
+    <string name="phone_title">Enter your phone</string>
+    <string name="phone_subtitle">We'll text you a 6-digit code to verify it's you.</string>
+    <string name="phone_field_label">Phone number</string>
+    <string name="phone_country_code_label">Country</string>
+    <string name="phone_continue">Send code</string>
+    <string name="phone_invalid">Enter a valid 10-digit phone number</string>
+
+    <!-- Email -->
+    <string name="email_title">Enter your email</string>
+    <string name="email_subtitle">We'll send you a magic link — no password needed.</string>
+    <string name="email_field_label">Email address</string>
+    <string name="email_continue">Send link</string>
+    <string name="email_invalid">Enter a valid email address</string>
+    <string name="email_link_sent_title">Check your email</string>
+    <string name="email_link_sent_subtitle">We sent a sign-in link to %1$s. Tap it on this device to continue.</string>
+    <string name="email_link_sent_resend">Send another link</string>
+    <string name="email_link_sent_change">Use a different email</string>
+
+    <!-- OTP -->
+    <string name="otp_title">Enter the code</string>
+    <string name="otp_subtitle">Sent to the number ending in %1$s</string>
+    <string name="otp_resend">Resend code</string>
+    <string name="otp_resend_in">Resend in %1$ds</string>
+    <string name="otp_verify">Verify</string>
+    <string name="otp_invalid">That code didn't work. Try again.</string>
+    <string name="otp_hint">Try 123456 for the demo</string>
+
+    <!-- Back -->
+    <string name="auth_back_content_description">Back</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_step_label">Step %1$d of %2$d</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_finish">Finish</string>
+    <string name="onboarding_profile_title">Set up your profile</string>
+    <string name="onboarding_profile_subtitle">Pick a name and photo. You can change these any time.</string>
+    <string name="onboarding_profile_name_label">Your name</string>
+    <string name="onboarding_profile_avatar_add">Add photo</string>
+    <string name="onboarding_neighborhood_title">Pick your neighborhood</string>
+    <string name="onboarding_neighborhood_subtitle">We'll show you posts close to home.</string>
+    <string name="onboarding_interests_title">What are you into?</string>
+    <string name="onboarding_interests_subtitle">Pick a few, and we'll match you with the right hangs.</string>
+    <string name="onboarding_interests_min">Pick at least one</string>
+
+    <!-- Splash / loading -->
+    <string name="splash_loading">Loading…</string>
 </resources>

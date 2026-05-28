@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -33,8 +35,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -42,9 +51,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,10 +72,16 @@ import jr.brian.inindy.resources.detail_overview_title
 import jr.brian.inindy.resources.detail_when_where_title
 import jr.brian.inindy.resources.detail_whos_in_subtitle
 import jr.brian.inindy.resources.detail_whos_in_title
+import jr.brian.inindy.resources.detail_im_in_button
+import jr.brian.inindy.resources.detail_un_rsvp_confirm
+import jr.brian.inindy.resources.detail_un_rsvp_content_description
+import jr.brian.inindy.resources.detail_un_rsvp_dialog_message
+import jr.brian.inindy.resources.detail_un_rsvp_dialog_title
+import jr.brian.inindy.resources.detail_un_rsvp_dismiss
 import jr.brian.inindy.resources.detail_youre_in_button
 import jr.brian.inindy.resources.post_author_anonymous
-import jr.brian.inindy.resources.post_im_in_button
 import jr.brian.inindy.ui.components.FloatingBackButton
+import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.ui.icons.PersonIcon
@@ -75,15 +92,18 @@ private val DetailHeroHeight = 320.dp
 private val DetailAvatarSize = 56.dp
 private val DetailMapHeight = 180.dp
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PostDetailScreen(
     post: Post,
     isRsvpd: Boolean,
     onBack: () -> Unit,
     onConfirmRsvp: () -> Unit,
+    onUnRsvp: () -> Unit,
     modifier: Modifier = Modifier,
     nowMs: Long = rememberTickingNowMs()
 ) {
+    BackHandler(onBack = onBack)
     val accent = tagColor(post.tags.firstOrNull() ?: PostTag.OTHER)
     val scrollState = rememberScrollState()
 
@@ -163,6 +183,7 @@ fun PostDetailScreen(
             isRsvpd = isRsvpd,
             accent = accent,
             onConfirm = onConfirmRsvp,
+            onUnRsvp = onUnRsvp,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -238,7 +259,10 @@ private fun DetailHero(
 }
 
 @Composable
-private fun TagBackdrop(tag: PostTag, modifier: Modifier = Modifier) {
+private fun TagBackdrop(
+    tag: PostTag,
+    modifier: Modifier = Modifier
+) {
     val color = tagColor(tag)
     Box(
         modifier = modifier.background(
@@ -265,7 +289,7 @@ private fun AuthorBlock(
     modifier: Modifier = Modifier
 ) {
     val anonymous = stringResource(Res.string.post_author_anonymous)
-    val displayName = post.author?.displayName ?: anonymous
+    val displayName = post.author?.fullName ?: anonymous
     val firstName = firstTokenOf(displayName)
     val relative = DateUtil.formatRelativeDate(post.createdAt, nowMs)
 
@@ -407,7 +431,7 @@ private fun WhenWhereBlock(
 
 @Composable
 private fun MetaRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     primary: String,
     secondary: String?,
     modifier: Modifier = Modifier
@@ -658,8 +682,11 @@ private fun StickyRsvpBar(
     isRsvpd: Boolean,
     accent: Color,
     onConfirm: () -> Unit,
+    onUnRsvp: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showUnRsvpDialog by remember { mutableStateOf(false) }
+
     Surface(
         modifier = modifier
             .fillMaxWidth(),
@@ -673,36 +700,102 @@ private fun StickyRsvpBar(
         ) {
             Button(
                 onClick = { if (!isRsvpd) onConfirm() },
-                enabled = !isRsvpd,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
                 shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(vertical = 14.dp),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    end = if (isRsvpd) 8.dp else 20.dp,
+                    top = 14.dp,
+                    bottom = 14.dp
+                ),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
-                    contentColor = Color.White,
-                    disabledContainerColor = accent.copy(alpha = 0.75f),
-                    disabledContentColor = Color.White
+                    contentColor = Color.White
                 )
             ) {
                 AnimatedContent(
                     targetState = isRsvpd,
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "rsvp-button"
+                    label = "rsvp-button",
+                    modifier = Modifier.fillMaxWidth()
                 ) { rsvpd ->
-                    Text(
-                        text = stringResource(
-                            if (rsvpd) Res.string.detail_youre_in_button
-                            else Res.string.post_im_in_button
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.5.sp
-                    )
+                    if (rsvpd) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.detail_youre_in_button),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.18f))
+                                    .clickable(onClick = { showUnRsvpDialog = true }),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = CloseIcon,
+                                    contentDescription = stringResource(
+                                        Res.string.detail_un_rsvp_content_description
+                                    ),
+                                    modifier = Modifier.size(18.dp),
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(Res.string.detail_im_in_button),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
+    }
+
+    if (showUnRsvpDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnRsvpDialog = false },
+            title = {
+                Text(text = stringResource(Res.string.detail_un_rsvp_dialog_title))
+            },
+            text = {
+                Text(text = stringResource(Res.string.detail_un_rsvp_dialog_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUnRsvpDialog = false
+                        onUnRsvp()
+                    }
+                ) {
+                    Text(
+                        text = stringResource(Res.string.detail_un_rsvp_confirm),
+                        color = accent,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnRsvpDialog = false }) {
+                    Text(text = stringResource(Res.string.detail_un_rsvp_dismiss))
+                }
+            }
+        )
     }
 }
 
@@ -728,12 +821,14 @@ private fun PostDetailScreenPreview() {
                     "https://example.com/photo1.jpg",
                     "https://example.com/photo2.jpg"
                 ),
+                videos = emptyList(),
                 rsvpCount = 12,
                 author = User("u1", "Sarah M.", null)
             ),
             isRsvpd = false,
             onBack = {},
             onConfirmRsvp = {},
+            onUnRsvp = {},
             nowMs = createdAt + 20 * 60_000L
         )
     }
@@ -758,12 +853,14 @@ private fun PostDetailScreenConfirmedPreview() {
                 createdAt = createdAt,
                 tags = listOf(PostTag.SPORT),
                 images = emptyList(),
+                videos = emptyList(),
                 rsvpCount = 8,
                 author = null
             ),
             isRsvpd = true,
             onBack = {},
             onConfirmRsvp = {},
+            onUnRsvp = {},
             nowMs = createdAt + 45 * 60_000L
         )
     }

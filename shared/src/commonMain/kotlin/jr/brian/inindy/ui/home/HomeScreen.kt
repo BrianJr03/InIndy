@@ -77,7 +77,8 @@ fun HomeScreen(
             post = activePost,
             isRsvpd = exploreViewModel.isRsvpd(activePost.id),
             onBack = { detailPostId = null },
-            onConfirmRsvp = { exploreViewModel.rsvp(activePost.id) }
+            onConfirmRsvp = { exploreViewModel.rsvp(activePost.id) },
+            onUnRsvp = { exploreViewModel.unRsvp(activePost.id) }
         )
         return
     }
@@ -119,6 +120,7 @@ fun HomeScreen(
                 uiState = exploreUiState,
                 onRefresh = exploreViewModel::loadPosts,
                 onRsvpClick = { postId -> detailPostId = postId },
+                isRsvpd = exploreViewModel::isRsvpd,
                 onSettingsClick = { settingsOpen = true },
                 modifier = Modifier
                     .fillMaxSize()
