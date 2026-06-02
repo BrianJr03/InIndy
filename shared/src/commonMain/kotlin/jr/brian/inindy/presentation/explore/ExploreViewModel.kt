@@ -2,6 +2,7 @@ package jr.brian.inindy.presentation.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.toBrandMarkText
@@ -24,23 +25,21 @@ class ExploreViewModel(
     private val postRepository: PostRepository,
     private val rsvpPost: RsvpPostUseCase,
     private val groupRepository: GroupRepository,
-    initialNeighborhoodName: String = DEFAULT_NEIGHBORHOOD_NAME,
-    private val neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
+    private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(
-        ExploreUiState(neighborhoodName = initialNeighborhoodName)
-    )
+    private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
     private val searchQueryFlow = MutableSharedFlow<String>(extraBufferCapacity = 1)
     private var searchJob: Job? = null
     private var feedJob: Job? = null
+    private var neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
 
     init {
         observeSearchQuery()
         loadUserGroups()
-        loadFeed()
+        bootstrap()
     }
 
     fun onIntent(intent: ExploreIntent) {
@@ -102,6 +101,21 @@ class ExploreViewModel(
     fun findPost(postId: String): Post? {
         val feed = _uiState.value.feed
         return (feed as? ExploreUiState.FeedState.Success)?.posts?.firstOrNull { it.id == postId }
+    }
+
+    private fun bootstrap() {
+        viewModelScope.launch {
+            val prefs = currentUserProvider.get()
+            neighborhoodId = prefs.neighborhoodId ?: DEFAULT_NEIGHBORHOOD_ID
+            val neighborhoodName = prefs.neighborhoodName ?: DEFAULT_NEIGHBORHOOD_NAME
+            _uiState.update {
+                it.copy(
+                    neighborhoodName = neighborhoodName,
+                    brandMarkText = it.activeFilter.toBrandMarkText(neighborhoodName)
+                )
+            }
+            loadFeed()
+        }
     }
 
     private fun applyFilter(filter: ExploreFilter) {

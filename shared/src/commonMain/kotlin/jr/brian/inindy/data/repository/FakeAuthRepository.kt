@@ -1,15 +1,17 @@
 package jr.brian.inindy.data.repository
 
 import jr.brian.inindy.data.local.TokenStorage
+import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AuthRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 class FakeAuthRepository(
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    private val userPreferencesStore: UserPreferencesStore
 ) : AuthRepository {
-
-    private var currentUser: User? = null
 
     override suspend fun signUpWithPhone(phone: String): Result<Unit> {
         delay(NETWORK_DELAY_MS)
@@ -32,8 +34,7 @@ class FakeAuthRepository(
             avatarUrl = null,
             phoneVerified = true
         )
-        currentUser = user
-        tokenStorage.saveToken("fake-token-${user.id}")
+        persistSignIn(user)
         return Result.success(user)
     }
 
@@ -45,8 +46,7 @@ class FakeAuthRepository(
             avatarUrl = null,
             phoneVerified = false
         )
-        currentUser = user
-        tokenStorage.saveToken("fake-token-${user.id}")
+        persistSignIn(user)
         return Result.success(user)
     }
 
@@ -58,8 +58,7 @@ class FakeAuthRepository(
             avatarUrl = null,
             phoneVerified = false
         )
-        currentUser = user
-        tokenStorage.saveToken("fake-token-${user.id}")
+        persistSignIn(user)
         return Result.success(user)
     }
 
@@ -71,20 +70,37 @@ class FakeAuthRepository(
             avatarUrl = null,
             phoneVerified = false
         )
-        currentUser = user
-        tokenStorage.saveToken("fake-token-${user.id}")
+        persistSignIn(user)
         return Result.success(user)
     }
 
     override suspend fun signOut(): Result<Unit> {
-        currentUser = null
         tokenStorage.clearToken()
+        userPreferencesStore.clear()
         return Result.success(Unit)
     }
 
-    override suspend fun getCurrentUser(): User? = currentUser
+    override suspend fun getCurrentUser(): User? {
+        val prefs = userPreferencesStore.preferences.first()
+        val userId = prefs.userId ?: return null
+        return User(
+            id = userId,
+            fullName = prefs.fullName,
+            avatarUrl = prefs.avatarUrl,
+            phoneVerified = true,
+            neighborhoodId = prefs.neighborhoodId,
+            interests = prefs.interests.mapNotNull { name ->
+                runCatching { Interest.valueOf(name) }.getOrNull()
+            }
+        )
+    }
 
-    override suspend fun isSessionValid(): Boolean = false
+    override suspend fun isSessionValid(): Boolean = tokenStorage.getToken() != null
+
+    private suspend fun persistSignIn(user: User) {
+        tokenStorage.saveToken("fake-jwt-${user.id}")
+        userPreferencesStore.saveUserId(user.id)
+    }
 
     private companion object {
         const val NETWORK_DELAY_MS = 1_000L

@@ -70,6 +70,7 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.security.crypto)
+            implementation(libs.datastore.preferences.core)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -106,6 +107,7 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
             implementation(libs.sqldelight.native.driver)
+            implementation(libs.datastore.preferences.core)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)

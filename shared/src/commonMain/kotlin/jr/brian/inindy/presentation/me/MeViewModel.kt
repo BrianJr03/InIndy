@@ -2,7 +2,9 @@ package jr.brian.inindy.presentation.me
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreateGroupRequest
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AttendanceRepository
 import jr.brian.inindy.domain.repository.GroupRepository
@@ -17,10 +19,11 @@ import kotlinx.coroutines.launch
 class MeViewModel(
     private val postRepository: PostRepository,
     private val groupRepository: GroupRepository,
-    private val attendanceRepository: AttendanceRepository
+    private val attendanceRepository: AttendanceRepository,
+    private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MeUiState(user = MOCK_USER))
+    private val _uiState = MutableStateFlow(MeUiState())
     val uiState: StateFlow<MeUiState> = _uiState.asStateFlow()
 
     init {
@@ -43,9 +46,22 @@ class MeViewModel(
     fun load() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            val prefs = currentUserProvider.get()
+            val user = User(
+                id = prefs.userId ?: "me",
+                fullName = prefs.fullName,
+                avatarUrl = prefs.avatarUrl,
+                phoneVerified = true,
+                neighborhoodId = prefs.neighborhoodId,
+                interests = prefs.interests.mapNotNull { name ->
+                    runCatching { Interest.valueOf(name) }.getOrNull()
+                }
+            )
             val attendance = attendanceRepository.getAttendanceHistory().getOrDefault(emptyList())
             val rate = attendanceRepository.getAttendanceRate().getOrDefault(0f)
             _uiState.value = _uiState.value.copy(
+                user = user,
+                neighborhoodName = prefs.neighborhoodName ?: _uiState.value.neighborhoodName,
                 attendanceHistory = attendance,
                 attendanceRate = rate,
                 isLoading = false
@@ -77,15 +93,5 @@ class MeViewModel(
                 _uiState.value = _uiState.value.copy(groups = groups)
             }
         }
-    }
-
-    private companion object {
-        val MOCK_USER = User(
-            id = "me",
-            fullName = "Brian",
-            avatarUrl = null,
-            phoneVerified = true,
-            neighborhoodId = "broad-ripple"
-        )
     }
 }

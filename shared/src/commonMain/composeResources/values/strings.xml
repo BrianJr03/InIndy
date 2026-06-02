@@ -9,6 +9,10 @@
     <string name="home_placeholder_create">Create a post</string>
     <string name="home_placeholder_events">Events coming soon</string>
 
+    <!-- Events tab -->
+    <string name="events_title">Events</string>
+    <string name="events_subtitle">Eventbrite events coming soon</string>
+
     <!-- Post card -->
     <string name="post_author_anonymous">Someone in Indy</string>
     <string name="post_in_count_label">folks are in!</string>

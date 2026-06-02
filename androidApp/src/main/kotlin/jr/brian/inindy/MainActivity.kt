@@ -22,9 +22,8 @@ class MainActivity : ComponentActivity() {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
-        val appContext = applicationContext
         setContent {
-            AndroidApp(appContext)
+            AndroidApp()
         }
     }
 }

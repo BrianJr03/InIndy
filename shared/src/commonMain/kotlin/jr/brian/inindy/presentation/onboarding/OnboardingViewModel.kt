@@ -121,14 +121,21 @@ class OnboardingViewModel(
         viewModelScope.launch {
             val snapshot = _uiState.value
             _uiState.value = OnboardingUiState.Loading
-            onboardingRepository.updateInterests(selectedInterests.toList()).fold(
+            val interestsResult = onboardingRepository.updateInterests(selectedInterests.toList())
+            if (interestsResult.isFailure) {
+                _uiState.value = if (snapshot is OnboardingUiState.InterestsStep) {
+                    snapshot.copy(error = interestsResult.exceptionOrNull()?.message ?: "Could not save interests")
+                } else {
+                    OnboardingUiState.Error(
+                        interestsResult.exceptionOrNull()?.message ?: "Could not save interests"
+                    )
+                }
+                return@launch
+            }
+            onboardingRepository.completeOnboarding().fold(
                 onSuccess = { _uiState.value = OnboardingUiState.Complete },
                 onFailure = {
-                    _uiState.value = if (snapshot is OnboardingUiState.InterestsStep) {
-                        snapshot.copy(error = it.message ?: "Could not save interests")
-                    } else {
-                        OnboardingUiState.Error(it.message ?: "Could not save interests")
-                    }
+                    _uiState.value = OnboardingUiState.Error(it.message ?: "Could not finish onboarding")
                 }
             )
         }

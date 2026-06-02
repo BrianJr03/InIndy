@@ -26,7 +26,7 @@ val postModule = module {
     single<MediaRepository> { FakeMediaRepository() }
     single<AddressSearchDataSource> { FakeAddressSearchDataSource() }
     single { LocationProvider() }
-    viewModel { MeViewModel(get(), get(), get()) }
+    viewModel { MeViewModel(get(), get(), get(), get()) }
     viewModel { CreatePostViewModel(get(), get(), get(), get()) }
     viewModel { CreateGroupViewModel(get(), get()) }
     viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get()) }

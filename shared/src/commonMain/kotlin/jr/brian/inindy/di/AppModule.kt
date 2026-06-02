@@ -9,7 +9,7 @@ import jr.brian.inindy.presentation.explore.ExploreViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-val appModule = module {
+val exploreModule = module {
     single<ExploreRepository> { ExploreRepositoryImpl() }
     factory { GetExplorePostsUseCase(get()) }
     factory { RsvpPostUseCase(get()) }
@@ -17,7 +17,17 @@ val appModule = module {
         ExploreViewModel(
             postRepository = get<PostRepository>(),
             rsvpPost = get(),
-            groupRepository = get()
+            groupRepository = get(),
+            currentUserProvider = get()
         )
     }
 }
+
+val appModules: List<org.koin.core.module.Module> = listOf(
+    platformModule,
+    coreModule,
+    authModule,
+    postModule,
+    exploreModule,
+    appViewModelModule
+)

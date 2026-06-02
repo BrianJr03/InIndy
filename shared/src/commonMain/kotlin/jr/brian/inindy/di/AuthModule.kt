@@ -6,14 +6,12 @@ import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.OnboardingRepository
 import jr.brian.inindy.presentation.auth.AuthViewModel
 import jr.brian.inindy.presentation.onboarding.OnboardingViewModel
-import jr.brian.inindy.presentation.root.RootViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val authModule = module {
-    single<AuthRepository> { FakeAuthRepository(get()) }
-    single<OnboardingRepository> { FakeOnboardingRepository() }
+    single<AuthRepository> { FakeAuthRepository(get(), get()) }
+    single<OnboardingRepository> { FakeOnboardingRepository(get()) }
     viewModel { AuthViewModel(get(), get()) }
     viewModel { OnboardingViewModel(get()) }
-    viewModel { RootViewModel(get()) }
 }
