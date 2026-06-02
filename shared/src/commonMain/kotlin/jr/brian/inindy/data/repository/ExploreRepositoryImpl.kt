@@ -55,6 +55,16 @@ class ExploreRepositoryImpl : ExploreRepository {
 
     override fun isRsvpd(postId: String): Boolean = postId in rsvpdPostIds
 
+    override suspend fun getAttendees(postId: String): Result<List<User>> {
+        val post = postsState.value.firstOrNull { it.id == postId }
+            ?: return Result.failure(IllegalStateException("Post $postId not found"))
+        val pool = attendeePool
+        val seed = postId.hashCode()
+        val rotated = pool.indices.map { i -> pool[((i + seed) % pool.size + pool.size) % pool.size] }
+        val list = rotated.take(post.rsvpCount.coerceAtMost(pool.size))
+        return Result.success(list)
+    }
+
     private fun buildInitialPosts(): List<Post> {
         val fifteenMinutesAgo = currentTimeMillis() - 15 * 60_000L
         return samplePosts.mapIndexed { index, post ->
@@ -65,6 +75,21 @@ class ExploreRepositoryImpl : ExploreRepository {
     private companion object {
         // May 27, 2026 00:00 UTC
         private const val NOW_MS = 1_779_840_000_000L
+
+        val attendeePool = listOf(
+            User("a1", "Audrea W.", "https://i.pravatar.cc/200?img=47"),
+            User("a2", "Marcus T.", "https://i.pravatar.cc/200?img=12"),
+            User("a3", "Priya K.", "https://i.pravatar.cc/200?img=32"),
+            User("a4", "Jordan O.", "https://i.pravatar.cc/200?img=15"),
+            User("a5", "Sam R.", "https://i.pravatar.cc/200?img=51"),
+            User("a6", "Lena H.", "https://i.pravatar.cc/200?img=44"),
+            User("a7", "Diego C.", "https://i.pravatar.cc/200?img=11"),
+            User("a8", "Maya P.", "https://i.pravatar.cc/200?img=20"),
+            User("a9", "Theo B.", "https://i.pravatar.cc/200?img=33"),
+            User("a10", "Ash N.", null),
+            User("a11", "Riley J.", "https://i.pravatar.cc/200?img=26"),
+            User("a12", "Casey D.", null)
+        )
 
         val samplePosts = listOf(
             Post(

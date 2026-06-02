@@ -126,10 +126,7 @@ fun CreatePostScreen(
     var showQuickGroupSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.submitted) {
-        if (state.submitted) {
-            onSubmitted()
-            viewModel.resetAfterSubmit()
-        }
+        if (state.submitted) onSubmitted()
     }
 
     val handleClose: () -> Unit = {

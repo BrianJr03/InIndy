@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -81,6 +83,9 @@ import jr.brian.inindy.resources.detail_image_count
 import jr.brian.inindy.resources.detail_map_caption
 import jr.brian.inindy.resources.detail_overview_title
 import jr.brian.inindy.resources.detail_when_where_title
+import jr.brian.inindy.resources.detail_attendees_dialog_close
+import jr.brian.inindy.resources.detail_attendees_dialog_title
+import jr.brian.inindy.resources.detail_attendees_empty
 import jr.brian.inindy.resources.detail_whos_in_subtitle
 import jr.brian.inindy.resources.detail_whos_in_title
 import jr.brian.inindy.resources.detail_im_in_button
@@ -150,20 +155,19 @@ fun PostDetailScreen(
         when (val s = state) {
             is PostDetailUiState.Loading -> DetailLoadingState()
             is PostDetailUiState.Error -> DetailErrorState(message = s.message, onBack = onBack)
-            is PostDetailUiState.Success -> if (s.post.id != postId) {
-                DetailLoadingState()
-            } else {
-                PostDetailContent(
-                    post = s.post,
-                    isHost = s.isHost && allowHostActions,
-                    isRsvpd = s.isRsvpd,
-                    onBack = onBack,
-                    onEdit = { onEdit(s.post.id) },
-                    onDelete = viewModel::delete,
-                    onConfirmRsvp = viewModel::rsvp,
-                    onUnRsvp = viewModel::cancelRsvp
-                )
-            }
+            is PostDetailUiState.Success -> PostDetailContent(
+                post = s.post,
+                isHost = s.isHost && allowHostActions,
+                isRsvpd = s.isRsvpd,
+                attendees = s.attendees,
+                attendeesLoading = s.attendeesLoading,
+                onBack = onBack,
+                onEdit = { onEdit(s.post.id) },
+                onDelete = viewModel::delete,
+                onConfirmRsvp = viewModel::rsvp,
+                onUnRsvp = viewModel::cancelRsvp,
+                onLoadAttendees = viewModel::loadAttendees
+            )
         }
     }
 }
@@ -224,11 +228,15 @@ private fun PostDetailContent(
     onConfirmRsvp: () -> Unit,
     onUnRsvp: () -> Unit,
     modifier: Modifier = Modifier,
-    nowMs: Long = rememberTickingNowMs()
+    nowMs: Long = rememberTickingNowMs(),
+    attendees: List<User> = emptyList(),
+    attendeesLoading: Boolean = false,
+    onLoadAttendees: () -> Unit = {}
 ) {
     val accent = tagColor(post.tags.firstOrNull() ?: PostTag.OTHER)
     val scrollState = rememberScrollState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAttendeesDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -293,7 +301,11 @@ private fun PostDetailContent(
                 SectionLabel(text = stringResource(Res.string.detail_whos_in_title))
                 WhosInStat(
                     rsvpCount = post.rsvpCount,
-                    accent = accent
+                    accent = accent,
+                    onClick = {
+                        showAttendeesDialog = true
+                        onLoadAttendees()
+                    }
                 )
             }
         }
@@ -348,6 +360,14 @@ private fun PostDetailContent(
                     Text(stringResource(Res.string.me_delete_post_dismiss))
                 }
             }
+        )
+    }
+
+    if (showAttendeesDialog) {
+        AttendeesDialog(
+            attendees = attendees,
+            loading = attendeesLoading,
+            onDismiss = { showAttendeesDialog = false }
         )
     }
 }
@@ -959,13 +979,15 @@ private fun MapPin(
 private fun WhosInStat(
     rsvpCount: Int,
     accent: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(accent.copy(alpha = 0.10f))
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -1128,6 +1150,122 @@ private fun StickyRsvpBar(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun AttendeesDialog(
+    attendees: List<User>,
+    loading: Boolean,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.detail_attendees_dialog_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp, max = 360.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    loading -> CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    attendees.isEmpty() -> Text(
+                        text = stringResource(Res.string.detail_attendees_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(attendees, key = { it.id }) { user ->
+                            AttendeeRow(user = user)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.detail_attendees_dialog_close),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun AttendeeRow(
+    user: User,
+    modifier: Modifier = Modifier
+) {
+    val anonymous = stringResource(Res.string.post_author_anonymous)
+    val displayName = user.fullName ?: anonymous
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AttendeeAvatar(name = displayName, avatarUrl = user.avatarUrl)
+        Text(
+            text = displayName,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun AttendeeAvatar(
+    name: String,
+    avatarUrl: String?,
+    modifier: Modifier = Modifier
+) {
+    val size = 40.dp
+    if (!avatarUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = avatarUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+        )
+    } else {
+        val initial = name.firstOrNull()?.uppercase() ?: "?"
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }
 

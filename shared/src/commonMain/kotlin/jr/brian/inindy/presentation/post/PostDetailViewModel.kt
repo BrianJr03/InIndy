@@ -21,11 +21,7 @@ class PostDetailViewModel(
 
     fun load(postId: String) {
         viewModelScope.launch {
-            val current = _uiState.value
-            val alreadyLoaded = current is PostDetailUiState.Success && current.post.id == postId
-            if (!alreadyLoaded) {
-                _uiState.value = PostDetailUiState.Loading
-            }
+            _uiState.value = PostDetailUiState.Loading
             val post = postRepository.getPostById(postId).getOrNull()
                 ?: findInExplore(postId)
             if (post == null) {
@@ -69,6 +65,17 @@ class PostDetailViewModel(
                 .onFailure {
                     _uiState.value = current.copy(isDeleting = false)
                 }
+        }
+    }
+
+    fun loadAttendees() {
+        val current = _uiState.value as? PostDetailUiState.Success ?: return
+        if (current.attendees.isNotEmpty() || current.attendeesLoading) return
+        viewModelScope.launch {
+            _uiState.value = current.copy(attendeesLoading = true)
+            val result = exploreRepository.getAttendees(current.post.id).getOrDefault(emptyList())
+            val latest = _uiState.value as? PostDetailUiState.Success ?: return@launch
+            _uiState.value = latest.copy(attendees = result, attendeesLoading = false)
         }
     }
 

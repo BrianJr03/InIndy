@@ -173,10 +173,6 @@ class CreatePostViewModel(
         _uiState.value = _uiState.value.copy(submitError = null)
     }
 
-    fun resetAfterSubmit() {
-        _uiState.value = CreatePostUiState(userGroups = _uiState.value.userGroups)
-    }
-
     fun submit() {
         val state = _uiState.value
         val validated = state.withValidationErrors()

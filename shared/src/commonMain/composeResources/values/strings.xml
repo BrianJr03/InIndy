@@ -32,6 +32,9 @@
     <string name="detail_map_caption">Approximate location</string>
     <string name="detail_youre_in_button">You're in! See you there</string>
     <string name="detail_whos_in_subtitle">folks are joining this one</string>
+    <string name="detail_attendees_dialog_title">Who's in</string>
+    <string name="detail_attendees_dialog_close">Close</string>
+    <string name="detail_attendees_empty">No one has RSVPd yet</string>
     <string name="detail_im_in_button">I'm in!</string>
     <string name="detail_image_count">%1$d of %2$d</string>
     <string name="detail_un_rsvp_content_description">Cancel your RSVP</string>
