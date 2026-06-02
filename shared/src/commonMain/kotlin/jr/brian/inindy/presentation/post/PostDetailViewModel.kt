@@ -38,18 +38,26 @@ class PostDetailViewModel(
 
     fun rsvp() {
         val current = _uiState.value as? PostDetailUiState.Success ?: return
+        if (current.isRsvpd) return
         viewModelScope.launch {
-            exploreRepository.rsvp(current.post.id).onSuccess { updated ->
-                _uiState.value = current.copy(post = updated, isRsvpd = true)
+            exploreRepository.rsvp(current.post.id).onSuccess {
+                _uiState.value = current.copy(
+                    post = current.post.copy(rsvpCount = current.post.rsvpCount + 1),
+                    isRsvpd = true
+                )
             }
         }
     }
 
     fun cancelRsvp() {
         val current = _uiState.value as? PostDetailUiState.Success ?: return
+        if (!current.isRsvpd) return
         viewModelScope.launch {
-            exploreRepository.unRsvp(current.post.id).onSuccess { updated ->
-                _uiState.value = current.copy(post = updated, isRsvpd = false)
+            exploreRepository.unRsvp(current.post.id).onSuccess {
+                _uiState.value = current.copy(
+                    post = current.post.copy(rsvpCount = (current.post.rsvpCount - 1).coerceAtLeast(0)),
+                    isRsvpd = false
+                )
             }
         }
     }

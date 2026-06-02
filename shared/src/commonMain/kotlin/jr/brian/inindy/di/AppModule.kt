@@ -2,6 +2,7 @@ package jr.brian.inindy.di
 
 import jr.brian.inindy.data.repository.ExploreRepositoryImpl
 import jr.brian.inindy.domain.repository.ExploreRepository
+import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.GetExplorePostsUseCase
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
 import jr.brian.inindy.presentation.explore.ExploreViewModel
@@ -12,5 +13,11 @@ val appModule = module {
     single<ExploreRepository> { ExploreRepositoryImpl() }
     factory { GetExplorePostsUseCase(get()) }
     factory { RsvpPostUseCase(get()) }
-    viewModel { ExploreViewModel(get(), get()) }
+    viewModel {
+        ExploreViewModel(
+            postRepository = get<PostRepository>(),
+            rsvpPost = get(),
+            groupRepository = get()
+        )
+    }
 }

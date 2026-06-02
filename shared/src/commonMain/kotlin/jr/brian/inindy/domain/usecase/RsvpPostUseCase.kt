@@ -1,10 +1,9 @@
 package jr.brian.inindy.domain.usecase
 
-import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.repository.ExploreRepository
 
 class RsvpPostUseCase(private val repository: ExploreRepository) {
-    suspend operator fun invoke(postId: String): Result<Post> = repository.rsvp(postId)
-    suspend fun unRsvp(postId: String): Result<Post> = repository.unRsvp(postId)
+    suspend operator fun invoke(postId: String): Result<Unit> = repository.rsvp(postId)
+    suspend fun unRsvp(postId: String): Result<Unit> = repository.unRsvp(postId)
     fun isRsvpd(postId: String): Boolean = repository.isRsvpd(postId)
 }

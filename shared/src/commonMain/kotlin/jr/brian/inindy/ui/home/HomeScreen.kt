@@ -38,6 +38,7 @@ import jr.brian.inindy.resources.home_placeholder_events
 import jr.brian.inindy.resources.nav_me
 import jr.brian.inindy.resources.nav_events
 import jr.brian.inindy.resources.nav_explore
+import jr.brian.inindy.ui.creategroup.CreateGroupScreen
 import jr.brian.inindy.ui.createpost.CreatePostScreen
 import jr.brian.inindy.ui.explore.ExploreScreen
 import jr.brian.inindy.ui.explore.PostDetailScreen
@@ -64,6 +65,7 @@ fun HomeScreen(
     var detailPostId by remember { mutableStateOf<String?>(null) }
     var detailFromMe by remember { mutableStateOf(false) }
     var createPostOpen by remember { mutableStateOf(false) }
+    var createGroupOpen by remember { mutableStateOf(false) }
     var managedGroupId by remember { mutableStateOf<String?>(null) }
     val exploreUiState by exploreViewModel.uiState.collectAsState()
     val exploreListState = rememberLazyListState()
@@ -84,6 +86,19 @@ fun HomeScreen(
             CreatePostScreen(
                 onClose = { createPostOpen = false },
                 onSubmitted = { createPostOpen = false }
+            )
+        }
+        return
+    }
+
+    if (createGroupOpen) {
+        ScopedScreen {
+            CreateGroupScreen(
+                onClose = { createGroupOpen = false },
+                onCreated = { newGroupId ->
+                    createGroupOpen = false
+                    managedGroupId = newGroupId
+                }
             )
         }
         return
@@ -124,6 +139,7 @@ fun HomeScreen(
         when (selectedTab) {
             HomeTab.ME -> MeScreen(
                 onCreatePostClick = { createPostOpen = true },
+                onCreateGroupClick = { createGroupOpen = true },
                 onPostClick = { postId ->
                     detailFromMe = true
                     detailPostId = postId
@@ -136,6 +152,7 @@ fun HomeScreen(
             )
             HomeTab.EXPLORE -> ExploreScreen(
                 uiState = exploreUiState,
+                onIntent = exploreViewModel::onIntent,
                 onRefresh = exploreViewModel::loadPosts,
                 onRsvpClick = { postId ->
                     detailFromMe = false
@@ -166,23 +183,25 @@ private fun HomeBottomNavBar(
 ) {
     NavigationBar {
         HomeNavItem(
-            selected = selectedTab == HomeTab.ME,
-            onClick = { onSelect(HomeTab.ME) },
-            icon = PersonIcon,
-            label = Res.string.nav_me
-        )
-        HomeNavItem(
             selected = selectedTab == HomeTab.EXPLORE,
             onClick = { onSelect(HomeTab.EXPLORE) },
             icon = SearchIcon,
             label = Res.string.nav_explore
         )
+
         HomeNavItem(
-            selected = selectedTab == HomeTab.EVENTS,
-            onClick = { onSelect(HomeTab.EVENTS) },
-            icon = DateRangeIcon,
-            label = Res.string.nav_events
+            selected = selectedTab == HomeTab.ME,
+            onClick = { onSelect(HomeTab.ME) },
+            icon = PersonIcon,
+            label = Res.string.nav_me
         )
+
+//        HomeNavItem(
+//            selected = selectedTab == HomeTab.EVENTS,
+//            onClick = { onSelect(HomeTab.EVENTS) },
+//            icon = DateRangeIcon,
+//            label = Res.string.nav_events
+//        )
     }
 }
 

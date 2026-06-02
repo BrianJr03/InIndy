@@ -23,6 +23,22 @@
     <string name="explore_error_title">Something went wrong</string>
     <string name="explore_error_retry">Try again</string>
 
+    <!-- Explore filter -->
+    <string name="explore_filter_arrow_cd">Filter feed</string>
+    <string name="explore_filter_option_all">All posts</string>
+    <string name="explore_filter_option_search_groups">Search Groups</string>
+    <string name="explore_filter_search_title">Find a group</string>
+    <string name="explore_filter_search_close_cd">Close group search</string>
+    <string name="explore_filter_search_placeholder">Search groups</string>
+    <string name="explore_filter_section_your_groups">YOUR GROUPS</string>
+    <string name="explore_filter_section_all_groups">ALL GROUPS</string>
+    <string name="explore_filter_group_member_count">%1$d members</string>
+    <string name="explore_filter_group_search_empty">No groups match that search</string>
+    <string name="explore_filter_check_cd">Active filter</string>
+    <string name="explore_feed_empty_all">Nothing happening nearby yet — be the first to post!</string>
+    <string name="explore_feed_empty_neighborhood">No posts in your neighborhood yet</string>
+    <string name="explore_feed_empty_group">No posts in this group yet</string>
+
     <!-- Post detail -->
     <string name="detail_back_content_description">Back</string>
     <string name="detail_overview_title">Overview</string>
@@ -52,7 +68,7 @@
 
     <!-- Intro / splash -->
     <string name="intro_1_title">Find your people</string>
-    <string name="intro_1_subtitle">Hangs, hikes, runs, and more from neighbors near you.</string>
+    <string name="intro_1_subtitle">Hikes, runs, and many more activities with folks near you.</string>
     <string name="intro_2_title">Drop a plan</string>
     <string name="intro_2_subtitle">Post anything you're doing. Folks nearby will jump in.</string>
     <string name="intro_3_title">Stay connected</string>
@@ -62,7 +78,7 @@
     <string name="intro_get_started">Get started</string>
 
     <!-- Welcome -->
-    <string name="welcome_tagline">Your neighborhood, in one tap.</string>
+    <string name="welcome_tagline">Discover what's going on InIndy.</string>
     <string name="welcome_create_account">Create account</string>
     <string name="welcome_sign_in">I already have an account</string>
     <string name="welcome_continue_with_google">Continue with Google</string>
@@ -120,7 +136,7 @@
     <string name="onboarding_neighborhood_title">Pick your neighborhood</string>
     <string name="onboarding_neighborhood_subtitle">We'll show you posts close to home.</string>
     <string name="onboarding_interests_title">What are you into?</string>
-    <string name="onboarding_interests_subtitle">Pick a few, and we'll match you with the right hangs.</string>
+    <string name="onboarding_interests_subtitle">Pick a few, and we'll match you with the right folks.</string>
     <string name="onboarding_interests_min">Pick at least one</string>
 
     <!-- Splash / loading -->
@@ -224,4 +240,24 @@
     <string name="group_leave_dismiss">Stay</string>
     <string name="group_invite_link_title">Invite link ready</string>
     <string name="group_invite_link_dismiss">Done</string>
+
+    <!-- Create group -->
+    <string name="create_group_title">Create Group</string>
+    <string name="create_group_close_cd">Close</string>
+    <string name="create_group_submit">Create</string>
+    <string name="create_group_submitting">Creating…</string>
+    <string name="create_group_cover_label">Cover photo</string>
+    <string name="create_group_cover_optional">Optional</string>
+    <string name="create_group_cover_cta">Add a cover photo</string>
+    <string name="create_group_cover_hint">Pick something that captures the vibe</string>
+    <string name="create_group_cover_remove_cd">Remove cover photo</string>
+    <string name="create_group_name_label">Group name</string>
+    <string name="create_group_name_required">*</string>
+    <string name="create_group_name_placeholder">Trail runners, park crew, weekend warriors…</string>
+    <string name="create_group_name_error">Group name must be at least 3 characters</string>
+    <string name="create_group_description_label">Description</string>
+    <string name="create_group_description_optional">Optional</string>
+    <string name="create_group_description_placeholder">What's this group about? Who should join?</string>
+    <string name="create_group_char_counter">%1$d / %2$d</string>
+    <string name="create_group_loading_label">Bringing your crew together…</string>
 </resources>

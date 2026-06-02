@@ -37,7 +37,7 @@ class FakeAttendanceRepository : AttendanceRepository {
                 postId = "att-4",
                 postTitle = "Eagle Creek dawn hike",
                 postImageUrl = "https://www.visitindy.com/imager/files_idss_com/C516/DMS_image_3410_e7b4e5d5-5056-854c-b6c0e14aadaa42c5_e45adf5f6bc0c5c2a30a39868f44eab6.jpg",
-                hostName = "Audrea W.",
+                hostName = "Michelle W.",
                 attendedAt = now - 18 * day
             ),
             AttendanceRecord(

@@ -1,5 +1,10 @@
 package jr.brian.inindy.ui.explore
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -27,13 +33,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.domain.model.Post
+import jr.brian.inindy.presentation.explore.ExploreIntent
 import jr.brian.inindy.presentation.explore.ExploreUiState
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.explore_error_retry
 import jr.brian.inindy.resources.explore_error_title
+import jr.brian.inindy.resources.explore_feed_empty_all
+import jr.brian.inindy.resources.explore_feed_empty_group
+import jr.brian.inindy.resources.explore_feed_empty_neighborhood
 import jr.brian.inindy.resources.explore_settings_content_description
-import jr.brian.inindy.ui.brand.BrandWordmark
 import jr.brian.inindy.ui.icons.SettingsIcon
 import org.jetbrains.compose.resources.stringResource
 
@@ -41,6 +51,7 @@ import org.jetbrains.compose.resources.stringResource
 fun ExploreScreen(
     uiState: ExploreUiState,
     modifier: Modifier = Modifier,
+    onIntent: (ExploreIntent) -> Unit,
     onRefresh: () -> Unit,
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean = { false },
@@ -48,29 +59,74 @@ fun ExploreScreen(
     listState: LazyListState = rememberLazyListState()
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        when (uiState) {
-            is ExploreUiState.Loading -> ExploreLoadingContent(Modifier.align(Alignment.Center))
-            is ExploreUiState.Success -> ExplorePostFeed(
-                posts = uiState.posts,
-                onRsvpClick = onRsvpClick,
-                isRsvpd = isRsvpd,
-                onSettingsClick = onSettingsClick,
-                listState = listState
+        Column(modifier = Modifier.fillMaxSize()) {
+            ExploreHeader(
+                uiState = uiState,
+                onIntent = onIntent,
+                onSettingsClick = onSettingsClick
             )
-            is ExploreUiState.Error -> ExploreErrorContent(
-                message = uiState.message,
-                onRetry = onRefresh
+            AnimatedContent(
+                targetState = FeedContentKey(uiState.feed, uiState.activeFilter),
+                transitionSpec = {
+                    fadeIn(tween(durationMillis = 200)) togetherWith
+                        fadeOut(tween(durationMillis = 150))
+                },
+                label = "feedTransition",
+                modifier = Modifier.fillMaxSize()
+            ) { key ->
+                when (val feed = key.feed) {
+                    ExploreUiState.FeedState.Loading -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                    is ExploreUiState.FeedState.Success -> if (feed.posts.isEmpty()) {
+                        ExploreEmptyState(
+                            filter = key.filter,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        ExplorePostFeedList(
+                            posts = feed.posts,
+                            onRsvpClick = onRsvpClick,
+                            isRsvpd = isRsvpd,
+                            listState = listState
+                        )
+                    }
+                    is ExploreUiState.FeedState.Error -> ExploreErrorContent(
+                        message = feed.message,
+                        onRetry = onRefresh,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+
+        if (uiState.isGroupSearchSheetVisible) {
+            GroupSearchSheet(
+                query = uiState.groupSearchQuery,
+                userGroups = uiState.userGroups,
+                searchedGroups = uiState.searchedGroups,
+                isSearching = uiState.isSearchingGroups,
+                onQueryChanged = { onIntent(ExploreIntent.GroupSearchQueryChanged(it)) },
+                onGroupSelected = { onIntent(ExploreIntent.SelectFilterGroup(it)) },
+                onDismiss = { onIntent(ExploreIntent.DismissGroupSearch) }
             )
         }
     }
 }
 
+private data class FeedContentKey(
+    val feed: ExploreUiState.FeedState,
+    val filter: ExploreFilter
+)
+
 @Composable
-private fun ExplorePostFeed(
+private fun ExplorePostFeedList(
     posts: List<Post>,
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean,
-    onSettingsClick: () -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
@@ -79,9 +135,6 @@ private fun ExplorePostFeed(
         state = listState,
         contentPadding = PaddingValues(bottom = 8.dp)
     ) {
-        item {
-            ExploreHeader(onSettingsClick = onSettingsClick)
-        }
         items(
             items = posts,
             key = { it.id }
@@ -96,35 +149,85 @@ private fun ExplorePostFeed(
 }
 
 @Composable
-private fun ExploreHeader(
-    onSettingsClick: () -> Unit,
+private fun ExploreEmptyState(
+    filter: ExploreFilter,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    val messageRes = when (filter) {
+        is ExploreFilter.All -> Res.string.explore_feed_empty_all
+        is ExploreFilter.Neighborhood -> Res.string.explore_feed_empty_neighborhood
+        is ExploreFilter.Group -> Res.string.explore_feed_empty_group
+    }
+    Box(
+        modifier = modifier.padding(32.dp),
+        contentAlignment = Alignment.Center
     ) {
-        BrandWordmark()
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier.size(40.dp)
-        ) {
-            Icon(
-                imageVector = SettingsIcon,
-                contentDescription = stringResource(Res.string.explore_settings_content_description),
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        Text(
+            text = stringResource(messageRes),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 @Composable
-private fun ExploreLoadingContent(modifier: Modifier = Modifier) {
-    CircularProgressIndicator(modifier = modifier)
+private fun ExploreHeader(
+    uiState: ExploreUiState,
+    onIntent: (ExploreIntent) -> Unit,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            AnimatedContent(
+                targetState = uiState.brandMarkText,
+                transitionSpec = {
+                    fadeIn(tween(durationMillis = 150)) togetherWith
+                        fadeOut(tween(durationMillis = 150))
+                },
+                label = "brandMarkText",
+                modifier = Modifier.widthIn(max = 280.dp)
+            ) { text ->
+                FilterableBrandMark(
+                    text = text,
+                    activeFilter = uiState.activeFilter,
+                    isDropdownOpen = uiState.isFilterDropdownVisible,
+                    onArrowClick = { onIntent(ExploreIntent.ToggleFilterDropdown) }
+                )
+            }
+
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = SettingsIcon,
+                    contentDescription = stringResource(Res.string.explore_settings_content_description),
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        Box(modifier = Modifier.padding(start = 16.dp)) {
+            FilterDropdown(
+                expanded = uiState.isFilterDropdownVisible,
+                activeFilter = uiState.activeFilter,
+                neighborhoodName = uiState.neighborhoodName,
+                onSelectAll = { onIntent(ExploreIntent.SelectFilterAll) },
+                onSelectNeighborhood = { onIntent(ExploreIntent.SelectFilterNeighborhood) },
+                onSearchGroups = { onIntent(ExploreIntent.OpenGroupSearch) },
+                onDismiss = { onIntent(ExploreIntent.DismissFilterDropdown) }
+            )
+        }
+    }
 }
 
 @Composable
@@ -161,18 +264,11 @@ private fun ExploreErrorContent(
 
 @Preview
 @Composable
-private fun ExploreHeaderPreview() {
-    MaterialTheme {
-        ExploreHeader(onSettingsClick = {})
-    }
-}
-
-@Preview
-@Composable
 private fun ExploreScreenLoadingPreview() {
     MaterialTheme {
         ExploreScreen(
-            uiState = ExploreUiState.Loading,
+            uiState = ExploreUiState(neighborhoodName = "Broad Ripple"),
+            onIntent = {},
             onRefresh = {},
             onRsvpClick = {},
             onSettingsClick = {}
@@ -185,9 +281,29 @@ private fun ExploreScreenLoadingPreview() {
 private fun ExploreScreenErrorPreview() {
     MaterialTheme {
         ExploreScreen(
-            uiState = ExploreUiState.Error("Unable to load posts"),
+            uiState = ExploreUiState(
+                feed = ExploreUiState.FeedState.Error("Unable to load posts"),
+                neighborhoodName = "Broad Ripple"
+            ),
+            onIntent = {},
             onRefresh = {},
             onRsvpClick = {},
+            onSettingsClick = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ExploreScreenHeaderPreview() {
+    MaterialTheme {
+        ExploreHeader(
+            uiState = ExploreUiState(
+                neighborhoodName = "Broad Ripple",
+                activeFilter = ExploreFilter.Neighborhood,
+                brandMarkText = "InBroadRipple"
+            ),
+            onIntent = {},
             onSettingsClick = {}
         )
     }

@@ -1,5 +1,6 @@
 package jr.brian.inindy.data.repository
 
+import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.GroupInvite
 import jr.brian.inindy.domain.model.GroupMember
@@ -12,7 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class FakeGroupRepository : GroupRepository {
-
     private val groupsState = MutableStateFlow(buildSeedGroups())
     private val membersState = MutableStateFlow(buildSeedMembers())
     private val invitesState = MutableStateFlow(buildSeedInvites())
@@ -24,6 +24,75 @@ class FakeGroupRepository : GroupRepository {
         return Result.success(groupsState.value)
     }
 
+    override suspend fun searchGroups(query: String): Result<List<Group>> {
+        delay(SHORT_DELAY_MS)
+        val now = currentTimeMillis()
+        val publicPool = listOf(
+            Group(
+                id = "g-fountain-square-crew",
+                name = "Fountain Square Crew",
+                description = "Live music, late food, weekend wanders.",
+                coverUrl = null,
+                createdBy = "u-21",
+                isOpen = true,
+                memberCount = 32,
+                role = GroupRole.MEMBER,
+                createdAt = now - 90L * 86_400_000L
+            ),
+            Group(
+                id = "g-indy-cyclists",
+                name = "Indy Cyclists",
+                description = "Weekend rides across Marion County.",
+                coverUrl = null,
+                createdBy = "u-31",
+                isOpen = true,
+                memberCount = 124,
+                role = GroupRole.MEMBER,
+                createdAt = now - 120L * 86_400_000L
+            ),
+            Group(
+                id = "g-sunday-hikers",
+                name = "Sunday Hikers",
+                description = "Trails within an hour of Indy.",
+                coverUrl = null,
+                createdBy = "u-44",
+                isOpen = true,
+                memberCount = 47,
+                role = GroupRole.MEMBER,
+                createdAt = now - 75L * 86_400_000L
+            ),
+            Group(
+                id = "g-mass-ave-makers",
+                name = "Mass Ave Makers",
+                description = "Local creatives sharing studio time.",
+                coverUrl = null,
+                createdBy = "u-55",
+                isOpen = true,
+                memberCount = 18,
+                role = GroupRole.MEMBER,
+                createdAt = now - 50L * 86_400_000L
+            ),
+            Group(
+                id = "g-irvington-readers",
+                name = "Irvington Readers",
+                description = "Monthly book swaps at the library.",
+                coverUrl = null,
+                createdBy = "u-66",
+                isOpen = true,
+                memberCount = 21,
+                role = GroupRole.MEMBER,
+                createdAt = now - 40L * 86_400_000L
+            )
+        )
+        val combined = groupsState.value + publicPool
+        val filtered = if (query.isBlank()) {
+            combined
+        } else {
+            combined.filter { it.name.contains(query, ignoreCase = true) }
+        }
+        return Result.success(filtered)
+    }
+
     override suspend fun getGroup(groupId: String): Result<Group> {
         delay(SHORT_DELAY_MS)
         val group = groupsState.value.firstOrNull { it.id == groupId }
@@ -31,14 +100,14 @@ class FakeGroupRepository : GroupRepository {
         return Result.success(group)
     }
 
-    override suspend fun createGroup(name: String, description: String?): Result<Group> {
+    override suspend fun createGroup(request: CreateGroupRequest): Result<Group> {
         delay(NETWORK_DELAY_MS)
         val now = currentTimeMillis()
         val group = Group(
             id = "g-$now",
-            name = name,
-            description = description,
-            coverUrl = null,
+            name = request.name,
+            description = request.description,
+            coverUrl = request.coverImageUri,
             createdBy = ME_USER_ID,
             isOpen = false,
             memberCount = 1,
@@ -46,15 +115,15 @@ class FakeGroupRepository : GroupRepository {
             createdAt = now
         )
         groupsState.value = listOf(group) + groupsState.value
-        membersState.value = membersState.value + (group.id to listOf(
-            GroupMember(
-                userId = ME_USER_ID,
-                displayName = "You",
-                avatarUrl = null,
-                role = GroupRole.ADMIN,
-                joinedAt = now
-            )
-        ))
+        membersState.value += (group.id to listOf(
+                    GroupMember(
+                        userId = ME_USER_ID,
+                        displayName = "You",
+                        avatarUrl = null,
+                        role = GroupRole.ADMIN,
+                        joinedAt = now
+                    )
+                ))
         return Result.success(group)
     }
 
@@ -97,8 +166,8 @@ class FakeGroupRepository : GroupRepository {
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
         delay(NETWORK_DELAY_MS)
         groupsState.value = groupsState.value.filterNot { it.id == groupId }
-        membersState.value = membersState.value - groupId
-        invitesState.value = invitesState.value - groupId
+        membersState.value -= groupId
+        invitesState.value -= groupId
         return Result.success(Unit)
     }
 
@@ -147,7 +216,7 @@ class FakeGroupRepository : GroupRepository {
                 GroupMember("u-4", "Jordan O.", null, GroupRole.MEMBER, now - 8L * 86_400_000L)
             ),
             "g-indy-picnic-club" to listOf(
-                GroupMember("u-9", "Audrea W.", null, GroupRole.ADMIN, now - 60L * 86_400_000L),
+                GroupMember("u-9", "Michelle W.", null, GroupRole.ADMIN, now - 60L * 86_400_000L),
                 GroupMember(ME_USER_ID, "You", null, GroupRole.MEMBER, now - 12L * 86_400_000L),
                 GroupMember("u-7", "Sam B.", null, GroupRole.MEMBER, now - 9L * 86_400_000L)
             )

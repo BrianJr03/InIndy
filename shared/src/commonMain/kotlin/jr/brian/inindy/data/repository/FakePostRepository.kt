@@ -34,6 +34,7 @@ class FakePostRepository : PostRepository {
     override suspend fun getPostById(postId: String): Result<Post> {
         delay(SHORT_DELAY_MS)
         val match = state.value.firstOrNull { it.id == postId }
+            ?: feedPosts.firstOrNull { it.id == postId }
             ?: return Result.failure(NoSuchElementException("Post $postId not found"))
         return Result.success(match)
     }
@@ -68,11 +69,177 @@ class FakePostRepository : PostRepository {
         return Result.success(Unit)
     }
 
+    override suspend fun getNeighborhoodFeed(neighborhoodId: String): Result<List<Post>> {
+        delay(FEED_DELAY_MS)
+        return Result.success(feedPosts.sortedByDescending { it.createdAt })
+    }
+
+    override suspend fun getNeighborhoodOnlyFeed(neighborhoodId: String): Result<List<Post>> {
+        delay(FEED_DELAY_MS)
+        return Result.success(
+            feedPosts
+                .filter { it.neighborhoodId == neighborhoodId && it.groupId == null }
+                .sortedByDescending { it.createdAt }
+        )
+    }
+
+    override suspend fun getGroupFeed(groupId: String): Result<List<Post>> {
+        delay(FEED_DELAY_MS)
+        return Result.success(
+            feedPosts
+                .filter { it.groupId == groupId }
+                .sortedByDescending { it.createdAt }
+        )
+    }
+
     private fun User.toAuthor(): User = User(
         id = id,
         fullName = fullName,
         avatarUrl = avatarUrl
     )
+
+    private val feedPosts: List<Post> = buildFeedPosts()
+
+    private fun buildFeedPosts(): List<Post> {
+        val now = currentTimeMillis()
+        val hour = 3_600_000L
+        val day = 86_400_000L
+        return listOf(
+            Post(
+                id = "p1",
+                userId = "u1",
+                title = "Morning Monon run",
+                description = "Morning trail run along the Monon, easy pace welcome!",
+                latitude = 39.8676,
+                longitude = -86.1431,
+                address = "Monon Trail, Broad Ripple, Indianapolis",
+                startsAt = now + 2 * hour,
+                endsAt = now + 3 * hour,
+                createdAt = now - 20 * 60_000L,
+                tags = listOf(PostTag.RUN),
+                images = listOf("https://picsum.photos/seed/run1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 3,
+                author = User("u1", "Michelle W.", "https://i.pravatar.cc/200?img=47"),
+                neighborhoodId = "broad_ripple",
+                groupId = null
+            ),
+            Post(
+                id = "p2",
+                userId = "u2",
+                title = "Garfield Park picnic",
+                description = "Sunday picnic at Garfield Park, bring a dish to share",
+                latitude = 39.7447,
+                longitude = -86.1358,
+                address = "Garfield Park, Indianapolis",
+                startsAt = now + day,
+                endsAt = now + day + 3 * hour,
+                createdAt = now - hour,
+                tags = listOf(PostTag.PICNIC),
+                images = listOf("https://picsum.photos/seed/picnic1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 7,
+                author = User("u2", "Marcus T.", "https://i.pravatar.cc/200?img=12"),
+                neighborhoodId = "fountain_square",
+                groupId = null
+            ),
+            Post(
+                id = "p3",
+                userId = "u3",
+                title = "White River group ride",
+                description = "Group ride along White River, 15 miles at a chill pace",
+                latitude = 39.8512,
+                longitude = -86.1674,
+                address = "White River State Park, Indianapolis",
+                startsAt = now + 3 * hour,
+                endsAt = null,
+                createdAt = now - 45 * 60_000L,
+                tags = listOf(PostTag.EXPLORE),
+                images = listOf("https://picsum.photos/seed/bike1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 2,
+                author = User("u3", "Priya K.", "https://i.pravatar.cc/200?img=32"),
+                neighborhoodId = "broad_ripple",
+                groupId = "g1"
+            ),
+            Post(
+                id = "p4",
+                userId = "u4",
+                title = "Pickup basketball",
+                description = "Pickup basketball at Irving Circle Park, all skill levels",
+                latitude = 39.7689,
+                longitude = -86.0531,
+                address = "Irving Circle Park, Irvington, Indianapolis",
+                startsAt = now + 4 * hour,
+                endsAt = now + 6 * hour,
+                createdAt = now - 30 * 60_000L,
+                tags = listOf(PostTag.SPORT),
+                images = listOf("https://picsum.photos/seed/bball1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 5,
+                author = User("u4", "Jordan O.", "https://i.pravatar.cc/200?img=15"),
+                neighborhoodId = "irvington",
+                groupId = "g2"
+            ),
+            Post(
+                id = "p5",
+                userId = "u5",
+                title = "Sunset yoga",
+                description = "Sunset yoga at Holliday Park, bring a mat",
+                latitude = 39.8723,
+                longitude = -86.1612,
+                address = "Holliday Park, Indianapolis",
+                startsAt = now + 5 * hour,
+                endsAt = now + 6 * hour,
+                createdAt = now - 2 * hour,
+                tags = listOf(PostTag.WALK),
+                images = listOf("https://picsum.photos/seed/yoga1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 9,
+                author = User("u5", "Sam R.", "https://i.pravatar.cc/200?img=51"),
+                neighborhoodId = "broad_ripple",
+                groupId = null
+            ),
+            Post(
+                id = "p6",
+                userId = "u6",
+                title = "Way Street long run",
+                description = "Way Street Runners weekly long run — 8 miles this week",
+                latitude = 39.8676,
+                longitude = -86.1431,
+                address = "Monon Trail at Broad Ripple Ave, Indianapolis",
+                startsAt = now + day + 7 * hour,
+                endsAt = null,
+                createdAt = now - 3 * hour,
+                tags = listOf(PostTag.RUN),
+                images = listOf("https://picsum.photos/seed/run2/800/600"),
+                videos = emptyList(),
+                rsvpCount = 6,
+                author = User("u6", "Lena H.", "https://i.pravatar.cc/200?img=44"),
+                neighborhoodId = "broad_ripple",
+                groupId = "g1"
+            ),
+            Post(
+                id = "p7",
+                userId = "u7",
+                title = "Ellenberger dog walk",
+                description = "Dog walk around Ellenberger Park, all breeds welcome",
+                latitude = 39.7712,
+                longitude = -86.0612,
+                address = "Ellenberger Park, Irvington, Indianapolis",
+                startsAt = now + 6 * hour,
+                endsAt = null,
+                createdAt = now - (1.5 * hour).toLong(),
+                tags = listOf(PostTag.WALK),
+                images = listOf("https://picsum.photos/seed/dogwalk1/800/600"),
+                videos = emptyList(),
+                rsvpCount = 4,
+                author = User("u7", "Diego C.", "https://i.pravatar.cc/200?img=11"),
+                neighborhoodId = "irvington",
+                groupId = null
+            )
+        )
+    }
 
     private fun buildSeedPosts(): List<Post> {
         val now = currentTimeMillis()
@@ -143,6 +310,7 @@ class FakePostRepository : PostRepository {
     private companion object {
         const val SHORT_DELAY_MS = 200L
         const val NETWORK_DELAY_MS = 800L
+        const val FEED_DELAY_MS = 400L
     }
 }
 

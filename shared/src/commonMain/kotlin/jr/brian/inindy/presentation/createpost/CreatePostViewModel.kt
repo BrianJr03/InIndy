@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.location.AddressSearchDataSource
 import jr.brian.inindy.data.location.LocationProvider
 import jr.brian.inindy.domain.model.AddressResult
+import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.PostTag
@@ -161,7 +162,13 @@ class CreatePostViewModel(
 
     fun quickCreateGroup(name: String, description: String?) {
         viewModelScope.launch {
-            groupRepository.createGroup(name, description).onSuccess { group ->
+            groupRepository.createGroup(
+                CreateGroupRequest(
+                    name = name,
+                    description = description,
+                    coverImageUri = null
+                )
+            ).onSuccess { group ->
                 _uiState.value = _uiState.value.copy(
                     audience = PostAudience.GroupAudience(group.id)
                 )

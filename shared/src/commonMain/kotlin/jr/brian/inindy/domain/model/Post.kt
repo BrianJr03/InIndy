@@ -15,5 +15,7 @@ data class Post(
     val images: List<String>,
     val videos: List<VideoMedia>,
     val rsvpCount: Int,
-    val author: User?
+    val author: User?,
+    val neighborhoodId: String? = null,
+    val groupId: String? = null
 )

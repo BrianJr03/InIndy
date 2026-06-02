@@ -19,51 +19,40 @@ class ExploreRepositoryImpl : ExploreRepository {
     override fun getPosts(): Flow<Result<List<Post>>> =
         postsState.asStateFlow().map { Result.success(it) }
 
-    override suspend fun rsvp(postId: String): Result<Post> {
-        if (postId in rsvpdPostIds) {
-            val existing = postsState.value.firstOrNull { it.id == postId }
-                ?: return Result.failure(IllegalStateException("Post $postId not found"))
-            return Result.success(existing)
-        }
-        val updated = postsState.value.map { post ->
+    override suspend fun rsvp(postId: String): Result<Unit> {
+        if (postId in rsvpdPostIds) return Result.success(Unit)
+        rsvpdPostIds += postId
+        postsState.value = postsState.value.map { post ->
             if (post.id == postId) post.copy(rsvpCount = post.rsvpCount + 1) else post
         }
-        val target = updated.firstOrNull { it.id == postId }
-            ?: return Result.failure(IllegalStateException("Post $postId not found"))
-        rsvpdPostIds += postId
-        postsState.value = updated
-        return Result.success(target)
+        return Result.success(Unit)
     }
 
-    override suspend fun unRsvp(postId: String): Result<Post> {
-        if (postId !in rsvpdPostIds) {
-            val existing = postsState.value.firstOrNull { it.id == postId }
-                ?: return Result.failure(IllegalStateException("Post $postId not found"))
-            return Result.success(existing)
-        }
-        val updated = postsState.value.map { post ->
+    override suspend fun unRsvp(postId: String): Result<Unit> {
+        if (postId !in rsvpdPostIds) return Result.success(Unit)
+        rsvpdPostIds -= postId
+        postsState.value = postsState.value.map { post ->
             if (post.id == postId) {
                 post.copy(rsvpCount = (post.rsvpCount - 1).coerceAtLeast(0))
             } else post
         }
-        val target = updated.firstOrNull { it.id == postId }
-            ?: return Result.failure(IllegalStateException("Post $postId not found"))
-        rsvpdPostIds -= postId
-        postsState.value = updated
-        return Result.success(target)
+        return Result.success(Unit)
     }
 
     override fun isRsvpd(postId: String): Boolean = postId in rsvpdPostIds
 
     override suspend fun getAttendees(postId: String): Result<List<User>> {
-        val post = postsState.value.firstOrNull { it.id == postId }
-            ?: return Result.failure(IllegalStateException("Post $postId not found"))
+        val rsvpCount = postsState.value.firstOrNull { it.id == postId }?.rsvpCount
+            ?: defaultAttendeeCount(postId)
         val pool = attendeePool
         val seed = postId.hashCode()
         val rotated = pool.indices.map { i -> pool[((i + seed) % pool.size + pool.size) % pool.size] }
-        val list = rotated.take(post.rsvpCount.coerceAtMost(pool.size))
+        val list = rotated.take(rsvpCount.coerceAtMost(pool.size))
         return Result.success(list)
     }
+
+    private fun defaultAttendeeCount(postId: String): Int =
+        (postId.hashCode().let { if (it < 0) -it else it } % 8) + 2
 
     private fun buildInitialPosts(): List<Post> {
         val fifteenMinutesAgo = currentTimeMillis() - 15 * 60_000L
@@ -77,7 +66,7 @@ class ExploreRepositoryImpl : ExploreRepository {
         private const val NOW_MS = 1_779_840_000_000L
 
         val attendeePool = listOf(
-            User("a1", "Audrea W.", "https://i.pravatar.cc/200?img=47"),
+            User("a1", "Michelle W.", "https://i.pravatar.cc/200?img=47"),
             User("a2", "Marcus T.", "https://i.pravatar.cc/200?img=12"),
             User("a3", "Priya K.", "https://i.pravatar.cc/200?img=32"),
             User("a4", "Jordan O.", "https://i.pravatar.cc/200?img=15"),
@@ -111,7 +100,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 ),
                 videos = emptyList(),
                 rsvpCount = 12,
-                author = User("u1", "Audrea W.", "https://scontent-lhr8-1.cdninstagram.com/v/t51.82787-19/522715287_18510421714020632_8147388195996693606_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDU2LmMyIn0&_nc_ht=scontent-lhr8-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2gHwqiU1pqp7w4C7ZUW644dmOUyF_VrYvB83c03Av56BnbOJuX-65JPi5f_yiRnt_3Y&_nc_ohc=eK5SHrYgn0cQ7kNvwGwz-kK&_nc_gid=pSn6TDr-Nzy5UVWrdHiJUA&edm=AA5fTDYBAAAA&ccb=7-5&oh=00_Af4peqSBIbGyZW4MqaJaBFuxbBwjqGZKsxFv4qEpeEq-1w&oe=6A1D1DAD&_nc_sid=7edfe2")
+                author = User("u1", "Michelle W.", "https://scontent-lhr8-1.cdninstagram.com/v/t51.82787-19/522715287_18510421714020632_8147388195996693606_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDU2LmMyIn0&_nc_ht=scontent-lhr8-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2gHwqiU1pqp7w4C7ZUW644dmOUyF_VrYvB83c03Av56BnbOJuX-65JPi5f_yiRnt_3Y&_nc_ohc=eK5SHrYgn0cQ7kNvwGwz-kK&_nc_gid=pSn6TDr-Nzy5UVWrdHiJUA&edm=AA5fTDYBAAAA&ccb=7-5&oh=00_Af4peqSBIbGyZW4MqaJaBFuxbBwjqGZKsxFv4qEpeEq-1w&oe=6A1D1DAD&_nc_sid=7edfe2")
             ),
             Post(
                 id = "2",

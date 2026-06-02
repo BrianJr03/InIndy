@@ -91,6 +91,7 @@ import kotlin.math.roundToInt
 @Composable
 fun MeScreen(
     onCreatePostClick: () -> Unit,
+    onCreateGroupClick: () -> Unit,
     onPostClick: (String) -> Unit,
     onGroupClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
@@ -101,7 +102,7 @@ fun MeScreen(
     MeScreenContent(
         state = state,
         onCreatePostClick = onCreatePostClick,
-        onCreateGroupClick = onCreatePostClick,
+        onCreateGroupClick = onCreateGroupClick,
         onPostClick = onPostClick,
         onGroupClick = onGroupClick,
         onSettingsClick = onSettingsClick,

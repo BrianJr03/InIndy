@@ -2,6 +2,7 @@ package jr.brian.inindy.presentation.me
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AttendanceRepository
 import jr.brian.inindy.domain.repository.GroupRepository
@@ -60,7 +61,21 @@ class MeViewModel(
 
     fun createGroup(name: String, description: String?) {
         viewModelScope.launch {
-            groupRepository.createGroup(name, description)
+            groupRepository.createGroup(
+                CreateGroupRequest(
+                    name = name,
+                    description = description,
+                    coverImageUri = null
+                )
+            )
+        }
+    }
+
+    fun refreshGroups() {
+        viewModelScope.launch {
+            groupRepository.getUserGroups().onSuccess { groups ->
+                _uiState.value = _uiState.value.copy(groups = groups)
+            }
         }
     }
 
