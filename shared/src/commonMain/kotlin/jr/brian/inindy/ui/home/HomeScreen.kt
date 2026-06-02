@@ -109,7 +109,11 @@ fun HomeScreen(
         ScopedScreen {
             GroupManagementScreen(
                 groupId = groupId,
-                onBack = { managedGroupId = null }
+                onBack = { managedGroupId = null },
+                onPostClick = { postId ->
+                    detailFromMe = true
+                    detailPostId = postId
+                }
             )
         }
         return

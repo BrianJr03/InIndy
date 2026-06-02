@@ -21,11 +21,3 @@ data class GroupMember(
     val role: GroupRole,
     val joinedAt: Long
 )
-
-data class GroupInvite(
-    val id: String,
-    val groupId: String,
-    val invitedEmail: String,
-    val token: String,
-    val expiresAt: Long
-)

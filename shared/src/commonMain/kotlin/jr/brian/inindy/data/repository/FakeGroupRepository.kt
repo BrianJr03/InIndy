@@ -5,14 +5,18 @@ import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.GroupInvite
 import jr.brian.inindy.domain.model.GroupMember
 import jr.brian.inindy.domain.model.GroupRole
+import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.repository.GroupRepository
+import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class FakeGroupRepository : GroupRepository {
+class FakeGroupRepository(
+    private val postRepository: PostRepository
+) : GroupRepository {
     private val groupsState = MutableStateFlow(buildSeedGroups())
     private val membersState = MutableStateFlow(buildSeedMembers())
     private val invitesState = MutableStateFlow(buildSeedInvites())
@@ -93,7 +97,7 @@ class FakeGroupRepository : GroupRepository {
         return Result.success(filtered)
     }
 
-    override suspend fun getGroup(groupId: String): Result<Group> {
+    override suspend fun getGroupById(groupId: String): Result<Group> {
         delay(SHORT_DELAY_MS)
         val group = groupsState.value.firstOrNull { it.id == groupId }
             ?: return Result.failure(IllegalStateException("Group $groupId not found"))
@@ -130,6 +134,11 @@ class FakeGroupRepository : GroupRepository {
     override suspend fun getGroupMembers(groupId: String): Result<List<GroupMember>> {
         delay(SHORT_DELAY_MS)
         return Result.success(membersState.value[groupId].orEmpty())
+    }
+
+    override suspend fun getGroupPosts(groupId: String, limit: Int): Result<List<Post>> {
+        val feed = postRepository.getGroupFeed(groupId).getOrDefault(emptyList())
+        return Result.success(feed.take(limit))
     }
 
     override suspend fun getPendingInvites(groupId: String): Result<List<GroupInvite>> {
@@ -225,11 +234,25 @@ class FakeGroupRepository : GroupRepository {
 
     private fun buildSeedInvites(): Map<String, List<GroupInvite>> {
         val now = currentTimeMillis()
-        val expires = now + 7L * 86_400_000L
+        val week = 7L * 86_400_000L
         return mapOf(
             "g-broad-ripple-runners" to listOf(
-                GroupInvite("inv-1", "g-broad-ripple-runners", "casey@example.com", "tk-1", expires),
-                GroupInvite("inv-2", "g-broad-ripple-runners", "ari@example.com", "tk-2", expires)
+                GroupInvite(
+                    id = "inv-1",
+                    groupId = "g-broad-ripple-runners",
+                    invitedBy = ME_USER_ID,
+                    token = "abc123token",
+                    createdAt = now - 86_400_000L,
+                    expiresAt = now + week - 86_400_000L
+                ),
+                GroupInvite(
+                    id = "inv-2",
+                    groupId = "g-broad-ripple-runners",
+                    invitedBy = ME_USER_ID,
+                    token = "def456token",
+                    createdAt = now - 2L * 3_600_000L,
+                    expiresAt = now + week - 2L * 3_600_000L
+                )
             )
         )
     }

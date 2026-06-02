@@ -21,7 +21,7 @@ import org.koin.dsl.module
 
 val postModule = module {
     single<PostRepository> { FakePostRepository() }
-    single<GroupRepository> { FakeGroupRepository() }
+    single<GroupRepository> { FakeGroupRepository(get()) }
     single<AttendanceRepository> { FakeAttendanceRepository() }
     single<MediaRepository> { FakeMediaRepository() }
     single<AddressSearchDataSource> { FakeAddressSearchDataSource() }
@@ -29,6 +29,6 @@ val postModule = module {
     viewModel { MeViewModel(get(), get(), get()) }
     viewModel { CreatePostViewModel(get(), get(), get(), get()) }
     viewModel { CreateGroupViewModel(get(), get()) }
-    viewModel { GroupManagementViewModel(get()) }
+    viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get()) }
     viewModel { PostDetailViewModel(get(), get()) }
 }
