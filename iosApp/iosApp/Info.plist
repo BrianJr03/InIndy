@@ -4,5 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>InIndy uses the camera so you can take photos for your posts, group covers, and profile.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>InIndy saves photos you take to your library when you choose to do so.</string>
 </dict>
 </plist>

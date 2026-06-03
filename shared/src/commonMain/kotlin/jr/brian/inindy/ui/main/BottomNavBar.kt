@@ -34,9 +34,21 @@ enum class MainTab(
     val icon: ImageVector,
     val label: StringResource
 ) {
-    ME(route = "tab_me", icon = PersonIcon, label = Res.string.nav_me),
-    EXPLORE(route = "tab_explore", icon = SearchIcon, label = Res.string.nav_explore),
-    EVENTS(route = "tab_events", icon = DateRangeIcon, label = Res.string.nav_events)
+    ME(
+        route = "tab_me",
+        icon = PersonIcon,
+        label = Res.string.nav_me
+    ),
+    EXPLORE(
+        route = "tab_explore",
+        icon = SearchIcon,
+        label = Res.string.nav_explore
+    ),
+    EVENTS(
+        route = "tab_events",
+        icon = DateRangeIcon,
+        label = Res.string.nav_events
+    )
 }
 
 @Composable

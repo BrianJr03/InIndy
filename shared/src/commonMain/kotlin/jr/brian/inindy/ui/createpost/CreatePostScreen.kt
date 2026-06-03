@@ -1,7 +1,6 @@
 package jr.brian.inindy.ui.createpost
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,8 +18,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,21 +49,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.PostTag
 import jr.brian.inindy.presentation.createpost.CreatePostUiState
 import jr.brian.inindy.presentation.createpost.CreatePostViewModel
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.create_post_add_photo
 import jr.brian.inindy.resources.create_post_address_placeholder
 import jr.brian.inindy.resources.create_post_audience_group
 import jr.brian.inindy.resources.create_post_audience_neighborhood
@@ -85,7 +79,6 @@ import jr.brian.inindy.resources.create_post_max_no_limit
 import jr.brian.inindy.resources.create_post_optional
 import jr.brian.inindy.resources.create_post_pick_date
 import jr.brian.inindy.resources.create_post_pick_group
-import jr.brian.inindy.resources.create_post_remove_photo_cd
 import jr.brian.inindy.resources.create_post_section_audience
 import jr.brian.inindy.resources.create_post_section_datetime
 import jr.brian.inindy.resources.create_post_section_description
@@ -101,6 +94,7 @@ import jr.brian.inindy.resources.create_post_tags_helper
 import jr.brian.inindy.resources.create_post_title
 import jr.brian.inindy.resources.create_post_title_placeholder
 import jr.brian.inindy.resources.create_post_use_location
+import jr.brian.inindy.ui.components.PostImagePickerRow
 import jr.brian.inindy.ui.icons.AddIcon
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
@@ -158,8 +152,9 @@ fun CreatePostScreen(
                 PhotosSection(
                     images = state.images,
                     error = state.imagesError,
-                    onAdd = { viewModel.addImage(generatePlaceholderUri(state.images.size)) },
-                    onRemove = viewModel::removeImage
+                    maxImages = CreatePostUiState.MAX_IMAGES,
+                    onImagesAdded = { uris -> uris.forEach(viewModel::addImage) },
+                    onImageRemoved = viewModel::removeImage
                 )
                 TitleSection(
                     title = state.title,
@@ -324,91 +319,19 @@ private fun FieldError(message: String?) {
 private fun PhotosSection(
     images: List<String>,
     error: String?,
-    onAdd: () -> Unit,
-    onRemove: (String) -> Unit
+    maxImages: Int,
+    onImagesAdded: (List<String>) -> Unit,
+    onImageRemoved: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionLabel(stringResource(Res.string.create_post_section_photos))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(images, key = { it }) { uri ->
-                PhotoThumbnail(uri = uri, onRemove = { onRemove(uri) })
-            }
-            if (images.size < CreatePostUiState.MAX_IMAGES) {
-                item {
-                    AddPhotoTile(onClick = onAdd)
-                }
-            }
-        }
+        PostImagePickerRow(
+            images = images,
+            maxImages = maxImages,
+            onImagesAdded = onImagesAdded,
+            onImageRemoved = onImageRemoved
+        )
         FieldError(error)
-    }
-}
-
-@Composable
-private fun PhotoThumbnail(uri: String, onRemove: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(96.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        if (uri.startsWith("http")) {
-            AsyncImage(
-                model = uri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(22.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.6f))
-                .clickable(onClick = onRemove),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = CloseIcon,
-                contentDescription = stringResource(Res.string.create_post_remove_photo_cd),
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun AddPhotoTile(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(96.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .border(
-                width = 1.5.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = AddIcon,
-                contentDescription = stringResource(Res.string.create_post_add_photo),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = stringResource(Res.string.create_post_add_photo),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
     }
 }
 
@@ -928,15 +851,6 @@ private fun ActionChip(
 }
 
 private const val DEFAULT_START_OFFSET_MS = 86_400_000L + 9 * 3_600_000L
-
-private fun generatePlaceholderUri(index: Int): String {
-    val seeds = listOf(
-        "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=600",
-        "https://images.unsplash.com/photo-1503614472-8c93d56e92ce?w=600",
-        "https://images.unsplash.com/photo-1521336575822-6da63fb45455?w=600"
-    )
-    return seeds[index % seeds.size]
-}
 
 @Preview
 @Composable

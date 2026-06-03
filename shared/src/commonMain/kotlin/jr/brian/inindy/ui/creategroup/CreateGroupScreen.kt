@@ -1,7 +1,6 @@
 package jr.brian.inindy.ui.creategroup
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -38,26 +36,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
 import jr.brian.inindy.presentation.creategroup.CreateGroupIntent
 import jr.brian.inindy.presentation.creategroup.CreateGroupUiState
 import jr.brian.inindy.presentation.creategroup.CreateGroupViewModel
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.create_group_char_counter
 import jr.brian.inindy.resources.create_group_close_cd
-import jr.brian.inindy.resources.create_group_cover_cta
-import jr.brian.inindy.resources.create_group_cover_hint
 import jr.brian.inindy.resources.create_group_cover_label
 import jr.brian.inindy.resources.create_group_cover_optional
-import jr.brian.inindy.resources.create_group_cover_remove_cd
 import jr.brian.inindy.resources.create_group_description_label
 import jr.brian.inindy.resources.create_group_description_optional
 import jr.brian.inindy.resources.create_group_description_placeholder
@@ -68,7 +60,7 @@ import jr.brian.inindy.resources.create_group_name_required
 import jr.brian.inindy.resources.create_group_submit
 import jr.brian.inindy.resources.create_group_submitting
 import jr.brian.inindy.resources.create_group_title
-import jr.brian.inindy.ui.icons.AddIcon
+import jr.brian.inindy.ui.components.CoverPhotoPickerSection
 import jr.brian.inindy.ui.icons.CloseIcon
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -123,7 +115,7 @@ private fun CreateGroupScreenContent(
             ) {
                 CoverPhotoSection(
                     coverImageUri = state.coverImageUri,
-                    onPick = { onIntent(CreateGroupIntent.CoverImageSelected(generatePlaceholderCoverUri())) },
+                    onImageSelected = { onIntent(CreateGroupIntent.CoverImageSelected(it)) },
                     onRemove = { onIntent(CreateGroupIntent.RemoveCoverImage) }
                 )
                 NameSection(
@@ -228,7 +220,7 @@ private fun SectionLabel(text: String, trailing: String? = null) {
 @Composable
 private fun CoverPhotoSection(
     coverImageUri: String?,
-    onPick: () -> Unit,
+    onImageSelected: (String) -> Unit,
     onRemove: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -236,105 +228,12 @@ private fun CoverPhotoSection(
             text = stringResource(Res.string.create_group_cover_label),
             trailing = stringResource(Res.string.create_group_cover_optional)
         )
-        if (coverImageUri == null) {
-            EmptyCoverTile(onClick = onPick)
-        } else {
-            FilledCoverTile(
-                uri = coverImageUri,
-                onReplace = onPick,
-                onRemove = onRemove
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyCoverTile(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .border(
-                width = 1.5.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = AddIcon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-            Text(
-                text = stringResource(Res.string.create_group_cover_cta),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                text = stringResource(Res.string.create_group_cover_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilledCoverTile(
-    uri: String,
-    onReplace: () -> Unit,
-    onRemove: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onReplace)
-    ) {
-        AsyncImage(
-            model = uri,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+        CoverPhotoPickerSection(
+            currentImageUrl = null,
+            newImageUri = coverImageUri,
+            onImageSelected = onImageSelected,
+            onImageRemoved = onRemove
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(10.dp)
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.55f))
-                .clickable(onClick = onRemove),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = CloseIcon,
-                contentDescription = stringResource(Res.string.create_group_cover_remove_cd),
-                tint = Color.White,
-                modifier = Modifier.size(18.dp)
-            )
-        }
     }
 }
 
@@ -528,9 +427,6 @@ private fun SubmittingOverlay() {
         }
     }
 }
-
-private fun generatePlaceholderCoverUri(): String =
-    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800"
 
 @Preview
 @Composable

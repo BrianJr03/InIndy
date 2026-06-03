@@ -82,6 +82,7 @@ import jr.brian.inindy.ui.icons.DeleteIcon
 import jr.brian.inindy.ui.icons.GroupIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import jr.brian.inindy.ui.icons.StarIcon
+import jr.brian.inindy.ui.profile.ProfileEditSheet
 import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
@@ -123,6 +124,7 @@ private fun MeScreenContent(
     modifier: Modifier = Modifier
 ) {
     var postPendingDeletion by remember { mutableStateOf<String?>(null) }
+    var showProfileEditSheet by remember { mutableStateOf(false) }
     val now = currentTimeMillis()
 
     Box(
@@ -139,6 +141,7 @@ private fun MeScreenContent(
                     user = state.user,
                     neighborhoodName = state.neighborhoodName,
                     attendanceRate = state.attendanceRate,
+                    onProfileClick = { showProfileEditSheet = true },
                     onSettingsClick = onSettingsClick
                 )
             }
@@ -229,6 +232,12 @@ private fun MeScreenContent(
             }
         )
     }
+
+    if (showProfileEditSheet) {
+        ProfileEditSheet(onDismiss = {
+            showProfileEditSheet = false
+        })
+    }
 }
 
 @Composable
@@ -236,6 +245,7 @@ private fun MeHeader(
     user: User?,
     neighborhoodName: String,
     attendanceRate: Float,
+    onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
     Row(
@@ -245,44 +255,54 @@ private fun MeHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        HeaderAvatar(name = user?.fullName ?: "You", avatarUrl = user?.avatarUrl)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = user?.fullName ?: "You",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onProfileClick)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            HeaderAvatar(name = user?.fullName ?: "You", avatarUrl = user?.avatarUrl)
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = neighborhoodName,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
+                    text = user?.fullName ?: "You",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = " · ",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Icon(
-                    imageVector = StarIcon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = stringResource(
-                        Res.string.me_attendance_rate,
-                        (attendanceRate * 100).roundToInt()
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = neighborhoodName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = " · ",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Icon(
+                        imageVector = StarIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(
+                            Res.string.me_attendance_rate,
+                            (attendanceRate * 100).roundToInt()
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
         IconButton(onClick = onSettingsClick) {

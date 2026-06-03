@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class MeViewModel(
@@ -41,6 +42,25 @@ class MeViewModel(
                 groups = groups
             )
         }.launchIn(viewModelScope)
+
+        currentUserProvider.user
+            .onEach { prefs ->
+                val user = User(
+                    id = prefs.userId ?: "me",
+                    fullName = prefs.fullName,
+                    avatarUrl = prefs.avatarUrl,
+                    phoneVerified = true,
+                    neighborhoodId = prefs.neighborhoodId,
+                    interests = prefs.interests.mapNotNull { name ->
+                        runCatching { Interest.valueOf(name) }.getOrNull()
+                    }
+                )
+                _uiState.value = _uiState.value.copy(
+                    user = user,
+                    neighborhoodName = prefs.neighborhoodName ?: _uiState.value.neighborhoodName
+                )
+            }
+            .launchIn(viewModelScope)
     }
 
     fun load() {

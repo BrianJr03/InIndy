@@ -256,6 +256,41 @@
     <string name="group_invite_link_title">Invite link ready</string>
     <string name="group_invite_link_dismiss">Done</string>
 
+    <!-- Profile edit -->
+    <string name="profile_edit_title">Edit profile</string>
+    <string name="profile_edit_change_photo">Change photo</string>
+    <string name="profile_edit_change_photo_cd">Change profile photo</string>
+    <string name="profile_edit_name_label">Name</string>
+    <string name="profile_edit_name_required">*</string>
+    <string name="profile_edit_name_error">Name must be at least 2 characters</string>
+    <string name="profile_edit_neighborhood_label">Neighborhood</string>
+    <string name="profile_edit_interests_label">What are you into?</string>
+    <string name="profile_edit_interests_hint">Pick at least one</string>
+    <string name="profile_edit_save">Save changes</string>
+    <string name="profile_edit_selected_cd">Selected</string>
+
+    <!-- Photo picker -->
+    <string name="photo_picker_take_photo">Take a photo</string>
+    <string name="photo_picker_choose_gallery">Choose from gallery</string>
+    <string name="photo_picker_choose_gallery_with_count">Choose from gallery (up to %1$d)</string>
+    <string name="photo_picker_camera_icon_cd">Camera</string>
+    <string name="photo_picker_gallery_icon_cd">Gallery</string>
+    <string name="photo_picker_avatar_add">Add photo</string>
+    <string name="photo_picker_avatar_change">Change photo</string>
+    <string name="photo_picker_avatar_cd">Profile photo</string>
+    <string name="photo_picker_cover_cta">Add a cover photo</string>
+    <string name="photo_picker_cover_change">Change cover photo</string>
+    <string name="photo_picker_cover_remove_cd">Remove cover photo</string>
+    <string name="photo_picker_cover_cd">Cover photo</string>
+    <string name="photo_picker_post_add_cd">Add photo</string>
+    <string name="photo_picker_post_remove_cd">Remove photo</string>
+    <string name="photo_picker_permission_denied">Camera permission is required to take photos</string>
+    <string name="photo_picker_permission_blocked_title">Camera access blocked</string>
+    <string name="photo_picker_permission_blocked_body">Enable camera access in Settings to take photos.</string>
+    <string name="photo_picker_open_settings">Open Settings</string>
+    <string name="photo_picker_permission_cancel">Cancel</string>
+    <string name="photo_picker_error_generic">Couldn't open the camera — try again.</string>
+
     <!-- Create group -->
     <string name="create_group_title">Create Group</string>
     <string name="create_group_close_cd">Close</string>

@@ -26,6 +26,7 @@ val exploreModule = module {
 val appModules: List<org.koin.core.module.Module> = listOf(
     platformModule,
     coreModule,
+    mediaModule,
     authModule,
     postModule,
     exploreModule,

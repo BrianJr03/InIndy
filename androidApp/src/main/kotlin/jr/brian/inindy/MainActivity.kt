@@ -9,8 +9,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import jr.brian.inindy.data.media.ActivityProvider
+import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
+
+    private val activityProvider: ActivityProvider by inject()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -22,9 +27,16 @@ class MainActivity : ComponentActivity() {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
+        activityProvider.attach(this)
+
         setContent {
             AndroidApp()
         }
+    }
+
+    override fun onDestroy() {
+        activityProvider.detach(this)
+        super.onDestroy()
     }
 }
 

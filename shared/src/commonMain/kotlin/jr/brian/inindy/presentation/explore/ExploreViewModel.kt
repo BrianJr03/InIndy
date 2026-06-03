@@ -44,12 +44,17 @@ class ExploreViewModel(
 
     fun onIntent(intent: ExploreIntent) {
         when (intent) {
-            ExploreIntent.ToggleFilterDropdown -> _uiState.update {
-                it.copy(isFilterDropdownVisible = !it.isFilterDropdownVisible)
+            ExploreIntent.ToggleFilterDropdown -> {
+                _uiState.update {
+                    it.copy(isFilterDropdownVisible = !it.isFilterDropdownVisible)
+                }
+                bootstrap(loadFeed = false)
             }
+
             ExploreIntent.DismissFilterDropdown -> _uiState.update {
                 it.copy(isFilterDropdownVisible = false)
             }
+
             ExploreIntent.SelectFilterAll -> applyFilter(ExploreFilter.All)
             ExploreIntent.SelectFilterNeighborhood -> applyFilter(ExploreFilter.Neighborhood)
             ExploreIntent.OpenGroupSearch -> openGroupSearch()
@@ -61,6 +66,7 @@ class ExploreViewModel(
                     isSearchingGroups = false
                 )
             }
+
             is ExploreIntent.GroupSearchQueryChanged -> onSearchQueryChanged(intent.query)
             is ExploreIntent.SelectFilterGroup -> applyFilter(
                 ExploreFilter.Group(intent.group.id, intent.group.name)
@@ -103,7 +109,7 @@ class ExploreViewModel(
         return (feed as? ExploreUiState.FeedState.Success)?.posts?.firstOrNull { it.id == postId }
     }
 
-    private fun bootstrap() {
+    private fun bootstrap(loadFeed: Boolean = true) {
         viewModelScope.launch {
             val prefs = currentUserProvider.get()
             neighborhoodId = prefs.neighborhoodId ?: DEFAULT_NEIGHBORHOOD_ID
@@ -114,7 +120,9 @@ class ExploreViewModel(
                     brandMarkText = it.activeFilter.toBrandMarkText(neighborhoodName)
                 )
             }
-            loadFeed()
+            if (loadFeed) {
+                loadFeed()
+            }
         }
     }
 
@@ -140,14 +148,21 @@ class ExploreViewModel(
         feedJob = viewModelScope.launch {
             val result = when (filter) {
                 is ExploreFilter.All -> postRepository.getNeighborhoodFeed(neighborhoodId)
-                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
+                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(
+                    neighborhoodId
+                )
+
                 is ExploreFilter.Group -> postRepository.getGroupFeed(filter.groupId)
             }
             _uiState.update { current ->
                 if (current.activeFilter != filter) return@update current
                 val nextFeed = result.fold(
                     onSuccess = { ExploreUiState.FeedState.Success(it) },
-                    onFailure = { ExploreUiState.FeedState.Error(it.message ?: "Something went wrong") }
+                    onFailure = {
+                        ExploreUiState.FeedState.Error(
+                            it.message ?: "Something went wrong"
+                        )
+                    }
                 )
                 current.copy(feed = nextFeed)
             }
@@ -183,7 +198,12 @@ class ExploreViewModel(
             .debounce(SEARCH_DEBOUNCE_MS)
             .onEach { query ->
                 if (query.isBlank()) {
-                    _uiState.update { it.copy(searchedGroups = emptyList(), isSearchingGroups = false) }
+                    _uiState.update {
+                        it.copy(
+                            searchedGroups = emptyList(),
+                            isSearchingGroups = false
+                        )
+                    }
                     return@onEach
                 }
                 runSearch(query)
