@@ -121,7 +121,7 @@ class FakePostRepository : PostRepository {
                 videos = emptyList(),
                 rsvpCount = 3,
                 author = User("u1", "Michelle W.", "https://i.pravatar.cc/200?img=47"),
-                neighborhoodId = "broad_ripple",
+                neighborhoodId = "downtown",
                 groupId = null
             ),
             Post(

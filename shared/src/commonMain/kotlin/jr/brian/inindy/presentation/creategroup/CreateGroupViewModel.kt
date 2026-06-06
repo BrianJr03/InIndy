@@ -14,7 +14,6 @@ class CreateGroupViewModel(
     private val groupRepository: GroupRepository,
     private val mediaRepository: MediaRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(CreateGroupUiState())
     val uiState: StateFlow<CreateGroupUiState> = _uiState.asStateFlow()
 

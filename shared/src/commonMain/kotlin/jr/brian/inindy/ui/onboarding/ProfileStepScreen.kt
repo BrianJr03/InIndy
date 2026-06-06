@@ -1,8 +1,5 @@
 package jr.brian.inindy.ui.onboarding
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,13 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,20 +23,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.onboarding_continue
-import jr.brian.inindy.resources.onboarding_profile_avatar_add
 import jr.brian.inindy.resources.onboarding_profile_name_label
 import jr.brian.inindy.resources.onboarding_profile_subtitle
 import jr.brian.inindy.resources.onboarding_profile_title
 import jr.brian.inindy.ui.auth.AuthHeading
 import jr.brian.inindy.ui.brand.BrandMark
-import jr.brian.inindy.ui.icons.PersonIcon
+import jr.brian.inindy.ui.components.AvatarPickerSection
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -52,7 +44,7 @@ fun ProfileStepScreen(
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
-    val avatarUri by remember { mutableStateOf<String?>(null) }
+    var avatarUri by remember { mutableStateOf<String?>(null) }
     val canContinue = name.isNotBlank()
 
     OnboardingBackground(modifier = modifier) {
@@ -85,7 +77,11 @@ fun ProfileStepScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                AvatarPicker(avatarUri = avatarUri)
+                AvatarPickerSection(
+                    currentImageUrl = null,
+                    newImageUri = avatarUri,
+                    onImageSelected = { avatarUri = it }
+                )
             }
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -118,6 +114,7 @@ fun ProfileStepScreen(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 8.dp)
                     .height(56.dp)
             ) {
                 Text(
@@ -130,54 +127,6 @@ fun ProfileStepScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@Composable
-private fun AvatarPicker(
-    avatarUri: String?,
-    modifier: Modifier = Modifier
-) {
-    val primary = MaterialTheme.colorScheme.primary
-    val tertiary = MaterialTheme.colorScheme.tertiary
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(112.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            primary.copy(alpha = 0.18f),
-                            tertiary.copy(alpha = 0.18f)
-                        )
-                    ),
-                    shape = CircleShape
-                )
-                .border(
-                    width = 2.dp,
-                    color = primary.copy(alpha = 0.30f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = PersonIcon,
-                contentDescription = null,
-                tint = primary,
-                modifier = Modifier.size(56.dp)
-            )
-        }
-        Text(
-            text = stringResource(Res.string.onboarding_profile_avatar_add),
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.SemiBold
-            ),
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }
 

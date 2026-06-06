@@ -2,7 +2,6 @@ package jr.brian.inindy.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -45,15 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Neighborhood
 import jr.brian.inindy.presentation.profileedit.ProfileEditIntent
@@ -61,8 +54,6 @@ import jr.brian.inindy.presentation.profileedit.ProfileEditUiState
 import jr.brian.inindy.presentation.profileedit.ProfileEditViewModel
 import jr.brian.inindy.presentation.profileedit.hasChanges
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.profile_edit_change_photo
-import jr.brian.inindy.resources.profile_edit_change_photo_cd
 import jr.brian.inindy.resources.profile_edit_interests_hint
 import jr.brian.inindy.resources.profile_edit_interests_label
 import jr.brian.inindy.resources.profile_edit_name_label
@@ -71,7 +62,7 @@ import jr.brian.inindy.resources.profile_edit_neighborhood_label
 import jr.brian.inindy.resources.profile_edit_save
 import jr.brian.inindy.resources.profile_edit_selected_cd
 import jr.brian.inindy.resources.profile_edit_title
-import jr.brian.inindy.ui.icons.AddIcon
+import jr.brian.inindy.ui.components.AvatarPickerSection
 import jr.brian.inindy.ui.icons.CheckIcon
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -133,11 +124,12 @@ private fun ProfileEditSheetContent(
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-        AvatarSection(
-            currentAvatarUrl = state.currentAvatarUrl,
-            newAvatarUri = state.newAvatarUri,
-            initial = state.fullName.firstOrNull()?.uppercase() ?: "?",
-            onPick = { onIntent(ProfileEditIntent.AvatarSelected(generatePlaceholderAvatarUri())) }
+        AvatarPickerSection(
+            currentImageUrl = state.currentAvatarUrl,
+            newImageUri = state.newAvatarUri,
+            onImageSelected = { onIntent(ProfileEditIntent.AvatarSelected(it)) },
+            modifier = Modifier.fillMaxWidth(),
+            initialFallback = state.fullName.firstOrNull()?.uppercase() ?: "?"
         )
 
         NameSection(
@@ -170,84 +162,6 @@ private fun ProfileEditSheetContent(
             isSaving = state.isSaving,
             hasChanges = state.hasChanges,
             onSave = { onIntent(ProfileEditIntent.Save) }
-        )
-    }
-}
-
-@Composable
-private fun AvatarSection(
-    currentAvatarUrl: String?,
-    newAvatarUri: String?,
-    initial: String,
-    onPick: () -> Unit
-) {
-    val avatarSize = 96.dp
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            val displayUri = newAvatarUri
-                ?: currentAvatarUrl?.let { withAvatarVariant(it) }
-            if (!displayUri.isNullOrBlank()) {
-                AsyncImage(
-                    model = displayUri,
-                    contentDescription = stringResource(Res.string.profile_edit_change_photo_cd),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(avatarSize)
-                        .clip(CircleShape)
-                        .clickable(onClick = onPick)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(avatarSize)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
-                            )
-                        )
-                        .clickable(onClick = onPick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initial,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
-                    )
-                }
-            }
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 2.dp,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = AddIcon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-        Text(
-            text = stringResource(Res.string.profile_edit_change_photo),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .clickable(onClick = onPick)
-                .padding(top = 4.dp, bottom = 4.dp, start = 8.dp, end = 8.dp)
         )
     }
 }
@@ -476,9 +390,3 @@ private fun SectionLabel(label: String) {
     }
 }
 
-private fun withAvatarVariant(cdnUrl: String): String =
-    if (cdnUrl.contains("?")) cdnUrl
-    else "$cdnUrl?width=200&height=200&fit=cover"
-
-private fun generatePlaceholderAvatarUri(): String =
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop"
