@@ -1,5 +1,6 @@
 package jr.brian.inindy
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import jr.brian.inindy.data.media.ActivityProvider
+import jr.brian.inindy.data.remote.handleSupabaseDeepLink
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -28,10 +30,16 @@ class MainActivity : ComponentActivity() {
         }
 
         activityProvider.attach(this)
+        handleSupabaseDeepLink(intent)
 
         setContent {
             AndroidApp()
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSupabaseDeepLink(intent)
     }
 
     override fun onDestroy() {

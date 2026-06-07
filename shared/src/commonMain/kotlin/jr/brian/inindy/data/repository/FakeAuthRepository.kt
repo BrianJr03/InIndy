@@ -5,13 +5,23 @@ import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AuthRepository
+import jr.brian.inindy.domain.repository.AuthSessionState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 
 class FakeAuthRepository(
     private val tokenStorage: TokenStorage,
     private val userPreferencesStore: UserPreferencesStore
 ) : AuthRepository {
+
+    private val _sessionState = MutableStateFlow<AuthSessionState>(
+        if (tokenStorage.getToken() != null) AuthSessionState.SignedIn
+        else AuthSessionState.SignedOut
+    )
+    override val sessionState: StateFlow<AuthSessionState> = _sessionState.asStateFlow()
 
     override suspend fun signUpWithPhone(phone: String): Result<Unit> {
         delay(NETWORK_DELAY_MS)
@@ -77,6 +87,7 @@ class FakeAuthRepository(
     override suspend fun signOut(): Result<Unit> {
         tokenStorage.clearToken()
         userPreferencesStore.clear()
+        _sessionState.value = AuthSessionState.SignedOut
         return Result.success(Unit)
     }
 
@@ -100,6 +111,7 @@ class FakeAuthRepository(
     private suspend fun persistSignIn(user: User) {
         tokenStorage.saveToken("fake-jwt-${user.id}")
         userPreferencesStore.saveUserId(user.id)
+        _sessionState.value = AuthSessionState.SignedIn
     }
 
     private companion object {

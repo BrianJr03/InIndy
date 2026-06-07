@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ import jr.brian.inindy.resources.photo_picker_permission_denied
 import jr.brian.inindy.resources.photo_picker_take_photo
 import jr.brian.inindy.ui.icons.CameraAltIcon
 import jr.brian.inindy.ui.icons.PhotoLibraryIcon
+import kotlinx.coroutines.flow.filterNotNull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
@@ -150,49 +152,52 @@ fun PhotoPickerSheet(
         }
     }
 
-    LaunchedEffect(pendingLaunch) {
-        val launch = pendingLaunch ?: return@LaunchedEffect
-        pendingLaunch = null
-        isProcessing = true
-        try {
-            when (launch) {
-                PendingLaunch.Camera -> handleCamera(
-                    mode = mode,
-                    cameraCapture = cameraCapture,
-                    imageCompressor = imageCompressor,
-                    onPhotoSelected = onPhotoSelected,
-                    onPhotosSelected = onPhotosSelected,
-                    onDone = { onDismiss() },
-                    reopenSheet = { sheetVisible = true },
-                    showSnackbar = { msg ->
-                        sheetVisible = true
-                        transientMessage = msg
-                    },
-                    showBlocked = {
-                        sheetVisible = true
-                        showBlockedDialog = true
-                    },
-                    permissionDeniedText = permissionDeniedText,
-                    genericErrorText = genericErrorText
-                )
-                PendingLaunch.Gallery -> handleGallery(
-                    mode = mode,
-                    imagePicker = imagePicker,
-                    imageCompressor = imageCompressor,
-                    onPhotoSelected = onPhotoSelected,
-                    onPhotosSelected = onPhotosSelected,
-                    onDone = { onDismiss() },
-                    reopenSheet = { sheetVisible = true },
-                    showSnackbar = { msg ->
-                        sheetVisible = true
-                        transientMessage = msg
-                    },
-                    genericErrorText = genericErrorText
-                )
+    LaunchedEffect(Unit) {
+        snapshotFlow { pendingLaunch }
+            .filterNotNull()
+            .collect { launch ->
+                pendingLaunch = null
+                isProcessing = true
+                try {
+                    when (launch) {
+                        PendingLaunch.Camera -> handleCamera(
+                            mode = mode,
+                            cameraCapture = cameraCapture,
+                            imageCompressor = imageCompressor,
+                            onPhotoSelected = onPhotoSelected,
+                            onPhotosSelected = onPhotosSelected,
+                            onDone = { onDismiss() },
+                            reopenSheet = { sheetVisible = true },
+                            showSnackbar = { msg ->
+                                sheetVisible = true
+                                transientMessage = msg
+                            },
+                            showBlocked = {
+                                sheetVisible = true
+                                showBlockedDialog = true
+                            },
+                            permissionDeniedText = permissionDeniedText,
+                            genericErrorText = genericErrorText
+                        )
+                        PendingLaunch.Gallery -> handleGallery(
+                            mode = mode,
+                            imagePicker = imagePicker,
+                            imageCompressor = imageCompressor,
+                            onPhotoSelected = onPhotoSelected,
+                            onPhotosSelected = onPhotosSelected,
+                            onDone = { onDismiss() },
+                            reopenSheet = { sheetVisible = true },
+                            showSnackbar = { msg ->
+                                sheetVisible = true
+                                transientMessage = msg
+                            },
+                            genericErrorText = genericErrorText
+                        )
+                    }
+                } finally {
+                    isProcessing = false
+                }
             }
-        } finally {
-            isProcessing = false
-        }
     }
 
     transientMessage?.let { msg ->

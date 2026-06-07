@@ -10,6 +10,11 @@ struct iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    Task {
+                        try? await SupabaseDeepLinksIosKt.handleSupabaseDeepLink(url: url.absoluteString)
+                    }
+                }
         }
     }
 }

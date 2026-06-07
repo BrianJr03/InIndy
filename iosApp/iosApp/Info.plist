@@ -8,5 +8,20 @@
 	<string>InIndy uses the camera so you can take photos for your posts, group covers, and profile.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>InIndy saves photos you take to your library when you choose to do so.</string>
+	<key>SupabaseUrl</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>SupabaseAnonKey</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>jr.brian.inindy.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>inindy</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

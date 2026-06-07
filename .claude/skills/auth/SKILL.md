@@ -1,12 +1,23 @@
 ---
 name: auth
-description: Implement the InIndy sign up, sign in, OTP, social auth, and onboarding flow. Use when building or modifying any part of the authentication or onboarding experience.
+description: Implement the InIndy sign up, sign in, magic link email, social auth (Google/Apple), and onboarding flow. Use when building or modifying any part of the authentication or onboarding experience.
 ---
 
 # InIndy Auth & Onboarding Flow
 
-Implement the complete authentication and onboarding flow for InIndy based on the plan below.
+Implement the complete authentication and onboarding flow for InIndy based on $ARGUMENTS.
 Build against interfaces — Supabase does not need to exist yet.
+
+## MVP auth methods
+- **Email magic link** — primary, zero third-party setup, Supabase handles everything
+- **Google Sign-In** — via `SocialAuthProvider` expect/actual
+- **Apple Sign-In** — via `SocialAuthProvider` expect/actual
+
+## V2 only — do NOT implement
+- Phone OTP — requires Twilio, deferred to v2
+- Remove any phone-related screens, intents, or repository methods
+
+---
 
 ## Flow overview
 
@@ -17,33 +28,37 @@ Token valid? → Auto sign-in → Main app
     ↓ no
 Splash / Intro (3 screens)
     ↓
-Welcome screen (Sign up primary, Sign in secondary)
+Welcome screen
+    ├── [ Continue with email ]  ← primary CTA
+    ├── [ Continue with Google ]
+    └── [ Continue with Apple ]
+    │
+    ↓ email selected
+Email screen → user enters email → tap "Send link"
     ↓
-Sign up                          Sign in
-  ├── Phone → OTP verify          ├── Phone → OTP verify
-  ├── Email (magic link)          ├── Email (magic link)
-  └── Google / Apple              └── Google / Apple
-         ↓                                ↓
-Onboarding (new users only)          Main app
-  ├── Step 1: Full name + photo
-  ├── Step 2: Pick neighborhood
-  └── Step 3: Pick interests (multi-select)
-         ↓
-    Main app
+"Check your email" confirmation screen
+    ↓ user taps magic link in email (deep link)
+Session established → check onboarding gate
+    ↓
+Onboarding (new users only)
+    ├── Step 1: Full name + photo
+    ├── Step 2: Pick neighborhood
+    └── Step 3: Pick interests (multi-select)
+    ↓
+Main app
 ```
 
 ---
 
-## Phase 1 — Domain layer (no Supabase needed)
+## Phase 1 — Domain layer
 
-### 1. User domain model
+### User domain model
 File: `shared/commonMain/domain/model/User.kt`
 ```kotlin
 data class User(
     val id: String,
     val fullName: String?,
     val avatarUrl: String?,
-    val phoneVerified: Boolean,
     val neighborhoodId: String?,
     val interests: List<Interest>
 )
@@ -52,14 +67,11 @@ val User.isOnboardingComplete: Boolean
     get() = fullName != null && neighborhoodId != null && interests.isNotEmpty()
 ```
 
-### 2. Auth repository interface
+### Auth repository interface
 File: `shared/commonMain/domain/repository/AuthRepository.kt`
 ```kotlin
 interface AuthRepository {
-    suspend fun signUpWithPhone(phone: String): Result<Unit>
-    suspend fun signUpWithEmail(email: String): Result<Unit>
-    suspend fun verifyOtp(phone: String, code: String): Result<User>
-    suspend fun verifyEmailLink(token: String): Result<User>
+    suspend fun signInWithEmail(email: String): Result<Unit>   // sends magic link
     suspend fun signInWithGoogle(idToken: String): Result<User>
     suspend fun signInWithApple(idToken: String): Result<User>
     suspend fun signOut(): Result<Unit>
@@ -68,35 +80,19 @@ interface AuthRepository {
 }
 ```
 
-### 3. Onboarding repository interface
+### Onboarding repository interface
 File: `shared/commonMain/domain/repository/OnboardingRepository.kt`
 ```kotlin
 interface OnboardingRepository {
     suspend fun updateProfile(fullName: String, avatarUrl: String?): Result<Unit>
     suspend fun updateNeighborhood(neighborhoodId: String): Result<Unit>
     suspend fun updateInterests(interests: List<Interest>): Result<Unit>
+    suspend fun completeOnboarding(): Result<Unit>
     suspend fun getNeighborhoods(): Result<List<Neighborhood>>
 }
 ```
 
-### 4. Interests enum
-File: `shared/commonMain/domain/model/Interest.kt`
-```kotlin
-enum class Interest(val displayName: String) {
-    RUNNING("Running"),
-    HIKING("Hiking"),
-    CYCLING("Cycling"),
-    WALKING("Walking"),
-    PICNICS("Picnics"),
-    SPORTS("Sports"),
-    YOGA("Yoga"),
-    EXPLORING("Exploring"),
-    DOG_WALKS("Dog Walks"),
-    BONFIRES("Bonfires")
-}
-```
-
-### 5. Token storage — expect/actual
+### Token storage — expect/actual
 File: `shared/commonMain/data/local/TokenStorage.kt`
 ```kotlin
 expect class TokenStorage {
@@ -105,56 +101,82 @@ expect class TokenStorage {
     fun clearToken()
 }
 ```
-- `androidMain`: implement with `EncryptedSharedPreferences`
-- `iosMain`: implement with Keychain via `Security` framework
+- `androidMain`: `EncryptedSharedPreferences`
+- `iosMain`: Keychain via `Security` framework
 - Never use plain `SharedPreferences` or `NSUserDefaults`
 
-### 6. Fake repository (use until Supabase is ready)
+### Fake repository
 File: `shared/commonMain/data/repository/FakeAuthRepository.kt`
-- `signUpWithPhone` → delay 1000ms, return `Result.success(Unit)`
-- `verifyOtp` → delay 1000ms, return mock `User` with `isOnboardingComplete = false`
-- `signInWithGoogle` / `signInWithApple` → return mock `User`
-- `isSessionValid` → return false (forces auth flow in dev)
-- Register in Koin as the `AuthRepository` binding — one line swap when Supabase is ready
+```kotlin
+class FakeAuthRepository(
+    private val tokenStorage: TokenStorage,
+    private val userPreferencesStore: UserPreferencesStore
+) : AuthRepository {
+    override suspend fun signInWithEmail(email: String): Result<Unit> {
+        delay(800)
+        // Simulate magic link sent — does not auto sign in
+        return Result.success(Unit)
+    }
+
+    override suspend fun signInWithGoogle(idToken: String): Result<User> {
+        delay(1000)
+        val user = User("fake_user_001", null, null, null, emptyList())
+        tokenStorage.saveToken("fake_jwt_${System.currentTimeMillis()}")
+        userPreferencesStore.saveUserId(user.id)
+        return Result.success(user)
+    }
+
+    override suspend fun signInWithApple(idToken: String): Result<User> {
+        delay(1000)
+        val user = User("fake_user_001", null, null, null, emptyList())
+        tokenStorage.saveToken("fake_jwt_${System.currentTimeMillis()}")
+        userPreferencesStore.saveUserId(user.id)
+        return Result.success(user)
+    }
+
+    override suspend fun isSessionValid(): Boolean =
+        tokenStorage.getToken() != null
+
+    override suspend fun getCurrentUser(): User? {
+        val prefs = userPreferencesStore.preferences.first()
+        return prefs.userId?.let {
+            User(it, prefs.fullName, prefs.avatarUrl, prefs.neighborhoodId, emptyList())
+        }
+    }
+
+    override suspend fun signOut(): Result<Unit> {
+        tokenStorage.clearToken()
+        userPreferencesStore.clear()
+        return Result.success(Unit)
+    }
+}
+```
 
 ---
 
 ## Phase 2 — Social auth expect/actual
 
-Google and Apple Sign-In are native SDKs — wire via `expect/actual`.
-
-### Interface in commonMain
 File: `shared/commonMain/data/social/SocialAuthProvider.kt`
 ```kotlin
 expect class SocialAuthProvider {
-    suspend fun signInWithGoogle(): Result<String> // returns idToken
-    suspend fun signInWithApple(): Result<String>  // returns idToken
+    suspend fun signInWithGoogle(): Result<String>  // returns idToken
+    suspend fun signInWithApple(): Result<String>   // returns idToken
 }
 ```
 
-### Android actual
-File: `shared/androidMain/data/social/SocialAuthProvider.android.kt`
-- Use `CredentialManager` API (modern Google Sign-In)
-- Requires `GOOGLE_CLIENT_ID` in `local.properties`
-
-### iOS actual
-File: `shared/iosMain/data/social/SocialAuthProvider.ios.kt`
-- Use `ASAuthorizationAppleIDProvider` for Apple
-- Use `GIDSignIn` for Google
-- Both require entitlements in Xcode
+- `androidMain`: `CredentialManager` API for Google, Supabase OAuth redirect for Apple
+- `iosMain`: `GIDSignIn` for Google, `ASAuthorizationAppleIDProvider` for Apple
 
 ---
 
 ## Phase 3 — ViewModels & UiState
 
-### Auth ViewModel
+### AuthViewModel
 File: `shared/commonMain/presentation/auth/AuthViewModel.kt`
 
 ```kotlin
 sealed class AuthIntent {
-    data class SignUpPhone(val phone: String) : AuthIntent()
-    data class SignUpEmail(val email: String) : AuthIntent()
-    data class VerifyOtp(val phone: String, val code: String) : AuthIntent()
+    data class SignInWithEmail(val email: String) : AuthIntent()
     object SignInWithGoogle : AuthIntent()
     object SignInWithApple : AuthIntent()
     object CheckSession : AuthIntent()
@@ -163,15 +185,14 @@ sealed class AuthIntent {
 sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
-    object SessionValid : AuthUiState()         // → route to main app
-    object OtpSent : AuthUiState()              // → route to OTP screen
-    object EmailLinkSent : AuthUiState()        // → show "check your email"
+    object SessionValid : AuthUiState()             // → route to main app
+    object MagicLinkSent : AuthUiState()            // → show "check your email" screen
     data class Authenticated(val user: User) : AuthUiState()  // → check onboarding
     data class Error(val message: String) : AuthUiState()
 }
 ```
 
-### Onboarding ViewModel
+### OnboardingViewModel
 File: `shared/commonMain/presentation/onboarding/OnboardingViewModel.kt`
 
 ```kotlin
@@ -190,7 +211,7 @@ sealed class OnboardingUiState {
         val selected: String? = null
     ) : OnboardingUiState()
     data class InterestsStep(
-        val interests: List<Interest>,
+        val interests: List<Interest> = Interest.entries,
         val selected: Set<Interest> = emptySet()
     ) : OnboardingUiState()
     object Complete : OnboardingUiState()
@@ -202,33 +223,29 @@ sealed class OnboardingUiState {
 
 ## Phase 4 — Navigation
 
-Add to `shared/commonMain/navigation/NavGraph.kt`:
-
 ```
-auth_graph (shown when not authenticated)
-    ├── intro/splash (3 pager screens)
+auth_graph
+    ├── intro (3-screen pager)
     ├── welcome
-    ├── signup_phone
     ├── signup_email
-    ├── otp_verify/{phone}
-    ├── email_link_sent
-    ├── signin (sheet or screen)
-    └── onboarding_graph
-            ├── onboarding_profile
-            ├── onboarding_neighborhood
-            └── onboarding_interests
+    ├── magic_link_sent
+    └── signin (reuses welcome — sign in is secondary)
 
-main_graph (shown when authenticated + onboarded)
-    ├── explore (tab)
-    └── events (tab)
+onboarding_graph
+    ├── onboarding_profile
+    ├── onboarding_neighborhood
+    └── onboarding_interests
+
+main_graph
+    └── (Explore, Me, Events tabs)
 ```
 
-### Session routing logic (in RootViewModel or NavHost)
+### Session routing in AppViewModel
 ```kotlin
 when {
-    !isSessionValid() -> navigate to auth_graph
-    !user.isOnboardingComplete -> navigate to onboarding_graph
-    else -> navigate to main_graph
+    !isSessionValid() → auth_graph
+    !user.isOnboardingComplete → onboarding_graph
+    else → main_graph
 }
 ```
 
@@ -236,50 +253,57 @@ when {
 
 ## Phase 5 — Screens
 
-Apply the `/design` skill to every screen. Key notes per screen:
+Apply `/design` skill to every screen.
 
-### Intro/Splash screens (3 pager)
-- Full-screen illustrated cards — warm, outdoor Indy imagery
+### Intro screens (3-screen pager)
+- Full-screen illustrated cards — warm outdoor Indy imagery
 - Large headline + short subtext per screen
-- Dot indicator for progress
+- Dot page indicator
 - "Get started" CTA on last screen only
 - Skip button top-right on screens 1 and 2
 
 ### Welcome screen
-- InIndy logo / wordmark centered
-- "Create account" — primary filled button (accent color)
-- "Sign in" — text button, secondary
-- Social buttons: Google + Apple, full width, below primary CTA
-- Legal copy at bottom: "By continuing you agree to our Terms & Privacy Policy"
+- InIndy brandmark centered
+- Three buttons stacked vertically:
+  1. "Continue with email" — primary filled (accent color)
+  2. "Continue with Google" — outlined with Google logo
+  3. "Continue with Apple" — outlined with Apple logo (black on light, white on dark)
+- "Sign in" text link at bottom for returning users — navigates to same screen, no separate flow
+- Legal copy: "By continuing you agree to our Terms & Privacy Policy"
+- No phone option — MVP is email + social only
 
-### Sign up / Sign in screens
-- Phone: single field with country code prefix (+1 default), numeric keyboard
-- Email: single field, email keyboard, magic link explanation ("We'll send you a link — no password needed")
-- Back navigation always available
+### Email screen
+- Single email text field, email keyboard
+- Helper text: "We'll send you a sign-in link — no password needed"
+- "Send link" primary button — always enabled, validate email format on tap
+- Email format error shown below field if invalid
+- Back button returns to welcome
 
-### OTP screen
-- 6-digit code input — individual boxes, auto-advance on input
-- Auto-submit when 6th digit entered
-- Resend code timer (60s countdown)
-- Show last 4 digits of phone number for context
+### Magic link sent screen
+- Confirmation illustration
+- Headline: "Check your email"
+- Body: "We sent a sign-in link to {email}. Tap the link to continue."
+- "Resend link" text button — cooldown 60s
+- "Use a different email" text button — pops back to email screen
+- No automatic polling — deep link handles session establishment
 
 ### Onboarding screens
 - Step indicator (1 of 3) at top
-- Profile: name text field + circular avatar picker (camera / gallery via expect/actual)
-- Neighborhood: scrollable list with neighborhood names, single select
-- Interests: grid of chips, multi-select, minimum 1 required
-- "Continue" CTA disabled until required fields filled
-- No back navigation from onboarding — must complete
+- Step 1: name text field + `AvatarPickerSection` (reuse from `/photo-picker` skill)
+- Step 2: scrollable neighborhood list, single select, tap to select + checkmark
+- Step 3: wrapping `InterestChipGrid` — all `Interest.entries`, multi-select, min 1 required
+- "Continue" CTA disabled until required fields filled (onboarding is the exception — CTA IS disabled here)
+- No back navigation from onboarding — must complete all steps
 
 ---
 
 ## Phase 6 — Koin wiring
 
-Add to `shared/commonMain/di/AuthModule.kt`:
+File: `shared/commonMain/di/AuthModule.kt`
 ```kotlin
 val authModule = module {
-    single<AuthRepository> { FakeAuthRepository() }       // swap for SupabaseAuthRepository later
-    single<OnboardingRepository> { FakeOnboardingRepository() }
+    single<AuthRepository> { FakeAuthRepository(get(), get()) }
+    single<OnboardingRepository> { FakeOnboardingRepository(get()) }
     single { TokenStorage() }
     single { SocialAuthProvider() }
     viewModel { AuthViewModel(get(), get()) }
@@ -290,19 +314,22 @@ val authModule = module {
 ---
 
 ## Implementation order
-1. Domain models + interfaces (User, Interest, Neighborhood, AuthRepository, OnboardingRepository)
-2. TokenStorage expect/actual
-3. FakeAuthRepository + FakeOnboardingRepository
-4. Koin module
-5. AuthViewModel + OnboardingViewModel
-6. Navigation graph skeleton
-7. Screens in flow order: Intro → Welcome → SignUp → OTP → Onboarding steps
-8. SocialAuthProvider expect/actual (do last — requires native SDK setup)
+1. Domain models — `User`, `Interest`, `Neighborhood`
+2. `AuthRepository` + `OnboardingRepository` interfaces
+3. `TokenStorage` expect/actual
+4. `FakeAuthRepository` + `FakeOnboardingRepository`
+5. `SocialAuthProvider` expect/actual (stub — real impl in `/supabase-auth` skill)
+6. Koin `authModule`
+7. `AuthViewModel` + `OnboardingViewModel`
+8. Navigation graph skeleton
+9. Screens in flow order: Intro → Welcome → Email → Magic Link Sent → Onboarding steps
+10. Deep link handling for magic link callback (document hook, real wiring in `/supabase-auth`)
 
 ## What NOT to do
-- Don't implement SupabaseAuthRepository yet — use Fake until Supabase project is created
-- Don't hardcode phone country codes — use a `CountryCode` data class
-- Don't store JWT in plain SharedPreferences — always use TokenStorage expect/actual
-- Don't skip the `isOnboardingComplete` gate — always check before routing to main app
-- Don't reuse the same UiState sealed class for auth and onboarding — keep them separate
-  EOF
+- Don't implement phone OTP — deferred to v2
+- Don't add a phone field anywhere in the auth UI
+- Don't poll for session after sending magic link — deep link callback handles it
+- Don't disable the email "Send link" button — validate on tap, show inline error
+- Don't allow back navigation from onboarding — the CTA is the only way forward
+- Don't store JWT in plain SharedPreferences — always use `TokenStorage` expect/actual
+- Don't reference `FakeAuthRepository` outside `AuthModule.kt`

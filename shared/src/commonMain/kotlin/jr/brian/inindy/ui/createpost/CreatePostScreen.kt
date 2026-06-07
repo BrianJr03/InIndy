@@ -7,12 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -38,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,13 +45,13 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.PostTag
@@ -115,7 +112,7 @@ fun CreatePostScreen(
     modifier: Modifier = Modifier,
     viewModel: CreatePostViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showQuickGroupSheet by remember { mutableStateOf(false) }
 
@@ -152,7 +149,6 @@ fun CreatePostScreen(
                 PhotosSection(
                     images = state.images,
                     error = state.imagesError,
-                    maxImages = CreatePostUiState.MAX_IMAGES,
                     onImagesAdded = { uris -> uris.forEach(viewModel::addImage) },
                     onImageRemoved = viewModel::removeImage
                 )
@@ -319,7 +315,6 @@ private fun FieldError(message: String?) {
 private fun PhotosSection(
     images: List<String>,
     error: String?,
-    maxImages: Int,
     onImagesAdded: (List<String>) -> Unit,
     onImageRemoved: (String) -> Unit
 ) {
@@ -327,7 +322,7 @@ private fun PhotosSection(
         SectionLabel(stringResource(Res.string.create_post_section_photos))
         PostImagePickerRow(
             images = images,
-            maxImages = maxImages,
+            maxImages = CreatePostUiState.MAX_IMAGES,
             onImagesAdded = onImagesAdded,
             onImageRemoved = onImageRemoved
         )

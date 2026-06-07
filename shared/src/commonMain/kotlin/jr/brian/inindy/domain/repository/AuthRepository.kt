@@ -1,8 +1,11 @@
 package jr.brian.inindy.domain.repository
 
 import jr.brian.inindy.domain.model.User
+import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
+    val sessionState: Flow<AuthSessionState>
+
     suspend fun signUpWithPhone(phone: String): Result<Unit>
     suspend fun signUpWithEmail(email: String): Result<Unit>
     suspend fun verifyOtp(phone: String, code: String): Result<User>

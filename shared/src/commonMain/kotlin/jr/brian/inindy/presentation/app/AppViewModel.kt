@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.repository.AuthRepository
+import jr.brian.inindy.domain.repository.AuthSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,23 +21,27 @@ class AppViewModel(
     val state: StateFlow<AppUiState> = _state.asStateFlow()
 
     init {
-        checkSession()
+        observeSession()
     }
 
-    private fun checkSession() {
+    private fun observeSession() {
         viewModelScope.launch {
-            val sessionValid = authRepository.isSessionValid()
-            if (!sessionValid) {
-                _state.update { it.copy(isLoading = false, destination = AppDestination.Auth) }
-                return@launch
+            authRepository.sessionState.collect { status ->
+                when (status) {
+                    AuthSessionState.Initializing -> {
+                        _state.update { it.copy(isLoading = true) }
+                    }
+                    AuthSessionState.SignedIn -> {
+                        val prefs = userPreferencesStore.preferences.first()
+                        val destination = if (prefs.onboardingComplete) AppDestination.Main
+                        else AppDestination.Onboarding
+                        _state.update { it.copy(isLoading = false, destination = destination) }
+                    }
+                    AuthSessionState.SignedOut -> {
+                        _state.update { it.copy(isLoading = false, destination = AppDestination.Auth) }
+                    }
+                }
             }
-            val prefs = userPreferencesStore.preferences.first()
-            val destination = if (prefs.onboardingComplete) {
-                AppDestination.Main
-            } else {
-                AppDestination.Onboarding
-            }
-            _state.update { it.copy(isLoading = false, destination = destination) }
         }
     }
 }

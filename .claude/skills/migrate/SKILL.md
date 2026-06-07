@@ -73,3 +73,31 @@ CREATE INDEX ON <table> USING GIST(location);
 - Foreign keys must have ON DELETE CASCADE unless there is a specific reason not to
 - New tables affecting user_stats must include the corresponding trigger
 - After generating, remind the developer to run: `supabase db push` or apply via Supabase dashboard
+
+## Enum value additions — special rules
+
+Postgres enums can be extended but NOT modified in place. This applies to `user_interest` and `post_tag`.
+
+### When Interest.kt or PostTag.kt gains a new value
+Always generate a follow-up migration immediately — never let Kotlin and the DB get out of sync:
+
+```sql
+-- Migration: add STARGAZING to user_interest enum
+ALTER TYPE user_interest ADD VALUE IF NOT EXISTS 'STARGAZING';
+```
+
+### Rules
+- Use `IF NOT EXISTS` to make the migration idempotent — safe to run twice
+- Enum value name must exactly match the Kotlin enum constant name — `STARGAZING` not `Stargazing`
+- One `ALTER TYPE` per new value — do not combine with other schema changes in the same migration
+- Enum values CANNOT be removed or renamed without a full migration strategy — never attempt in place
+- If asked to remove an enum value: warn the developer, do not generate the migration without explicit confirmation and a data migration plan
+
+### Removal strategy (document, do not implement without confirmation)
+```
+1. Add new replacement value (if renaming)
+2. Migrate existing data to new value
+3. Remove references in application code
+4. Drop old value — only possible in Postgres 16+ via ALTER TYPE ... DROP VALUE (still experimental)
+   OR recreate the enum type entirely (complex, requires table rewrites)
+```

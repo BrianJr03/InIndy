@@ -102,7 +102,10 @@ private fun AddImageButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ImageThumbnail(uri: String, onRemove: () -> Unit) {
+private fun ImageThumbnail(
+    uri: String,
+    onRemove: () -> Unit
+) {
     Box(modifier = Modifier.size(80.dp)) {
         AsyncImage(
             model = uri,
@@ -121,7 +124,10 @@ private fun ImageThumbnail(uri: String, onRemove: () -> Unit) {
                 .size(22.dp)
                 .clickable(onClick = onRemove)
         ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = CloseIcon,
                     contentDescription = stringResource(Res.string.photo_picker_post_remove_cd),

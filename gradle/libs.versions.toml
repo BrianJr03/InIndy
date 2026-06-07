@@ -23,6 +23,7 @@ ktor = "3.5.0"
 material3 = "1.12.0-alpha01"
 navigation-compose = "2.9.2"
 sqldelight = "2.3.2"
+supabase = "3.1.4"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -82,6 +83,13 @@ navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-co
 
 # DataStore
 datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
+
+# Supabase — BOM aligns module versions; individual artifacts inherit it
+supabase-bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabase" }
+supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt" }
+supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
+supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt" }
+supabase-functions = { module = "io.github.jan-tennert.supabase:functions-kt" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

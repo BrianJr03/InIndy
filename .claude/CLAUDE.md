@@ -181,11 +181,14 @@ val User.isOnboardingComplete: Boolean
 ```
 This is the single source of truth — use this extension, never replicate the logic elsewhere.
 
-### Auth methods
-- Phone → OTP (6-digit, Supabase handles SMS)
-- Email → magic link (no password — Supabase handles)
+### Auth methods — MVP
+- Email → magic link (no password — Supabase handles natively, zero third-party setup)
 - Google → `SocialAuthProvider` expect/actual → Supabase OAuth
 - Apple → `SocialAuthProvider` expect/actual → Supabase OAuth
+
+### Auth methods — V2 (do not implement)
+- Phone OTP — requires Twilio setup, SMS costs, deferred to v2
+- Never implement phone auth without explicit instruction
 
 ### Fake vs real repositories
 - `FakeAuthRepository` — used during development before Supabase is connected
@@ -300,3 +303,16 @@ Always request the appropriate variant via URL params:
 - Scrollable content must clear the home indicator at the bottom
 - Never skip this — missing insets breaks layout on notched and gesture-nav devices
 - Apply to the outermost `Box` or `Scaffold` of every screen, not individual components
+
+## Enum migration rule
+- Every time `Interest.kt` or `PostTag.kt` gains a new value, a follow-up Supabase migration is required
+- Postgres enums can be added to but NOT removed or renamed in place
+- Migration syntax for adding a value:
+  ```sql
+  ALTER TYPE user_interest ADD VALUE 'NEW_VALUE_NAME';
+  ALTER TYPE post_tag ADD VALUE 'NEW_VALUE_NAME';
+  ```
+- The enum value name in SQL must exactly match the Kotlin enum name (e.g. `STARGAZING` not `Stargazing`)
+- Never add a Kotlin enum value without a corresponding migration — the app will crash on insert
+- Never remove or rename a Kotlin enum value that exists in the DB without a full migration strategy
+- If an enum value needs to be removed: deprecate in Kotlin first, migrate data, then drop (complex — plan carefully)
