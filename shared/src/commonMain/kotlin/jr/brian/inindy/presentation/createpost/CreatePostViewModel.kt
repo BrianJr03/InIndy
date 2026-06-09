@@ -8,7 +8,7 @@ import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.PostAudience
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_IMAGES
@@ -136,7 +136,7 @@ class CreatePostViewModel(
         _uiState.value = _uiState.value.copy(audience = PostAudience.GroupAudience(groupId))
     }
 
-    fun toggleTag(tag: PostTag) {
+    fun toggleTag(tag: Interest) {
         val current = _uiState.value.tags
         val updated = when {
             tag in current -> current - tag

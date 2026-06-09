@@ -7,10 +7,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.presentation.onboarding.OnboardingIntent
 import jr.brian.inindy.presentation.onboarding.OnboardingUiState
 import jr.brian.inindy.presentation.onboarding.OnboardingViewModel
@@ -22,7 +22,7 @@ fun OnboardingNavHost(
     modifier: Modifier = Modifier,
     viewModel: OnboardingViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state) {
         if (state is OnboardingUiState.Complete) {

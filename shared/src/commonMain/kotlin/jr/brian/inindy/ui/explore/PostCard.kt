@@ -45,7 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.Post
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.VideoMedia
 import jr.brian.inindy.resources.Res
@@ -84,7 +84,7 @@ fun PostCard(
     val relativeTime = DateUtil.formatRelativeDate(post.createdAt, nowMs)
     val media = post.images.take(MAX_POST_IMAGES).map { HeroMedia.Image(it) } +
         post.videos.take(MAX_POST_VIDEOS).map { HeroMedia.Video(it.url, it.thumbnailUrl) }
-    val primaryTag = post.tags.firstOrNull() ?: PostTag.OTHER
+    val primaryTag = post.tags.firstOrNull() ?: Interest.EXPLORING
 
     ElevatedCard(
         modifier = modifier
@@ -253,7 +253,7 @@ private fun Avatar(
 @Composable
 private fun PostHero(
     media: List<HeroMedia>,
-    primaryTag: PostTag,
+    primaryTag: Interest,
     contentDescription: String
 ) {
     BoxWithConstraints(
@@ -321,7 +321,7 @@ private sealed interface HeroMedia {
 private fun VideoPage(
     video: HeroMedia.Video,
     contentDescription: String,
-    primaryTag: PostTag
+    primaryTag: Interest
 ) {
     var playing by remember(video.url) { mutableStateOf(false) }
 
@@ -369,7 +369,7 @@ private fun VideoPage(
 }
 
 @Composable
-private fun TagGradientBackground(tag: PostTag, modifier: Modifier = Modifier) {
+private fun TagGradientBackground(tag: Interest, modifier: Modifier = Modifier) {
     val color = tagColor(tag)
     Box(
         modifier = modifier.background(
@@ -380,7 +380,7 @@ private fun TagGradientBackground(tag: PostTag, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = tag.label.uppercase(),
+            text = tag.displayName.uppercase(),
             color = Color.White,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
@@ -461,7 +461,7 @@ private fun MetaRow(
 
 @Composable
 private fun FooterRow(
-    tags: List<PostTag>,
+    tags: List<Interest>,
     isRsvpd: Boolean,
     onRsvpClick: () -> Unit
 ) {
@@ -503,7 +503,7 @@ private fun FooterRow(
 
 @Composable
 private fun TagChip(
-    tag: PostTag,
+    tag: Interest,
     modifier: Modifier = Modifier
 ) {
     val color = tagColor(tag)
@@ -513,7 +513,7 @@ private fun TagChip(
         color = color.copy(alpha = 0.14f)
     ) {
         Text(
-            text = tag.label,
+            text = tag.displayName,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = color,
@@ -533,14 +533,38 @@ internal fun rememberTickingNowMs(refreshIntervalMs: Long = RELATIVE_TIME_REFRES
     return now
 }
 
-internal fun tagColor(tag: PostTag): Color = when (tag) {
-    PostTag.HIKE -> Color(0xFF4CAF50)
-    PostTag.RUN -> Color(0xFFFF5722)
-    PostTag.PICNIC -> Color(0xFFFFC107)
-    PostTag.SPORT -> Color(0xFF2196F3)
-    PostTag.WALK -> Color(0xFF009688)
-    PostTag.EXPLORE -> Color(0xFF9C27B0)
-    PostTag.OTHER -> Color(0xFF9E9E9E)
+internal fun tagColor(tag: Interest): Color = when (tag) {
+    Interest.RUNNING,
+    Interest.HIKING,
+    Interest.CYCLING,
+    Interest.WALKING,
+    Interest.YOGA,
+    Interest.SPORTS,
+    Interest.SWIMMING,
+    Interest.SKATING -> Color(0xFF4CAF50)
+
+    Interest.PICNICS,
+    Interest.BONFIRES,
+    Interest.GAME_NIGHTS,
+    Interest.COFFEE,
+    Interest.FOOD,
+    Interest.VOLUNTEERING -> Color(0xFFFFC107)
+
+    Interest.PHOTOGRAPHY,
+    Interest.DRAWING,
+    Interest.READING,
+    Interest.MUSIC,
+    Interest.CRAFTS,
+    Interest.WRITING -> Color(0xFFE91E63)
+
+    Interest.EXPLORING,
+    Interest.BIRDWATCHING,
+    Interest.GARDENING,
+    Interest.STARGAZING,
+    Interest.NATURE -> Color(0xFF9C27B0)
+
+    Interest.DOG_WALKS,
+    Interest.PET_FRIENDLY -> Color(0xFF009688)
 }
 
 internal fun firstTokenOf(displayName: String): String {
@@ -567,7 +591,7 @@ private fun PostCardPreview() {
                 startsAt = 1_780_045_200_000L,
                 endsAt = null,
                 createdAt = createdAt,
-                tags = listOf(PostTag.HIKE, PostTag.WALK),
+                tags = listOf(Interest.HIKING, Interest.WALKING),
                 images = listOf(
                     "https://example.com/photo1.jpg",
                     "https://example.com/photo2.jpg",
@@ -610,7 +634,7 @@ private fun PostCardNoImagesPreview() {
                 startsAt = 1_780_131_600_000L,
                 endsAt = null,
                 createdAt = createdAt,
-                tags = listOf(PostTag.PICNIC),
+                tags = listOf(Interest.PICNICS),
                 images = emptyList(),
                 videos = emptyList(),
                 rsvpCount = 4,
@@ -640,7 +664,7 @@ private fun PostCardAnonymousPreview() {
                 startsAt = 1_780_200_000_000L,
                 endsAt = null,
                 createdAt = createdAt,
-                tags = listOf(PostTag.SPORT, PostTag.RUN, PostTag.OTHER),
+                tags = listOf(Interest.SPORTS, Interest.RUNNING, Interest.EXPLORING),
                 images = emptyList(),
                 videos = emptyList(),
                 rsvpCount = 7,

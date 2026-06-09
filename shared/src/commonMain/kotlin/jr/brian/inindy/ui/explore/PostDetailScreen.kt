@@ -6,18 +6,22 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -26,37 +30,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -72,28 +71,31 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Post
-import jr.brian.inindy.domain.model.PostTag
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.VideoMedia
+import jr.brian.inindy.presentation.post.PostDetailUiState
+import jr.brian.inindy.presentation.post.PostDetailViewModel
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.detail_ends_label
-import jr.brian.inindy.resources.detail_image_count
-import jr.brian.inindy.resources.detail_map_caption
-import jr.brian.inindy.resources.detail_overview_title
-import jr.brian.inindy.resources.detail_when_where_title
 import jr.brian.inindy.resources.detail_attendees_dialog_close
 import jr.brian.inindy.resources.detail_attendees_dialog_title
 import jr.brian.inindy.resources.detail_attendees_empty
-import jr.brian.inindy.resources.detail_whos_in_subtitle
-import jr.brian.inindy.resources.detail_whos_in_title
+import jr.brian.inindy.resources.detail_ends_label
 import jr.brian.inindy.resources.detail_im_in_button
+import jr.brian.inindy.resources.detail_image_count
+import jr.brian.inindy.resources.detail_map_caption
+import jr.brian.inindy.resources.detail_overview_title
 import jr.brian.inindy.resources.detail_un_rsvp_confirm
 import jr.brian.inindy.resources.detail_un_rsvp_content_description
 import jr.brian.inindy.resources.detail_un_rsvp_dialog_message
 import jr.brian.inindy.resources.detail_un_rsvp_dialog_title
 import jr.brian.inindy.resources.detail_un_rsvp_dismiss
+import jr.brian.inindy.resources.detail_when_where_title
+import jr.brian.inindy.resources.detail_whos_in_subtitle
+import jr.brian.inindy.resources.detail_whos_in_title
 import jr.brian.inindy.resources.detail_youre_in_button
 import jr.brian.inindy.resources.me_delete_post_confirm
 import jr.brian.inindy.resources.me_delete_post_dialog_message
@@ -105,8 +107,6 @@ import jr.brian.inindy.resources.post_detail_edit
 import jr.brian.inindy.resources.post_detail_loading
 import jr.brian.inindy.resources.post_detail_menu_cd
 import jr.brian.inindy.resources.post_detail_not_found
-import jr.brian.inindy.presentation.post.PostDetailUiState
-import jr.brian.inindy.presentation.post.PostDetailViewModel
 import jr.brian.inindy.ui.components.FloatingBackButton
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
@@ -133,7 +133,7 @@ fun PostDetailScreen(
     allowHostActions: Boolean = false,
     viewModel: PostDetailViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(postId) {
         viewModel.load(postId)
@@ -233,7 +233,7 @@ private fun PostDetailContent(
     attendeesLoading: Boolean = false,
     onLoadAttendees: () -> Unit = {}
 ) {
-    val accent = tagColor(post.tags.firstOrNull() ?: PostTag.OTHER)
+    val accent = tagColor(post.tags.firstOrNull() ?: Interest.EXPLORING)
     val scrollState = rememberScrollState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAttendeesDialog by remember { mutableStateOf(false) }
@@ -252,7 +252,7 @@ private fun PostDetailContent(
             DetailHero(
                 images = post.images,
                 videos = post.videos,
-                primaryTag = post.tags.firstOrNull() ?: PostTag.OTHER,
+                primaryTag = post.tags.firstOrNull() ?: Interest.EXPLORING,
                 contentDescription = post.title
             )
 
@@ -476,7 +476,7 @@ private fun HostActionBar(
 private fun DetailHero(
     images: List<String>,
     videos: List<VideoMedia>,
-    primaryTag: PostTag,
+    primaryTag: Interest,
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
@@ -562,7 +562,7 @@ private sealed interface DetailMedia {
 private fun DetailVideoPage(
     video: DetailMedia.Video,
     contentDescription: String,
-    primaryTag: PostTag,
+    primaryTag: Interest,
     modifier: Modifier = Modifier
 ) {
     var playing by remember(video.url) { mutableStateOf(false) }
@@ -612,7 +612,7 @@ private fun DetailVideoPage(
 
 @Composable
 private fun TagBackdrop(
-    tag: PostTag,
+    tag: Interest,
     modifier: Modifier = Modifier
 ) {
     val color = tagColor(tag)
@@ -625,7 +625,7 @@ private fun TagBackdrop(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = tag.label.uppercase(),
+            text = tag.displayName.uppercase(),
             color = Color.White,
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.ExtraBold,
@@ -706,7 +706,7 @@ private fun DetailAvatar(
 
 @Composable
 private fun DetailTagRow(
-    tags: List<PostTag>,
+    tags: List<Interest>,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -721,7 +721,7 @@ private fun DetailTagRow(
 
 @Composable
 private fun DetailTagChip(
-    tag: PostTag,
+    tag: Interest,
     modifier: Modifier = Modifier
 ) {
     val color = tagColor(tag)
@@ -731,7 +731,7 @@ private fun DetailTagChip(
         color = color.copy(alpha = 0.16f)
     ) {
         Text(
-            text = tag.label.uppercase(),
+            text = tag.displayName.uppercase(),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             color = color,
@@ -1286,7 +1286,7 @@ private fun PostDetailScreenPreview() {
                 startsAt = 1_780_045_200_000L,
                 endsAt = 1_780_056_000_000L,
                 createdAt = createdAt,
-                tags = listOf(PostTag.HIKE, PostTag.WALK),
+                tags = listOf(Interest.HIKING, Interest.WALKING),
                 images = listOf(
                     "https://example.com/photo1.jpg",
                     "https://example.com/photo2.jpg"
@@ -1324,7 +1324,7 @@ private fun PostDetailScreenHostPreview() {
                 startsAt = 1_780_200_000_000L,
                 endsAt = null,
                 createdAt = createdAt,
-                tags = listOf(PostTag.PICNIC),
+                tags = listOf(Interest.PICNICS),
                 images = emptyList(),
                 videos = emptyList(),
                 rsvpCount = 8,

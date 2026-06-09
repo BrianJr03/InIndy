@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -40,7 +40,7 @@ fun MainScreen(
                 .padding(padding)
         ) {
             composable(MainTab.EXPLORE.route) {
-                val exploreState by exploreViewModel.uiState.collectAsState()
+                val exploreState by exploreViewModel.uiState.collectAsStateWithLifecycle()
                 val listState = rememberLazyListState()
                 ExploreScreen(
                     uiState = exploreState,

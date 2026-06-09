@@ -259,7 +259,7 @@ fun RootNavGraph(
     appViewModel: AppViewModel = koinViewModel(),
     navController: NavHostController = rememberNavController()
 ) {
-    val state by appViewModel.state.collectAsState()
+    val state by appViewModel.state.collectAsStateWithLifecycle()
 
     // Show splash/loading while checking session
     if (state.isLoading) {

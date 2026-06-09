@@ -1,7 +1,7 @@
 package jr.brian.inindy.data.repository
 
 import jr.brian.inindy.domain.model.Post
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.VideoMedia
 import jr.brian.inindy.domain.repository.ExploreRepository
@@ -92,7 +92,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 startsAt = NOW_MS + 86_400_000L + 9 * 3_600_000L,
                 endsAt = NOW_MS + 86_400_000L + 12 * 3_600_000L,
                 createdAt = NOW_MS - 3_600_000L,
-                tags = listOf(PostTag.HIKE, PostTag.WALK),
+                tags = listOf(Interest.HIKING, Interest.WALKING),
                 images = listOf(
                     "https://scontent-lhr8-2.xx.fbcdn.net/v/t39.30808-6/707981420_10107786398053153_8410068118367704544_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=101&ccb=1-7&_nc_sid=aa7b47&_nc_ohc=y-bslXyy1cEQ7kNvwFNjk03&_nc_oc=AdobgX-R3Z-8HanTE6DmeK2H2LaZQwhiq7c2rn4hAm9tnlHZ5hN2P0LWh6c5tInYA_U&_nc_zt=23&se=-1&_nc_ht=scontent-lhr8-2.xx&_nc_gid=CZNz2T0fU6XDFq5YftLrYA&_nc_ss=7b2a8&oh=00_Af6m8fNv-xMttAXiTA_hml41yBQ6pOOz0ueMee24YFfBtA&oe=6A1CF5E0",
                     "https://scontent-lhr8-2.xx.fbcdn.net/v/t39.30808-6/707406804_10107786395912443_7289282741261028850_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=aa7b47&_nc_ohc=ow66hQadPugQ7kNvwHL2ZFU&_nc_oc=AdoGoKt7icnzPjiUC3-BEal_WSyH308Zkv3pMni4Y1leK4cx_9XQqnOgVoC47H1E1C8&_nc_zt=23&_nc_ht=scontent-lhr8-2.xx&_nc_gid=ns86D6HTF8xagHJWeJTF6g&_nc_ss=7b2a8&oh=00_Af4-yKe9PPlfbRQq37gw-clH4VBd6oH8agXnxKqUIQE3-g&oe=6A1CF9D1",
@@ -113,7 +113,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 startsAt = NOW_MS + 2 * 86_400_000L + 7 * 3_600_000L,
                 endsAt = null,
                 createdAt = NOW_MS - 7_200_000L,
-                tags = listOf(PostTag.RUN),
+                tags = listOf(Interest.RUNNING),
                 images = listOf(
                     "https://www.visitindy.com/imager/files_idss_com/C516/DMS_image_3410_e7b4e5d5-5056-854c-b6c0e14aadaa42c5_e45adf5f6bc0c5c2a30a39868f44eab6.jpg",
                     "https://www.railstotrails.org/nitropack_static/pVKvLDLqSrRUaEyiNwEcSJukRyhzZaDI/assets/images/optimized/rev-958f862/www.railstotrails.org/wp-content/uploads/2024/12/Indianas-Monon-Trail_IMG_8344_Photo-by-Robert-Annis.jpg"
@@ -133,7 +133,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 startsAt = NOW_MS + 3 * 86_400_000L + 12 * 3_600_000L,
                 endsAt = NOW_MS + 3 * 86_400_000L + 17 * 3_600_000L,
                 createdAt = NOW_MS - 1_800_000L,
-                tags = listOf(PostTag.PICNIC, PostTag.EXPLORE),
+                tags = listOf(Interest.PICNICS, Interest.EXPLORING),
                 images = listOf(
                     "https://www.blackfoodie.co/wp-content/uploads/2020/08/Copy-of-random-for-reference.png",
                     "https://static01.nyt.com/images/2022/07/20/t-magazine/20tmag-mayfield-slide-RNIG/20tmag-mayfield-slide-RNIG-articleLarge.jpg?quality=75&auto=webp&disable=upscale",
@@ -154,7 +154,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 startsAt = NOW_MS + 4 * 86_400_000L + 8 * 3_600_000L,
                 endsAt = null,
                 createdAt = NOW_MS - 90_000L,
-                tags = listOf(PostTag.SPORT),
+                tags = listOf(Interest.SPORTS),
                 images = listOf(
                     "https://www.ridepropel.com/wp-content/uploads/2023/08/Remoteless-Electric-Skateboard1.jpg"
                 ),
@@ -178,7 +178,7 @@ class ExploreRepositoryImpl : ExploreRepository {
                 startsAt = NOW_MS + 5 * 86_400_000L + 10 * 3_600_000L,
                 endsAt = NOW_MS + 5 * 86_400_000L + 13 * 3_600_000L,
                 createdAt = NOW_MS - 5_400_000L,
-                tags = listOf(PostTag.WALK, PostTag.EXPLORE),
+                tags = listOf(Interest.WALKING, Interest.EXPLORING),
                 images = listOf(
                     "https://wineandwalk.hr/wp-content/uploads/2024/09/wine_walk-00636.jpg"
                 ),

@@ -196,7 +196,7 @@ fun ProfileEditSheet(
     onDismiss: () -> Unit,
     viewModel: ProfileEditViewModel = koinViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -2,7 +2,6 @@ package jr.brian.inindy.ui.auth
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.presentation.auth.AuthIntent
 import jr.brian.inindy.presentation.auth.AuthUiState
@@ -33,7 +33,7 @@ fun AuthNavHost(
     modifier: Modifier = Modifier,
     viewModel: AuthViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var route by remember { mutableStateOf<AuthRoute>(AuthRoute.Intro) }
     var pendingPhone by remember { mutableStateOf("") }
     var pendingEmail by remember { mutableStateOf("") }

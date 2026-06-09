@@ -31,17 +31,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.presentation.creategroup.CreateGroupIntent
 import jr.brian.inindy.presentation.creategroup.CreateGroupUiState
 import jr.brian.inindy.presentation.creategroup.CreateGroupViewModel
@@ -72,7 +71,7 @@ fun CreateGroupScreen(
     modifier: Modifier = Modifier,
     viewModel: CreateGroupViewModel = koinViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.createdGroupId) {
         state.createdGroupId?.let(onCreated)

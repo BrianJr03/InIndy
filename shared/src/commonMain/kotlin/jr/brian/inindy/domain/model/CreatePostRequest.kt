@@ -8,7 +8,7 @@ data class CreatePostRequest(
     val address: String,
     val startsAt: Long,
     val endsAt: Long?,
-    val tags: List<PostTag>,
+    val tags: List<Interest>,
     val imageUris: List<String>,
     val audience: PostAudience,
     val maxAttendees: Int?

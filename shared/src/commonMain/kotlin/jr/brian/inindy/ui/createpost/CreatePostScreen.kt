@@ -1,10 +1,15 @@
 package jr.brian.inindy.ui.createpost
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,12 +44,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,7 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.PostAudience
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.presentation.createpost.CreatePostUiState
 import jr.brian.inindy.presentation.createpost.CreatePostViewModel
 import jr.brian.inindy.resources.Res
@@ -98,6 +106,7 @@ import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -126,6 +135,8 @@ fun CreatePostScreen(
 
     BackHandler(onBack = handleClose)
 
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -141,7 +152,7 @@ fun CreatePostScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -187,6 +198,7 @@ fun CreatePostScreen(
                 )
                 TagsSection(
                     tags = state.tags,
+                    scrollState = scrollState,
                     onToggle = viewModel::toggleTag
                 )
                 MaxAttendeesSection(
@@ -649,11 +661,14 @@ private fun AudienceSection(
 
 @Composable
 private fun TagsSection(
-    tags: Set<PostTag>,
-    onToggle: (PostTag) -> Unit
+    tags: Set<Interest>,
+    scrollState: ScrollState,
+    onToggle: (Interest) -> Unit
 ) {
-    val all = PostTag.entries
+    val all = Interest.entries
+    val scope = rememberCoroutineScope()
     val maxed = tags.size >= CreatePostUiState.MAX_TAGS
+    var allTagsVisible by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel(stringResource(Res.string.create_post_section_tags))
         Text(
@@ -662,24 +677,52 @@ private fun TagsSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FlowChipRow {
-            all.forEach { tag ->
+            all.subList(0, 10).forEach { tag ->
                 val selected = tag in tags
                 val enabled = selected || !maxed
                 TagChipToggle(
-                    label = tag.label,
+                    label = tag.displayName,
                     selected = selected,
                     enabled = enabled,
                     onClick = { onToggle(tag) }
                 )
             }
+            TagChipToggle(
+                label = if (allTagsVisible) "Show Less" else "Show More",
+                selected = false,
+                isVisibilityToggle = true,
+                enabled = true,
+                onClick = {
+                    allTagsVisible = !allTagsVisible
+                    if (allTagsVisible) {
+                        scope.launch {
+                            scrollState.animateScrollTo(Int.MAX_VALUE)
+                        }
+                    }
+                }
+            )
+        }
+        AnimatedVisibility(allTagsVisible) {
+            FlowChipRow {
+                all.subList(11, all.size - 1).forEach { tag ->
+                    val selected = tag in tags
+                    val enabled = selected || !maxed
+                    TagChipToggle(
+                        label = tag.displayName,
+                        selected = selected,
+                        enabled = enabled,
+                        onClick = { onToggle(tag) }
+                    )
+                }
+            }
         }
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FlowChipRow(content: @Composable () -> Unit) {
-    androidx.compose.foundation.layout.FlowRow(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -692,6 +735,7 @@ private fun FlowChipRow(content: @Composable () -> Unit) {
 private fun TagChipToggle(
     label: String,
     selected: Boolean,
+    isVisibilityToggle: Boolean = false,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -704,10 +748,26 @@ private fun TagChipToggle(
         enabled -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val border = when {
+        isVisibilityToggle -> BorderStroke(
+            width = 1.dp, Brush.linearGradient(
+                listOf(
+                    Color.Green.copy(alpha = 0.6f),
+                    Color.Green.copy(alpha = 0.6f)
+                )
+            )
+        )
+
+        else -> null
+    }
     Surface(
         shape = RoundedCornerShape(50),
         color = container,
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
+        border = border,
+        modifier = Modifier.clickable(
+            enabled = enabled,
+            onClick = onClick
+        )
     ) {
         Text(
             text = label,

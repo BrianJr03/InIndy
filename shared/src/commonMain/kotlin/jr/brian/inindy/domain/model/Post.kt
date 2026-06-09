@@ -11,7 +11,7 @@ data class Post(
     val startsAt: Long,
     val endsAt: Long?,
     val createdAt: Long,
-    val tags: List<PostTag>,
+    val tags: List<Interest>,
     val images: List<String>,
     val videos: List<VideoMedia>,
     val rsvpCount: Int,

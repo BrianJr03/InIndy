@@ -3,7 +3,7 @@ package jr.brian.inindy.data.repository
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.PostAudience
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.util.currentTimeMillis
@@ -116,7 +116,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + 2 * hour,
                 endsAt = now + 3 * hour,
                 createdAt = now - 20 * 60_000L,
-                tags = listOf(PostTag.RUN),
+                tags = listOf(Interest.RUNNING),
                 images = listOf("https://picsum.photos/seed/run1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 3,
@@ -135,7 +135,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + day,
                 endsAt = now + day + 3 * hour,
                 createdAt = now - hour,
-                tags = listOf(PostTag.PICNIC),
+                tags = listOf(Interest.PICNICS),
                 images = listOf("https://picsum.photos/seed/picnic1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 7,
@@ -154,7 +154,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + 3 * hour,
                 endsAt = null,
                 createdAt = now - 45 * 60_000L,
-                tags = listOf(PostTag.EXPLORE),
+                tags = listOf(Interest.EXPLORING),
                 images = listOf("https://picsum.photos/seed/bike1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 2,
@@ -173,7 +173,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + 4 * hour,
                 endsAt = now + 6 * hour,
                 createdAt = now - 30 * 60_000L,
-                tags = listOf(PostTag.SPORT),
+                tags = listOf(Interest.SPORTS),
                 images = listOf("https://picsum.photos/seed/bball1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 5,
@@ -192,7 +192,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + 5 * hour,
                 endsAt = now + 6 * hour,
                 createdAt = now - 2 * hour,
-                tags = listOf(PostTag.WALK),
+                tags = listOf(Interest.WALKING),
                 images = listOf("https://picsum.photos/seed/yoga1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 9,
@@ -211,7 +211,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + day + 7 * hour,
                 endsAt = null,
                 createdAt = now - 3 * hour,
-                tags = listOf(PostTag.RUN),
+                tags = listOf(Interest.RUNNING),
                 images = listOf("https://picsum.photos/seed/run2/800/600"),
                 videos = emptyList(),
                 rsvpCount = 6,
@@ -230,7 +230,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + 6 * hour,
                 endsAt = null,
                 createdAt = now - (1.5 * hour).toLong(),
-                tags = listOf(PostTag.WALK),
+                tags = listOf(Interest.WALKING),
                 images = listOf("https://picsum.photos/seed/dogwalk1/800/600"),
                 videos = emptyList(),
                 rsvpCount = 4,
@@ -258,7 +258,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + twoDays + 9 * 3_600_000L,
                 endsAt = now + twoDays + 11 * 3_600_000L,
                 createdAt = now - 86_400_000L,
-                tags = listOf(PostTag.WALK),
+                tags = listOf(Interest.WALKING),
                 images = listOf(
                     "https://www.railstotrails.org/nitropack_static/pVKvLDLqSrRUaEyiNwEcSJukRyhzZaDI/assets/images/optimized/rev-958f862/www.railstotrails.org/wp-content/uploads/2024/12/Indianas-Monon-Trail_IMG_8344_Photo-by-Robert-Annis.jpg"
                 ),
@@ -277,7 +277,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now + fiveDays + 13 * 3_600_000L,
                 endsAt = now + fiveDays + 16 * 3_600_000L,
                 createdAt = now - 3 * 86_400_000L,
-                tags = listOf(PostTag.PICNIC),
+                tags = listOf(Interest.PICNICS),
                 images = listOf(
                     "https://www.blackfoodie.co/wp-content/uploads/2020/08/Copy-of-random-for-reference.png"
                 ),
@@ -296,7 +296,7 @@ class FakePostRepository : PostRepository {
                 startsAt = now - oneWeekAgo + 9 * 3_600_000L,
                 endsAt = now - oneWeekAgo + 11 * 3_600_000L,
                 createdAt = now - 2 * oneWeekAgo,
-                tags = listOf(PostTag.HIKE),
+                tags = listOf(Interest.HIKING),
                 images = listOf(
                     "https://www.visitindy.com/imager/files_idss_com/C516/DMS_image_3410_e7b4e5d5-5056-854c-b6c0e14aadaa42c5_e45adf5f6bc0c5c2a30a39868f44eab6.jpg"
                 ),

@@ -3,7 +3,7 @@ package jr.brian.inindy.presentation.createpost
 import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.PostAudience
-import jr.brian.inindy.domain.model.PostTag
+import jr.brian.inindy.domain.model.Interest
 
 data class CreatePostUiState(
     val images: List<String> = emptyList(),
@@ -19,7 +19,7 @@ data class CreatePostUiState(
     val endsAt: Long? = null,
     val audience: PostAudience = PostAudience.Neighborhood,
     val userGroups: List<Group> = emptyList(),
-    val tags: Set<PostTag> = emptySet(),
+    val tags: Set<Interest> = emptySet(),
     val maxAttendees: Int? = null,
     val noLimit: Boolean = true,
     val isSubmitting: Boolean = false,

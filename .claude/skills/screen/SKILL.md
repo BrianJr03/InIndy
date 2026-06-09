@@ -19,7 +19,7 @@ Scaffold a complete new screen for InIndy using the name and optional tab provid
    - Inject repository via Koin constructor
 4. **Create Composable** in `shared/commonMain/ui/<tab>/<ScreenName>Screen.kt`
    - Stateless composable receiving UiState + event lambdas
-   - Collect ViewModel state with `collectAsState()`
+   - Collect ViewModel state with `collectAsStateWithLifecycle()`
    - Handle all three UiState cases
 5. **Register ViewModel in Koin** — add to the appropriate Koin module in `shared/commonMain/di/`
 6. **Add navigation route** — add to the nav graph in `shared/commonMain/navigation/NavGraph.kt`
