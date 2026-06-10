@@ -104,6 +104,7 @@ kotlin {
             implementation(libs.supabase.postgrest)
             implementation(libs.supabase.storage)
             implementation(libs.supabase.functions)
+            implementation(libs.supabase.realtime)
         }
 
         androidMain {

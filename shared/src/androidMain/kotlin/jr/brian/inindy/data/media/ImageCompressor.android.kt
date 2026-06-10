@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.net.toUri
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -27,6 +28,17 @@ actual class ImageCompressor(private val context: Context) {
         if (scaled !== bitmap) scaled.recycle()
         bitmap.recycle()
         Uri.fromFile(outputFile).toString()
+    }
+
+    actual suspend fun compress(uri: String): ByteArray = withContext(Dispatchers.IO) {
+        val parsed = uri.toUri()
+        val bitmap = loadBitmap(parsed) ?: error("Could not decode image: $uri")
+        val scaled = scaleToMaxDimension(bitmap, MAX_DIMENSION_PX)
+        val output = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
+        if (scaled !== bitmap) scaled.recycle()
+        bitmap.recycle()
+        output.toByteArray()
     }
 
     private fun loadBitmap(uri: Uri): Bitmap? {

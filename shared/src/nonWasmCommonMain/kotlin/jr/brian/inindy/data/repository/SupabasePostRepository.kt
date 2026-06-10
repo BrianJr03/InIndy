@@ -1,0 +1,235 @@
+package jr.brian.inindy.data.repository
+
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
+import jr.brian.inindy.data.remote.post.PostDto
+import jr.brian.inindy.data.remote.post.PostImageDto
+import jr.brian.inindy.data.remote.post.PostTagDto
+import jr.brian.inindy.data.remote.post.toDomain
+import jr.brian.inindy.data.remote.post.toDto
+import jr.brian.inindy.domain.CurrentUserProvider
+import jr.brian.inindy.domain.model.CreatePostRequest
+import jr.brian.inindy.domain.model.Post
+import jr.brian.inindy.domain.repository.MediaRepository
+import jr.brian.inindy.domain.repository.PostRepository
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+
+class SupabasePostRepository(
+    private val supabase: SupabaseClient,
+    private val mediaRepository: MediaRepository,
+    private val currentUserProvider: CurrentUserProvider
+) : PostRepository {
+
+    override fun observeUserPosts(): Flow<List<Post>> = channelFlow {
+        val userId = currentUserProvider.get().userId
+            ?: run {
+                println("[InIndy] observeUserPosts — no signed-in user, emitting empty list")
+                send(emptyList())
+                return@channelFlow
+            }
+
+        println("[InIndy] observeUserPosts — subscribing for userId: $userId")
+
+        suspend fun emitLatest() {
+            val result = fetchUserPosts(userId)
+            println("[InIndy] observeUserPosts — emitting ${result.getOrElse { emptyList() }.size} posts")
+            send(result.getOrElse { emptyList() })
+        }
+
+        emitLatest()
+
+        val channel = supabase.channel("posts-user-$userId")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = POSTS_TABLE
+            filter("user_id", FilterOperator.EQ, userId)
+        }
+        launch { changes.collect { emitLatest() } }
+        channel.subscribe()
+
+        try {
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                supabase.realtime.removeChannel(channel)
+            }
+        }
+    }
+
+    override suspend fun getUserPosts(): Result<List<Post>> = runCatching {
+        val userId = currentUserProvider.get().userId
+            ?: error("No signed-in user")
+        println("[InIndy] getUserPosts — fetching for userId: $userId")
+        val posts = fetchUserPosts(userId).getOrThrow()
+        println("[InIndy] getUserPosts — fetched ${posts.size} posts")
+        posts
+    }
+
+    override suspend fun getPostById(postId: String): Result<Post> = runCatching {
+        println("[InIndy] getPostById — postId: $postId")
+        val post = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+            filter { eq("id", postId) }
+        }.decodeSingle<PostDto>().toDomain()
+        println("[InIndy] getPostById — found post: ${post.id} with ${post.images.size} images")
+        post
+    }
+
+    override suspend fun createPost(request: CreatePostRequest): Result<Post> = runCatching {
+        val prefs = currentUserProvider.get()
+        val userId = prefs.userId ?: error("No signed-in user")
+        val neighborhoodId = prefs.neighborhoodId ?: error("No neighborhood selected")
+
+        println("[InIndy] createPost START — userId: $userId, neighborhoodId: $neighborhoodId")
+        println("[InIndy] createPost — description: ${request.description.take(50)}")
+        println("[InIndy] createPost — images: ${request.imageUris.size}, tags: ${request.tags.size}")
+
+        // ── Upload images ────────────────────────────────────────────────
+        println("[InIndy] createPost — starting parallel upload of ${request.imageUris.size} images")
+
+        val cdnUrls = coroutineScope {
+            request.imageUris.mapIndexed { index, uri ->
+                async {
+                    println("[InIndy] createPost — uploading image $index: ${uri.take(80)}")
+                    val result = mediaRepository.uploadPostImage(uri)
+                    result
+                        .onSuccess { url ->
+                            println("[InIndy] createPost — image $index upload SUCCESS: $url")
+                        }
+                        .onFailure { e ->
+                            println("[InIndy] createPost — image $index upload FAILED: ${e::class.simpleName}: ${e.message}")
+                            e.printStackTrace()
+                        }
+                    result.getOrThrow()
+                }
+            }.awaitAll()
+        }
+
+        println("[InIndy] createPost — all uploads complete. CDN URLs: $cdnUrls")
+
+        // ── Insert post ──────────────────────────────────────────────────
+        val dto = request.toDto(userId = userId, neighborhoodId = neighborhoodId)
+        println("[InIndy] createPost — inserting post row into Supabase")
+
+        val inserted = supabase.from(POSTS_TABLE)
+            .insert(dto) { select(Columns.list("id")) }
+            .decodeSingle<InsertedPostId>()
+
+        println("[InIndy] createPost — post inserted with id: ${inserted.id}")
+
+        // ── Insert post_images ───────────────────────────────────────────
+        if (cdnUrls.isNotEmpty()) {
+            val imageRows = cdnUrls.mapIndexed { index, url ->
+                PostImageDto(postId = inserted.id, storageUrl = url, sortOrder = index)
+            }
+            println("[InIndy] createPost — inserting ${imageRows.size} post_images rows")
+            supabase.from(POST_IMAGES_TABLE).insert(imageRows)
+            println("[InIndy] createPost — post_images inserted for post ${inserted.id}")
+        } else {
+            println("[InIndy] createPost — no images to insert")
+        }
+
+        // ── Insert post_tags ─────────────────────────────────────────────
+        if (request.tags.isNotEmpty()) {
+            val tagRows = request.tags.map { interest ->
+                PostTagDto(postId = inserted.id, tag = interest.name)
+            }
+            println("[InIndy] createPost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}")
+            supabase.from(POST_TAGS_TABLE).insert(tagRows)
+            println("[InIndy] createPost — post_tags inserted for post ${inserted.id}")
+        } else {
+            println("[InIndy] createPost — no tags to insert")
+        }
+
+        // ── Re-fetch with joins ──────────────────────────────────────────
+        println("[InIndy] createPost — re-fetching post with joins")
+        val finalPost = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+            filter { eq("id", inserted.id) }
+        }.decodeSingle<PostDto>().toDomain()
+
+        println("[InIndy] createPost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}")
+        finalPost
+    }.onFailure { e ->
+        println("[InIndy] createPost FAILED: ${e::class.simpleName}: ${e.message}")
+        e.printStackTrace()
+    }
+
+    override suspend fun deletePost(postId: String): Result<Unit> = runCatching {
+        println("[InIndy] deletePost — postId: $postId")
+        supabase.from(POSTS_TABLE).delete {
+            filter { eq("id", postId) }
+        }
+        println("[InIndy] deletePost — success for postId: $postId")
+    }
+
+    override suspend fun getNeighborhoodFeed(neighborhoodId: String): Result<List<Post>> =
+        runCatching {
+            println("[InIndy] getNeighborhoodFeed — neighborhoodId: $neighborhoodId")
+            val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+                filter { eq("neighborhood_id", neighborhoodId) }
+                order("created_at", order = Order.DESCENDING)
+                limit(FEED_LIMIT)
+            }.decodeList<PostDto>().map { it.toDomain() }
+            println("[InIndy] getNeighborhoodFeed — loaded ${posts.size} posts")
+            posts
+        }
+
+    override suspend fun getNeighborhoodOnlyFeed(neighborhoodId: String): Result<List<Post>> =
+        runCatching {
+            println("[InIndy] getNeighborhoodOnlyFeed — neighborhoodId: $neighborhoodId")
+            val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+                filter {
+                    eq("neighborhood_id", neighborhoodId)
+                    filter("group_id", FilterOperator.IS, null)
+                }
+                order("created_at", order = Order.DESCENDING)
+                limit(FEED_LIMIT)
+            }.decodeList<PostDto>().map { it.toDomain() }
+            println("[InIndy] getNeighborhoodOnlyFeed — loaded ${posts.size} posts")
+            posts
+        }
+
+    override suspend fun getGroupFeed(groupId: String): Result<List<Post>> = runCatching {
+        println("[InIndy] getGroupFeed — groupId: $groupId")
+        val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+            filter { eq("group_id", groupId) }
+            order("created_at", order = Order.DESCENDING)
+        }.decodeList<PostDto>().map { it.toDomain() }
+        println("[InIndy] getGroupFeed — loaded ${posts.size} posts")
+        posts
+    }
+
+    private suspend fun fetchUserPosts(userId: String): Result<List<Post>> = runCatching {
+        supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+            filter { eq("user_id", userId) }
+            order("created_at", order = Order.DESCENDING)
+        }.decodeList<PostDto>().map { it.toDomain() }
+    }
+
+    @Serializable
+    private data class InsertedPostId(val id: String)
+
+    private companion object {
+        const val POSTS_TABLE = "posts"
+        const val POST_IMAGES_TABLE = "post_images"
+        const val POST_TAGS_TABLE = "post_tags"
+        const val FEED_LIMIT = 50L
+        val JOINED_COLUMNS = Columns.raw(
+            "*, author:users(id, full_name, avatar_url), images:post_images(*), tags:post_tags(*)"
+        )
+    }
+}

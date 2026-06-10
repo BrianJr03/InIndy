@@ -1,11 +1,14 @@
 package jr.brian.inindy.data.media
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
@@ -13,6 +16,7 @@ import platform.Foundation.URLByAppendingPathComponent
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
+import platform.posix.memcpy
 
 @OptIn(ExperimentalForeignApi::class)
 actual class ImageCompressor {
@@ -30,6 +34,25 @@ actual class ImageCompressor {
             error("Could not write compressed file")
         }
         outUrl.absoluteString ?: error("Output URL has no absoluteString")
+    }
+
+    actual suspend fun compress(uri: String): ByteArray = withContext(Dispatchers.Default) {
+        val sourceUrl = NSURL.URLWithString(uri) ?: NSURL.fileURLWithPath(uri)
+        val original = loadImage(sourceUrl) ?: error("Could not load image: $uri")
+        val scaled = scale(original, MAX_DIMENSION_PT)
+        val data = UIImageJPEGRepresentation(scaled, JPEG_QUALITY)
+            ?: error("Could not encode JPEG")
+        data.toByteArray()
+    }
+
+    private fun NSData.toByteArray(): ByteArray {
+        val size = length.toInt()
+        val bytes = ByteArray(size)
+        if (size == 0) return bytes
+        bytes.usePinned { pinned ->
+            memcpy(pinned.addressOf(0), this.bytes, length)
+        }
+        return bytes
     }
 
     private fun loadImage(url: NSURL): UIImage? {

@@ -1,3 +1,4 @@
+// Retained for offline development — swap back in PostModule if needed
 package jr.brian.inindy.data.repository
 
 import jr.brian.inindy.domain.model.CreatePostRequest
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class FakePostRepository : PostRepository {
-
     private val currentUser = User(
         id = "me",
         fullName = "Brian",

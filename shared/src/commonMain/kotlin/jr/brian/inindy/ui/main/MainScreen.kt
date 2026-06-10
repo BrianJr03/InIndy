@@ -24,7 +24,8 @@ fun MainScreen(
     rootNavController: NavHostController,
     modifier: Modifier = Modifier,
     tabNavController: NavHostController = rememberNavController(),
-    exploreViewModel: ExploreViewModel = koinViewModel()
+    exploreViewModel: ExploreViewModel = koinViewModel(),
+    exploreRefreshTrigger: Int = 0
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -51,7 +52,8 @@ fun MainScreen(
                     },
                     isRsvpd = exploreViewModel::isRsvpd,
                     onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) },
-                    listState = listState
+                    listState = listState,
+                    refreshTrigger = exploreRefreshTrigger
                 )
             }
             composable(MainTab.ME.route) {

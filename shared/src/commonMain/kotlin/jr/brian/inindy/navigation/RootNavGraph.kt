@@ -6,6 +6,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +55,7 @@ fun RootNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
+    var exploreRefreshTrigger by remember { mutableIntStateOf(0) }
 
     if (state.isLoading) {
         SplashScreen()
@@ -108,12 +112,18 @@ fun RootNavGraph(
             route = RootRoutes.MAIN_GRAPH
         ) {
             composable(RootRoutes.MAIN) {
-                MainScreen(rootNavController = navController)
+                MainScreen(
+                    rootNavController = navController,
+                    exploreRefreshTrigger = exploreRefreshTrigger
+                )
             }
             composable(RootRoutes.CREATE_POST) {
                 CreatePostScreen(
                     onClose = { navController.popBackStack() },
-                    onSubmitted = { navController.popBackStack() }
+                    onSubmitted = {
+                        exploreRefreshTrigger++
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(RootRoutes.CREATE_GROUP) {

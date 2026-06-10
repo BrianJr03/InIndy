@@ -44,6 +44,10 @@ class ExploreViewModel(
 
     fun onIntent(intent: ExploreIntent) {
         when (intent) {
+            ExploreIntent.Refresh -> {
+                println("[InIndy] ExploreViewModel — Refresh intent received")
+                loadFeed()
+            }
             ExploreIntent.ToggleFilterDropdown -> {
                 _uiState.update {
                     it.copy(isFilterDropdownVisible = !it.isFilterDropdownVisible)
@@ -75,6 +79,8 @@ class ExploreViewModel(
     }
 
     fun loadPosts() = loadFeed()
+
+    fun refresh() = loadFeed()
 
     fun rsvp(postId: String) {
         if (rsvpPost.isRsvpd(postId)) return
@@ -114,6 +120,7 @@ class ExploreViewModel(
             val prefs = currentUserProvider.get()
             neighborhoodId = prefs.neighborhoodId ?: DEFAULT_NEIGHBORHOOD_ID
             val neighborhoodName = prefs.neighborhoodName ?: DEFAULT_NEIGHBORHOOD_NAME
+            println("[InIndy] ExploreViewModel bootstrap — neighborhoodId: $neighborhoodId, neighborhoodName: $neighborhoodName, loadFeed: $loadFeed")
             _uiState.update {
                 it.copy(
                     neighborhoodName = neighborhoodName,
@@ -127,6 +134,7 @@ class ExploreViewModel(
     }
 
     private fun applyFilter(filter: ExploreFilter) {
+        println("[InIndy] ExploreViewModel applyFilter — filter: $filter")
         _uiState.update { current ->
             current.copy(
                 activeFilter = filter,
@@ -145,15 +153,21 @@ class ExploreViewModel(
     private fun loadFeed() {
         feedJob?.cancel()
         val filter = _uiState.value.activeFilter
+        println("[InIndy] ExploreViewModel loadFeed — filter: $filter, neighborhoodId: $neighborhoodId")
         feedJob = viewModelScope.launch {
             val result = when (filter) {
                 is ExploreFilter.All -> postRepository.getNeighborhoodFeed(neighborhoodId)
-                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(
-                    neighborhoodId
-                )
-
+                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
                 is ExploreFilter.Group -> postRepository.getGroupFeed(filter.groupId)
             }
+            result
+                .onSuccess { posts ->
+                    println("[InIndy] ExploreViewModel loadFeed SUCCESS — ${posts.size} posts for filter: $filter")
+                }
+                .onFailure { e ->
+                    println("[InIndy] ExploreViewModel loadFeed FAILED — filter: $filter, error: ${e::class.simpleName}: ${e.message}")
+                    e.printStackTrace()
+                }
             _uiState.update { current ->
                 if (current.activeFilter != filter) return@update current
                 val nextFeed = result.fold(
@@ -214,7 +228,11 @@ class ExploreViewModel(
     private fun runSearch(query: String) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
+            println("[InIndy] ExploreViewModel runSearch — query: $query")
             val result = groupRepository.searchGroups(query)
+            result
+                .onSuccess { groups -> println("[InIndy] ExploreViewModel runSearch SUCCESS — ${groups.size} groups for query: $query") }
+                .onFailure { e -> println("[InIndy] ExploreViewModel runSearch FAILED — ${e.message}") }
             _uiState.update { current ->
                 if (current.groupSearchQuery != query) return@update current
                 current.copy(
@@ -227,7 +245,11 @@ class ExploreViewModel(
 
     private fun loadUserGroups() {
         viewModelScope.launch {
+            println("[InIndy] ExploreViewModel loadUserGroups — loading")
             val result = groupRepository.getUserGroups()
+            result
+                .onSuccess { groups -> println("[InIndy] ExploreViewModel loadUserGroups SUCCESS — ${groups.size} groups") }
+                .onFailure { e -> println("[InIndy] ExploreViewModel loadUserGroups FAILED — ${e.message}") }
             _uiState.update { it.copy(userGroups = result.getOrDefault(emptyList())) }
         }
     }

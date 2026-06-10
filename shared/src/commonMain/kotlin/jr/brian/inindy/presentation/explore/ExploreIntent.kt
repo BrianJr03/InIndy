@@ -3,6 +3,7 @@ package jr.brian.inindy.presentation.explore
 import jr.brian.inindy.domain.model.Group
 
 sealed class ExploreIntent {
+    data object Refresh : ExploreIntent()
     data object ToggleFilterDropdown : ExploreIntent()
     data object DismissFilterDropdown : ExploreIntent()
     data object SelectFilterAll : ExploreIntent()

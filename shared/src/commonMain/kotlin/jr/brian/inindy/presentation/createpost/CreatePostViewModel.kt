@@ -10,11 +10,15 @@ import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.repository.GroupRepository
+import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_IMAGES
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_TAGS
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +31,8 @@ class CreatePostViewModel(
     private val postRepository: PostRepository,
     private val groupRepository: GroupRepository,
     private val addressSearch: AddressSearchDataSource,
-    private val locationProvider: LocationProvider
+    private val locationProvider: LocationProvider,
+    private val mediaRepository: MediaRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreatePostUiState())
@@ -198,6 +203,22 @@ class CreatePostViewModel(
                 addressError = null,
                 startsAtError = null
             )
+
+            val uploadResults = coroutineScope {
+                state.images.map { uri ->
+                    async { mediaRepository.uploadPostImage(uri) }
+                }.awaitAll()
+            }
+            val firstFailure = uploadResults.firstOrNull { it.isFailure }
+            if (firstFailure != null) {
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    submitError = firstFailure.exceptionOrNull().toUploadError()
+                )
+                return@launch
+            }
+            val cdnUrls = uploadResults.map { it.getOrThrow() }
+
             val request = CreatePostRequest(
                 title = state.title.trim(),
                 description = state.description.trim(),
@@ -207,7 +228,7 @@ class CreatePostViewModel(
                 startsAt = startsAt,
                 endsAt = state.endsAt,
                 tags = state.tags.toList(),
-                imageUris = state.images,
+                imageUris = cdnUrls,
                 audience = state.audience,
                 maxAttendees = state.maxAttendees
             )
@@ -254,5 +275,20 @@ class CreatePostViewModel(
     private companion object {
         const val INDIANAPOLIS_LAT = 39.7684
         const val INDIANAPOLIS_LNG = -86.1581
+    }
+}
+
+internal fun Throwable?.toUploadError(): String {
+    val message = this?.message.orEmpty()
+    return when {
+        message.contains("timeout", ignoreCase = true) ->
+            "Upload timed out — check your connection and try again"
+        message.contains("403") ->
+            "Upload permission denied — try signing out and back in"
+        message.contains("413") ->
+            "Image is too large — try a smaller photo"
+        message.contains("404") ->
+            "Upload service unavailable — please contact support"
+        else -> "Image upload failed — check your connection and try again"
     }
 }

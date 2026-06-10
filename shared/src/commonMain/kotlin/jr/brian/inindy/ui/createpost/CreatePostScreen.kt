@@ -909,12 +909,11 @@ private const val DEFAULT_START_OFFSET_MS = 86_400_000L + 9 * 3_600_000L
 
 @Preview
 @Composable
-private fun CreatePostTopBarPreview() {
+private fun CreatePostScreenPreview() {
     MaterialTheme {
-        CreatePostTopBar(
-            onClose = {},
-            onSubmit = {},
-            isSubmitting = false
+        CreatePostScreen(
+           onClose = {},
+            onSubmitted = {}
         )
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -56,8 +57,12 @@ fun ExploreScreen(
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean = { false },
     onSettingsClick: () -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    refreshTrigger: Int = 0
 ) {
+    LaunchedEffect(refreshTrigger) {
+        onIntent(ExploreIntent.Refresh)
+    }
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ExploreHeader(
