@@ -22,11 +22,21 @@ import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.util.currentTimeMillis
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -39,20 +49,38 @@ class SupabaseGroupRepository(
     private val mediaRepository: MediaRepository
 ) : GroupRepository {
 
-    override fun observeUserGroups(): Flow<List<Group>> = channelFlow {
+    private val sharedScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val sharedFlows = mutableMapOf<String, SharedFlow<List<Group>>>()
+    private val sharedFlowsMutex = Mutex()
+
+    override fun observeUserGroups(): Flow<List<Group>> = flow {
         val userId = currentUserProvider.get().userId
             ?: run {
-                send(emptyList())
-                return@channelFlow
+                emit(emptyList())
+                return@flow
             }
+        emitAll(sharedUserGroupsFlow(userId))
+    }
 
+    private suspend fun sharedUserGroupsFlow(userId: String): SharedFlow<List<Group>> =
+        sharedFlowsMutex.withLock {
+            sharedFlows.getOrPut(userId) {
+                buildUserGroupsFlow(userId).shareIn(
+                    scope = sharedScope,
+                    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                    replay = 1
+                )
+            }
+        }
+
+    private fun buildUserGroupsFlow(userId: String): Flow<List<Group>> = channelFlow {
         suspend fun emitLatest() {
             send(fetchUserGroups(userId).getOrElse { emptyList() })
         }
 
         emitLatest()
 
-        val channel = supabase.channel("group-members-$userId")
+        val channel = supabase.channel("group-members-$userId-${Uuid.random()}")
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = GROUP_MEMBERS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
@@ -152,7 +180,7 @@ class SupabaseGroupRepository(
             GroupMemberInsertDto(
                 groupId = inserted.id,
                 userId = userId,
-                role = GroupRole.ADMIN.name
+                role = GroupRole.ADMIN.name.lowercase()
             )
         )
 
@@ -268,7 +296,7 @@ class SupabaseGroupRepository(
     )
 
     private fun roleOf(name: String): GroupRole =
-        runCatching { GroupRole.valueOf(name) }.getOrDefault(GroupRole.MEMBER)
+        runCatching { GroupRole.valueOf(name.uppercase()) }.getOrDefault(GroupRole.MEMBER)
 
     // ── ISO 8601 helpers ─────────────────────────────────────────────────────
     // Supabase emits timestamptz as "YYYY-MM-DDTHH:MM:SS[.fff]+00:00" — UTC.
@@ -416,5 +444,6 @@ class SupabaseGroupRepository(
         const val GROUP_MEMBERS_TABLE = "group_members"
         const val GROUP_INVITES_TABLE = "group_invites"
         const val SEARCH_LIMIT = 20L
+        const val STOP_TIMEOUT_MS = 5_000L
     }
 }

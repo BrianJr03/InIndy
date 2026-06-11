@@ -18,27 +18,58 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.repository.PostRepository
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
+@OptIn(ExperimentalUuidApi::class)
 class SupabasePostRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
 ) : PostRepository {
 
-    override fun observeUserPosts(): Flow<List<Post>> = channelFlow {
+    private val sharedScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val sharedFlows = mutableMapOf<String, SharedFlow<List<Post>>>()
+    private val sharedFlowsMutex = Mutex()
+
+    override fun observeUserPosts(): Flow<List<Post>> = flow {
         val userId = currentUserProvider.get().userId
             ?: run {
                 println("[InIndy] observeUserPosts — no signed-in user, emitting empty list")
-                send(emptyList())
-                return@channelFlow
+                emit(emptyList())
+                return@flow
             }
+        emitAll(sharedUserPostsFlow(userId))
+    }
 
+    private suspend fun sharedUserPostsFlow(userId: String): SharedFlow<List<Post>> =
+        sharedFlowsMutex.withLock {
+            sharedFlows.getOrPut(userId) {
+                buildUserPostsFlow(userId).shareIn(
+                    scope = sharedScope,
+                    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                    replay = 1
+                )
+            }
+        }
+
+    private fun buildUserPostsFlow(userId: String): Flow<List<Post>> = channelFlow {
         println("[InIndy] observeUserPosts — subscribing for userId: $userId")
 
         suspend fun emitLatest() {
@@ -49,7 +80,7 @@ class SupabasePostRepository(
 
         emitLatest()
 
-        val channel = supabase.channel("posts-user-$userId")
+        val channel = supabase.channel("posts-user-$userId-${Uuid.random()}")
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = POSTS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
@@ -202,6 +233,7 @@ class SupabasePostRepository(
         const val POST_IMAGES_TABLE = "post_images"
         const val POST_TAGS_TABLE = "post_tags"
         const val FEED_LIMIT = 50L
+        const val STOP_TIMEOUT_MS = 5_000L
         val JOINED_COLUMNS = Columns.raw(
             "*, author:users(id, full_name, avatar_url), images:post_images(*), tags:post_tags(*)"
         )
