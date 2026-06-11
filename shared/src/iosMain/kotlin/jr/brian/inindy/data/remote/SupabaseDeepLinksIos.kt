@@ -7,5 +7,10 @@ import io.github.jan.supabase.auth.auth
  * supabase-kt's Auth plugin so PKCE magic-link callbacks complete the session.
  */
 suspend fun handleSupabaseDeepLink(url: String) {
-    SupabaseClientProvider.client.auth.parseSessionFromUrl(url)
+    try {
+        SupabaseClientProvider.client.auth.exchangeCodeForSession(url)
+    } catch (e: Exception) {
+        println("[InIndy] Deep link failed: ${e.message}")
+        println("[InIndy] URL: $url")
+    }
 }

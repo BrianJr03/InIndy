@@ -4,6 +4,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.postgrest.from
 import jr.brian.inindy.data.local.TokenStorage
 import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.model.Interest
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Real auth repository backed by Supabase.
@@ -21,6 +24,8 @@ import kotlinx.coroutines.flow.map
  * MVP scope:
  * - Email magic link — fully implemented.
  * - Session state — observed from supabase.auth.sessionStatus.
+ * - Profile sync — on every sign-in, fetches public.users + user_interests
+ *   and populates UserPreferencesStore so the app always has current user data.
  *
  * Stubbed for V2 (returns Result.failure):
  * - Phone OTP (signUpWithPhone, verifyOtp) — needs Twilio configured in the Supabase dashboard.
@@ -41,6 +46,9 @@ class SupabaseAuthRepository(
                         // Mirror the JWT into TokenStorage so cold starts can detect
                         // a stored session before supabase-kt finishes restoring.
                         tokenStorage.saveToken(status.session.accessToken)
+                        // Sync profile from Supabase into local DataStore so
+                        // UserPreferencesStore is always populated for returning users.
+                        syncUserProfile(status.session.user?.id)
                         AuthSessionState.SignedIn
                     }
                     is SessionStatus.NotAuthenticated -> {
@@ -52,6 +60,91 @@ class SupabaseAuthRepository(
                 }
             }
             .distinctUntilChanged()
+
+    // ── Profile sync ─────────────────────────────────────────────────────────
+
+    private suspend fun syncUserProfile(userId: String?) {
+        if (userId == null) {
+            println("[InIndy] syncUserProfile — skipped, userId is null")
+            return
+        }
+        println("[InIndy] syncUserProfile — syncing for userId: $userId")
+        try {
+            // 1. Fetch user row from public.users
+            val userRow = supabase.from("users")
+                .select {
+                    filter { eq("id", userId) }
+                }
+                .decodeSingleOrNull<UserRow>()
+
+            if (userRow == null) {
+                println("[InIndy] syncUserProfile — no public.users row found for $userId")
+                // User exists in auth.users but not public.users yet
+                // The trigger should have created it — may be a timing issue
+                userPreferencesStore.saveUserId(userId)
+                userPreferencesStore.setOnboardingComplete(false)
+                return
+            }
+
+            println("[InIndy] syncUserProfile — found user: ${userRow.fullName}, neighborhood: ${userRow.neighborhoodId}")
+
+            // 2. Fetch interests
+            val interests = supabase.from("user_interests")
+                .select {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeList<UserInterestRow>()
+                .mapNotNull { row ->
+                    runCatching { Interest.valueOf(row.interest) }.getOrNull()
+                }
+
+            println("[InIndy] syncUserProfile — interests: ${interests.map { it.name }}")
+
+            // 3. Fetch neighborhood name if neighborhoodId is set
+            val neighborhoodName = userRow.neighborhoodId?.let { nid ->
+                runCatching {
+                    supabase.from("neighborhoods")
+                        .select {
+                            filter { eq("id", nid) }
+                        }
+                        .decodeSingleOrNull<NeighborhoodRow>()
+                        ?.name
+                }.getOrNull()
+            }
+
+            // 4. Populate UserPreferencesStore
+            userPreferencesStore.saveUserId(userId)
+
+            if (userRow.fullName != null) {
+                userPreferencesStore.saveProfile(userRow.fullName, userRow.avatarUrl)
+            }
+
+            if (userRow.neighborhoodId != null) {
+                userPreferencesStore.saveNeighborhood(
+                    userRow.neighborhoodId,
+                    neighborhoodName ?: userRow.neighborhoodId
+                )
+            }
+
+            if (interests.isNotEmpty()) {
+                userPreferencesStore.saveInterests(interests)
+            }
+
+            // 5. Mark onboarding complete only if all required fields are present
+            val isComplete = userRow.fullName != null
+                    && userRow.neighborhoodId != null
+                    && interests.isNotEmpty()
+
+            userPreferencesStore.setOnboardingComplete(isComplete)
+
+            println("[InIndy] syncUserProfile complete — onboardingComplete: $isComplete")
+
+        } catch (e: Exception) {
+            println("[InIndy] syncUserProfile FAILED: ${e::class.simpleName}: ${e.message}")
+            e.printStackTrace()
+            // Don't crash — fall back to whatever is already in UserPreferencesStore
+        }
+    }
 
     // ── Email magic link — MVP primary auth ─────────────────────────────────
 
@@ -112,4 +205,26 @@ class SupabaseAuthRepository(
 
     override suspend fun isSessionValid(): Boolean =
         supabase.auth.currentSessionOrNull() != null
+
+    // ── Private DTOs (internal to this repository only) ─────────────────────
+
+    @Serializable
+    private data class UserRow(
+        val id: String,
+        @SerialName("full_name") val fullName: String? = null,
+        @SerialName("avatar_url") val avatarUrl: String? = null,
+        @SerialName("neighborhood_id") val neighborhoodId: String? = null
+    )
+
+    @Serializable
+    private data class UserInterestRow(
+        @SerialName("user_id") val userId: String,
+        val interest: String
+    )
+
+    @Serializable
+    private data class NeighborhoodRow(
+        val id: String,
+        val name: String
+    )
 }

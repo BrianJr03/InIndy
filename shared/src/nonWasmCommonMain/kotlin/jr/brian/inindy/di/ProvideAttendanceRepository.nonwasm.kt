@@ -1,13 +1,13 @@
 package jr.brian.inindy.di
 
 import jr.brian.inindy.data.remote.SupabaseClientProvider
-import jr.brian.inindy.data.repository.SupabasePostRepository
+import jr.brian.inindy.data.repository.SupabaseAttendanceRepository
 import jr.brian.inindy.domain.CurrentUserProvider
-import jr.brian.inindy.domain.repository.PostRepository
+import jr.brian.inindy.domain.repository.AttendanceRepository
 
-actual fun providePostRepository(
+actual fun provideAttendanceRepository(
     currentUserProvider: CurrentUserProvider
-): PostRepository = SupabasePostRepository(
+): AttendanceRepository = SupabaseAttendanceRepository(
     supabase = SupabaseClientProvider.client,
     currentUserProvider = currentUserProvider
 )

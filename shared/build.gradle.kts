@@ -1,5 +1,4 @@
 import java.util.Properties
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -60,15 +59,18 @@ kotlin {
         }
     }
     
-    js {
-        browser()
-    }
-    
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-    }
-    
+    // js and wasmJs targets temporarily disabled — focus on Android + iOS.
+    // To re-enable, uncomment these blocks plus the jsMain source-set wiring
+    // and dependencies further down.
+    // js {
+    //     browser()
+    // }
+    //
+    // @OptIn(ExperimentalWasmDsl::class)
+    // wasmJs {
+    //     browser()
+    // }
+
     android {
        namespace = "jr.brian.inindy.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -91,9 +93,19 @@ kotlin {
         val nonWasmCommonMain by creating {
             dependsOn(commonMain.get())
         }
-        androidMain.get().dependsOn(nonWasmCommonMain)
-        iosMain.get().dependsOn(nonWasmCommonMain)
-        jsMain.get().dependsOn(nonWasmCommonMain)
+        // Intermediate source set: android + ios only.
+        // Libraries that don't publish js/wasmJs artifacts (e.g. adaptive-nav-bar)
+        // live here so web targets aren't asked to resolve them.
+        val mobileMain by creating {
+            dependsOn(nonWasmCommonMain)
+        }
+        androidMain.get().dependsOn(mobileMain)
+        iosMain.get().dependsOn(mobileMain)
+        // jsMain.get().dependsOn(nonWasmCommonMain)
+
+        mobileMain.dependencies {
+            implementation(libs.adaptive.nav.bar)
+        }
 
         nonWasmCommonMain.dependencies {
             implementation(libs.sqldelight.runtime)
@@ -144,6 +156,7 @@ kotlin {
             implementation(libs.coil.network.ktor)
             // Coroutines & Serialization
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
             // Navigation
             implementation(libs.navigation.compose)
@@ -156,10 +169,10 @@ kotlin {
             implementation(libs.sqldelight.native.driver)
             implementation(libs.datastore.preferences.core)
         }
-        jsMain.dependencies {
-            implementation(libs.wrappers.browser)
-            implementation(libs.ktor.client.js)
-        }
+        // jsMain.dependencies {
+        //     implementation(libs.wrappers.browser)
+        //     implementation(libs.ktor.client.js)
+        // }
     }
 }
 

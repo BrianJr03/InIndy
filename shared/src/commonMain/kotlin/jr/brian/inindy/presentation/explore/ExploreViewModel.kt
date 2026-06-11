@@ -27,7 +27,6 @@ class ExploreViewModel(
     private val groupRepository: GroupRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 

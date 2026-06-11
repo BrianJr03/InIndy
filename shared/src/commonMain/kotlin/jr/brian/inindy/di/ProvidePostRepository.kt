@@ -1,7 +1,6 @@
 package jr.brian.inindy.di
 
 import jr.brian.inindy.domain.CurrentUserProvider
-import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.PostRepository
 
 /**
@@ -10,6 +9,5 @@ import jr.brian.inindy.domain.repository.PostRepository
  * On wasmJs this falls back to FakePostRepository (supabase-kt has no wasmJs artifact).
  */
 expect fun providePostRepository(
-    mediaRepository: MediaRepository,
     currentUserProvider: CurrentUserProvider
 ): PostRepository

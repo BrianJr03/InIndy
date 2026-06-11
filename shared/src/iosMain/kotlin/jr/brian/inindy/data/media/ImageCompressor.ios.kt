@@ -9,10 +9,10 @@ import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
-import platform.Foundation.NSFileManager
+import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
-import platform.Foundation.URLByAppendingPathComponent
+import platform.Foundation.writeToFile
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
@@ -27,13 +27,13 @@ actual class ImageCompressor {
         val scaled = scale(original, MAX_DIMENSION_PT)
         val data = UIImageJPEGRepresentation(scaled, JPEG_QUALITY)
             ?: error("Could not encode JPEG")
-        val outDir = NSFileManager.defaultManager.temporaryDirectory
-        val outUrl = outDir.URLByAppendingPathComponent("${NSUUID().UUIDString}.jpg")
-            ?: error("Could not build output URL")
-        if (!data.writeToURL(outUrl, atomically = true)) {
+        val tmp = NSTemporaryDirectory()
+        val filename = "${NSUUID().UUIDString}.jpg"
+        val path = if (tmp.endsWith("/")) "$tmp$filename" else "$tmp/$filename"
+        if (!data.writeToFile(path, atomically = true)) {
             error("Could not write compressed file")
         }
-        outUrl.absoluteString ?: error("Output URL has no absoluteString")
+        NSURL.fileURLWithPath(path).absoluteString ?: error("Output URL has no absoluteString")
     }
 
     actual suspend fun compress(uri: String): ByteArray = withContext(Dispatchers.Default) {

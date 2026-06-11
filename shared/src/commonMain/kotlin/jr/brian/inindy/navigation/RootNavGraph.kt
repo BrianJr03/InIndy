@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.savedstate.read
 import jr.brian.inindy.domain.model.isOnboardingComplete
 import jr.brian.inindy.presentation.app.AppDestination
 import jr.brian.inindy.presentation.app.AppViewModel
@@ -56,6 +57,7 @@ fun RootNavGraph(
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
     var exploreRefreshTrigger by remember { mutableIntStateOf(0) }
+    var meRefreshTrigger by remember { mutableIntStateOf(0) }
 
     if (state.isLoading) {
         SplashScreen()
@@ -114,7 +116,8 @@ fun RootNavGraph(
             composable(RootRoutes.MAIN) {
                 MainScreen(
                     rootNavController = navController,
-                    exploreRefreshTrigger = exploreRefreshTrigger
+                    exploreRefreshTrigger = exploreRefreshTrigger,
+                    meRefreshTrigger = meRefreshTrigger
                 )
             }
             composable(RootRoutes.CREATE_POST) {
@@ -122,6 +125,7 @@ fun RootNavGraph(
                     onClose = { navController.popBackStack() },
                     onSubmitted = {
                         exploreRefreshTrigger++
+                        meRefreshTrigger++
                         navController.popBackStack()
                     }
                 )
@@ -143,7 +147,7 @@ fun RootNavGraph(
                 )
             }
             composable(RootRoutes.POST_DETAIL) { backStackEntry ->
-                val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                val postId = backStackEntry.arguments?.read { getString("postId") }.orEmpty()
                 PostDetailScreen(
                     postId = postId,
                     onBack = { navController.popBackStack() },
@@ -152,7 +156,7 @@ fun RootNavGraph(
                 )
             }
             composable(RootRoutes.GROUP_MANAGEMENT) { backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString("groupId").orEmpty()
+                val groupId = backStackEntry.arguments?.read { getString("groupId") }.orEmpty()
                 GroupManagementScreen(
                     groupId = groupId,
                     onBack = { navController.popBackStack() },

@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,9 +98,13 @@ fun MeScreen(
     onGroupClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    refreshTrigger: Int = 0,
     viewModel: MeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) viewModel.refresh()
+    }
     MeScreenContent(
         state = state,
         onCreatePostClick = onCreatePostClick,

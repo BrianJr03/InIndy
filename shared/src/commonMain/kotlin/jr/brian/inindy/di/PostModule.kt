@@ -3,9 +3,6 @@ package jr.brian.inindy.di
 import jr.brian.inindy.data.location.AddressSearchDataSource
 import jr.brian.inindy.data.location.FakeAddressSearchDataSource
 import jr.brian.inindy.data.location.LocationProvider
-import jr.brian.inindy.data.repository.FakeAttendanceRepository
-import jr.brian.inindy.data.repository.FakeGroupRepository
-import jr.brian.inindy.data.repository.FakeProfileEditRepository
 import jr.brian.inindy.domain.repository.AttendanceRepository
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
@@ -20,10 +17,10 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val postModule = module {
-    single<PostRepository> { providePostRepository(get(), get()) }
-    single<GroupRepository> { FakeGroupRepository(get()) }
-    single<AttendanceRepository> { FakeAttendanceRepository() }
-    single<ProfileEditRepository> { FakeProfileEditRepository(get(), get()) }
+    single<PostRepository> { providePostRepository(get()) }
+    single<GroupRepository> { provideGroupRepository(get(), get(), get()) }
+    single<AttendanceRepository> { provideAttendanceRepository(get()) }
+    single<ProfileEditRepository> { provideProfileEditRepository(get(), get()) }
     single<AddressSearchDataSource> { FakeAddressSearchDataSource() }
     single { LocationProvider() }
     viewModel { MeViewModel(get(), get(), get(), get()) }

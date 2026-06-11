@@ -17,13 +17,9 @@ import jr.brian.inindy.data.remote.post.toDto
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
-import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
@@ -32,7 +28,6 @@ import kotlinx.serialization.Serializable
 
 class SupabasePostRepository(
     private val supabase: SupabaseClient,
-    private val mediaRepository: MediaRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : PostRepository {
 
@@ -98,28 +93,7 @@ class SupabasePostRepository(
         println("[InIndy] createPost — description: ${request.description.take(50)}")
         println("[InIndy] createPost — images: ${request.imageUris.size}, tags: ${request.tags.size}")
 
-        // ── Upload images ────────────────────────────────────────────────
-        println("[InIndy] createPost — starting parallel upload of ${request.imageUris.size} images")
-
-        val cdnUrls = coroutineScope {
-            request.imageUris.mapIndexed { index, uri ->
-                async {
-                    println("[InIndy] createPost — uploading image $index: ${uri.take(80)}")
-                    val result = mediaRepository.uploadPostImage(uri)
-                    result
-                        .onSuccess { url ->
-                            println("[InIndy] createPost — image $index upload SUCCESS: $url")
-                        }
-                        .onFailure { e ->
-                            println("[InIndy] createPost — image $index upload FAILED: ${e::class.simpleName}: ${e.message}")
-                            e.printStackTrace()
-                        }
-                    result.getOrThrow()
-                }
-            }.awaitAll()
-        }
-
-        println("[InIndy] createPost — all uploads complete. CDN URLs: $cdnUrls")
+        val cdnUrls = request.imageUris
 
         // ── Insert post ──────────────────────────────────────────────────
         val dto = request.toDto(userId = userId, neighborhoodId = neighborhoodId)

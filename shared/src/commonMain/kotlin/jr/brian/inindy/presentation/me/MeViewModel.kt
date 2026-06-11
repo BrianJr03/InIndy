@@ -30,6 +30,19 @@ class MeViewModel(
     init {
         observeData()
         load()
+        loadUserPosts()
+    }
+
+    fun refresh() {
+        loadUserPosts()
+    }
+
+    private fun loadUserPosts() {
+        viewModelScope.launch {
+            postRepository.getUserPosts().onSuccess { posts ->
+                _uiState.value = _uiState.value.copy(recentPosts = posts)
+            }
+        }
     }
 
     private fun observeData() {

@@ -8,13 +8,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import jr.brian.inindy.navigation.RootRoutes
 import jr.brian.inindy.presentation.explore.ExploreViewModel
-import jr.brian.inindy.ui.events.EventsScreen
 import jr.brian.inindy.ui.explore.ExploreScreen
 import jr.brian.inindy.ui.me.MeScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -25,22 +26,47 @@ fun MainScreen(
     modifier: Modifier = Modifier,
     tabNavController: NavHostController = rememberNavController(),
     exploreViewModel: ExploreViewModel = koinViewModel(),
-    exploreRefreshTrigger: Int = 0
+    exploreRefreshTrigger: Int = 0,
+    meRefreshTrigger: Int = 0
 ) {
+    val backStackEntry by tabNavController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val selectedIndex = when (currentRoute) {
+        ROUTE_TAB_EXPLORE -> 0
+        ROUTE_TAB_ME -> 1
+        else -> 1
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            BottomNavBar(navController = tabNavController)
+            BottomNavBar(
+                selectedIndex = selectedIndex,
+                onItemSelected = { index ->
+                    val route = when (index) {
+                        0 -> ROUTE_TAB_EXPLORE
+                        else -> ROUTE_TAB_ME
+                    }
+                    if (route == currentRoute) return@BottomNavBar
+                    tabNavController.navigate(route) {
+                        popUpTo(tabNavController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
     ) { padding ->
         NavHost(
             navController = tabNavController,
-            startDestination = MainTab.EXPLORE.route,
+            startDestination = ROUTE_TAB_EXPLORE,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            composable(MainTab.EXPLORE.route) {
+            composable(ROUTE_TAB_EXPLORE) {
                 val exploreState by exploreViewModel.uiState.collectAsStateWithLifecycle()
                 val listState = rememberLazyListState()
                 ExploreScreen(
@@ -56,7 +82,7 @@ fun MainScreen(
                     refreshTrigger = exploreRefreshTrigger
                 )
             }
-            composable(MainTab.ME.route) {
+            composable(ROUTE_TAB_ME) {
                 MeScreen(
                     onCreatePostClick = { rootNavController.navigate(RootRoutes.CREATE_POST) },
                     onCreateGroupClick = { rootNavController.navigate(RootRoutes.CREATE_GROUP) },
@@ -66,11 +92,9 @@ fun MainScreen(
                     onGroupClick = { groupId ->
                         rootNavController.navigate(RootRoutes.groupManagement(groupId))
                     },
-                    onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) }
+                    onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) },
+                    refreshTrigger = meRefreshTrigger
                 )
-            }
-            composable(MainTab.EVENTS.route) {
-                EventsScreen()
             }
         }
     }

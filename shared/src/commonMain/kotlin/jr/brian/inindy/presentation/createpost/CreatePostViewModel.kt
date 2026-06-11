@@ -49,9 +49,15 @@ class CreatePostViewModel(
     }
 
     fun addImage(uri: String) {
+        println("[InIndy] addImage called with: ${uri.take(80)}")
         val current = _uiState.value
         if (current.images.size >= MAX_IMAGES) return
         if (uri in current.images) return
+        // Reject CDN URLs — only local device URIs allowed
+        if (uri.startsWith("http")) {
+            println("[InIndy] addImage rejected non-local URI: $uri")
+            return
+        }
         _uiState.value = current.copy(
             images = current.images + uri,
             imagesError = null
@@ -213,7 +219,8 @@ class CreatePostViewModel(
             if (firstFailure != null) {
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
-                    submitError = firstFailure.exceptionOrNull().toUploadError()
+                    submitError = firstFailure.exceptionOrNull().toUploadError(),
+                    images = emptyList()
                 )
                 return@launch
             }

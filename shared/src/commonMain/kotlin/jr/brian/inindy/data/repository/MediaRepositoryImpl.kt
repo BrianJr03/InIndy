@@ -24,6 +24,9 @@ class MediaRepositoryImpl(
         context: String,
         fileName: String
     ): Result<String> = runCatching {
+        require(!uri.startsWith("http")) {
+            "uploadInternal received a remote URL instead of a local URI: $uri"
+        }
         val bytes = imageCompressor.compress(uri)
         val uploadResponse = remoteDataSource
             .getUploadUrl(fileName = fileName, contentType = CONTENT_TYPE, context = context)

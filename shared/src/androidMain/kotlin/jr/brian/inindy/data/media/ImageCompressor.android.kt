@@ -27,7 +27,14 @@ actual class ImageCompressor(private val context: Context) {
         }
         if (scaled !== bitmap) scaled.recycle()
         bitmap.recycle()
-        Uri.fromFile(outputFile).toString()
+        val result = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            outputFile
+        ).toString()
+        println("[InIndy] compressToFile input: $uri")
+        println("[InIndy] compressToFile output: $result")
+        result
     }
 
     actual suspend fun compress(uri: String): ByteArray = withContext(Dispatchers.IO) {

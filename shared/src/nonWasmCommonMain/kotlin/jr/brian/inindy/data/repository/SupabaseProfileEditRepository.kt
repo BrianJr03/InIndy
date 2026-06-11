@@ -1,0 +1,102 @@
+package jr.brian.inindy.data.repository
+
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
+import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.domain.model.Interest
+import jr.brian.inindy.domain.model.Neighborhood
+import jr.brian.inindy.domain.repository.MediaRepository
+import jr.brian.inindy.domain.repository.ProfileEditRepository
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+class SupabaseProfileEditRepository(
+    private val supabase: SupabaseClient,
+    private val userPreferencesStore: UserPreferencesStore,
+    private val mediaRepository: MediaRepository
+) : ProfileEditRepository {
+
+    override suspend fun getNeighborhoods(): Result<List<Neighborhood>> = runCatching {
+        supabase.from(NEIGHBORHOODS_TABLE)
+            .select { order("name", order = Order.ASCENDING) }
+            .decodeList<NeighborhoodDto>()
+            .map { it.toDomain() }
+    }
+
+    override suspend fun updateProfile(
+        fullName: String,
+        avatarUri: String?,
+        neighborhoodId: String,
+        interests: List<Interest>
+    ): Result<Unit> = runCatching {
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: throw IllegalStateException("No signed-in user")
+
+        val avatarCdnUrl = when {
+            avatarUri == null -> null
+            avatarUri.startsWith("http") -> avatarUri
+            else -> mediaRepository.uploadAvatar(avatarUri).getOrThrow()
+        }
+
+        val trimmedName = fullName.trim()
+
+        supabase.from(USERS_TABLE).upsert(
+            UserProfileUpsertDto(
+                id = userId,
+                fullName = trimmedName,
+                avatarUrl = avatarCdnUrl,
+                neighborhoodId = neighborhoodId
+            )
+        )
+
+        supabase.from(USER_INTERESTS_TABLE).delete {
+            filter { eq("user_id", userId) }
+        }
+        if (interests.isNotEmpty()) {
+            val rows = interests.map { UserInterestDto(userId = userId, interest = it.name) }
+            supabase.from(USER_INTERESTS_TABLE).insert(rows)
+        }
+
+        val neighborhoodName = supabase.from(NEIGHBORHOODS_TABLE)
+            .select { filter { eq("id", neighborhoodId) } }
+            .decodeSingleOrNull<NeighborhoodDto>()
+            ?.name
+            ?: neighborhoodId
+
+        userPreferencesStore.saveProfile(trimmedName, avatarCdnUrl)
+        userPreferencesStore.saveNeighborhood(neighborhoodId, neighborhoodName)
+        userPreferencesStore.saveInterests(interests)
+    }
+
+    @Serializable
+    private data class NeighborhoodDto(
+        @SerialName("id") val id: String,
+        @SerialName("name") val name: String,
+        @SerialName("city") val city: String = "Indianapolis",
+        @SerialName("slug") val slug: String
+    ) {
+        fun toDomain(): Neighborhood = Neighborhood(id = id, name = name, city = city, slug = slug)
+    }
+
+    @Serializable
+    private data class UserProfileUpsertDto(
+        val id: String,
+        @SerialName("full_name") val fullName: String,
+        @SerialName("avatar_url") val avatarUrl: String?,
+        @SerialName("neighborhood_id") val neighborhoodId: String
+    )
+
+    @Serializable
+    private data class UserInterestDto(
+        @SerialName("user_id") val userId: String,
+        val interest: String
+    )
+
+    private companion object {
+        const val USERS_TABLE = "users"
+        const val USER_INTERESTS_TABLE = "user_interests"
+        const val NEIGHBORHOODS_TABLE = "neighborhoods"
+    }
+}

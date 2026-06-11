@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 
 class ExploreRepositoryImpl : ExploreRepository {
-
     private val rsvpdPostIds = mutableSetOf<String>()
     private val postsState = MutableStateFlow(buildInitialPosts())
 

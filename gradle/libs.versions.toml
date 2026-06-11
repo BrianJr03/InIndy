@@ -18,6 +18,10 @@ koin = "4.2.1"
 kotlin = "2.3.21"
 kotlin-wrappers = "2026.5.6"
 kotlinx-coroutines = "1.11.0"
+# Use the -0.6.x-compat variant so klibs compiled against kotlinx-datetime 0.6.x
+# (e.g. supabase-realtime 3.1.4) coexist with Kotlin 2.1+ stdlib kotlin.time.Instant.
+# Plain 0.8.0 breaks the K/N IR linker with a duplicate-typealias error.
+kotlinx-datetime = "0.8.0-0.6.x-compat"
 kotlinx-serialization = "1.11.0"
 ktor = "3.5.0"
 material3 = "1.12.0-alpha01"
@@ -76,10 +80,12 @@ coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.re
 
 # Coroutines & Serialization
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 # Navigation
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
+adaptive-nav-bar = { module = "io.github.narendraanjana09:adaptive-nav-bar", version = "1.0.1" }
 
 # DataStore
 datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
