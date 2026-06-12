@@ -1,42 +1,33 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web.
+**InIndy**
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
-
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
-
-### Running the apps
-
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
-
-- Android app: `./gradlew :androidApp:assembleDebug`
-- Web app:
-  - Wasm target (faster, modern browsers): `./gradlew :webApp:wasmJsBrowserDevelopmentRun`
-  - JS target (slower, supports older browsers): `./gradlew :webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
-
-### Running tests
-
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
-
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- Web tests:
-  - Wasm target: `./gradlew :shared:wasmJsTest`
-  - JS target: `./gradlew :shared:jsTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+Indianapolis has a lot going on... trail runs, park picnics, pickup games, neighborhood meetups, etc. Unfortunately, there is no single place to find it all. InIndy is a community app built for people who want to get outside and connect with others in their neighborhood. Post an activity, see what's happening nearby, join a group, and show up.
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+**Technical Overview**
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+InIndy is a Kotlin Multiplatform app with a shared codebase running natively on both Android and iOS.
+
+**Mobile**
+- Kotlin Multiplatform (KMP) + Compose Multiplatform — shared UI and logic across Android and iOS
+- MVI architecture — sealed `UiState`, unidirectional data flow, `onIntent()`
+- Koin — dependency injection
+- Ktor — HTTP client
+- Coil 3 — image loading
+- SQLDelight — local database (configured, used for caching)
+- DataStore — user preferences persistence
+- AndroidX FileProvider — secure file URI handling for camera/gallery
+
+**Backend**
+- Supabase — Postgres database, Auth, Realtime, Edge Functions, Row Level Security
+- PostGIS — geo queries on neighborhoods
+- Supabase Edge Functions (Deno/TypeScript) — serverless functions for R2 signed URL generation
+
+**Media**
+- Cloudflare R2 — object storage for post images, avatars, group covers
+- Cloudflare CDN — public image serving via `pub-*.r2.dev`
+
+**Auth**
+- Supabase Auth — email magic link (MVP)
+- PKCE flow — deep link callback handling on both Android and iOS
+- Google + Apple sign-in stubbed for post-MVP
