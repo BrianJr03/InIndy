@@ -48,7 +48,6 @@ class SupabaseGroupRepository(
     private val postRepository: PostRepository,
     private val mediaRepository: MediaRepository
 ) : GroupRepository {
-
     private val sharedScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val sharedFlows = mutableMapOf<String, SharedFlow<List<Group>>>()
     private val sharedFlowsMutex = Mutex()

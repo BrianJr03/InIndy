@@ -19,7 +19,6 @@ class GroupManagementViewModel(
     private val groupRepository: GroupRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(GroupManagementUiState())
     val uiState: StateFlow<GroupManagementUiState> = _uiState.asStateFlow()
 

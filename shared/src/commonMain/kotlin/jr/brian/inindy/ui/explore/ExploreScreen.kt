@@ -61,7 +61,9 @@ fun ExploreScreen(
     refreshTrigger: Int = 0
 ) {
     LaunchedEffect(refreshTrigger) {
-        onIntent(ExploreIntent.Refresh)
+        if (refreshTrigger > 0) {
+            onIntent(ExploreIntent.Refresh)
+        }
     }
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -226,8 +228,10 @@ private fun ExploreHeader(
                 expanded = uiState.isFilterDropdownVisible,
                 activeFilter = uiState.activeFilter,
                 neighborhoodName = uiState.neighborhoodName,
+                lastSelectedGroup = uiState.lastSelectedGroup,
                 onSelectAll = { onIntent(ExploreIntent.SelectFilterAll) },
                 onSelectNeighborhood = { onIntent(ExploreIntent.SelectFilterNeighborhood) },
+                onSelectLastGroup = { onIntent(ExploreIntent.SelectFilterGroup(it)) },
                 onSearchGroups = { onIntent(ExploreIntent.OpenGroupSearch) },
                 onDismiss = { onIntent(ExploreIntent.DismissFilterDropdown) }
             )

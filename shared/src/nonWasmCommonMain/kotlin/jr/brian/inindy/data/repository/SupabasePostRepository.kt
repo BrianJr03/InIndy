@@ -235,7 +235,7 @@ class SupabasePostRepository(
         const val FEED_LIMIT = 50L
         const val STOP_TIMEOUT_MS = 5_000L
         val JOINED_COLUMNS = Columns.raw(
-            "*, author:users(id, full_name, avatar_url), images:post_images(*), tags:post_tags(*)"
+            "*, author:users(id, full_name, avatar_url), neighborhood:neighborhoods(name), images:post_images(*), tags:post_tags(*)"
         )
     }
 }

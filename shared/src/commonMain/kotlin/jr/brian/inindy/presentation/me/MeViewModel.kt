@@ -23,7 +23,6 @@ class MeViewModel(
     private val attendanceRepository: AttendanceRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(MeUiState())
     val uiState: StateFlow<MeUiState> = _uiState.asStateFlow()
 
@@ -105,26 +104,6 @@ class MeViewModel(
     fun deletePost(postId: String) {
         viewModelScope.launch {
             postRepository.deletePost(postId)
-        }
-    }
-
-    fun createGroup(name: String, description: String?) {
-        viewModelScope.launch {
-            groupRepository.createGroup(
-                CreateGroupRequest(
-                    name = name,
-                    description = description,
-                    coverImageUri = null
-                )
-            )
-        }
-    }
-
-    fun refreshGroups() {
-        viewModelScope.launch {
-            groupRepository.getUserGroups().onSuccess { groups ->
-                _uiState.value = _uiState.value.copy(groups = groups)
-            }
         }
     }
 }

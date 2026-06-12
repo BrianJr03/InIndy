@@ -17,5 +17,6 @@ data class Post(
     val rsvpCount: Int,
     val author: User?,
     val neighborhoodId: String? = null,
+    val neighborhoodName: String? = null,
     val groupId: String? = null
 )

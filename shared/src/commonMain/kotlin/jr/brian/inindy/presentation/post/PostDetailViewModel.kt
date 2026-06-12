@@ -15,7 +15,6 @@ class PostDetailViewModel(
     private val postRepository: PostRepository,
     private val exploreRepository: ExploreRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow<PostDetailUiState>(PostDetailUiState.Loading)
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
 

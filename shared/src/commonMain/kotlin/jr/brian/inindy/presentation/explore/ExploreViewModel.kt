@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.ExploreFilter
-import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.toBrandMarkText
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 class ExploreViewModel(
     private val postRepository: PostRepository,
@@ -71,48 +71,16 @@ class ExploreViewModel(
             }
 
             is ExploreIntent.GroupSearchQueryChanged -> onSearchQueryChanged(intent.query)
-            is ExploreIntent.SelectFilterGroup -> applyFilter(
-                ExploreFilter.Group(intent.group.id, intent.group.name)
-            )
+            is ExploreIntent.SelectFilterGroup -> {
+                _uiState.update { it.copy(lastSelectedGroup = intent.group) }
+                applyFilter(ExploreFilter.Group(intent.group.id, intent.group.name))
+            }
         }
     }
 
     fun loadPosts() = loadFeed()
 
-    fun refresh() = loadFeed()
-
-    fun rsvp(postId: String) {
-        if (rsvpPost.isRsvpd(postId)) return
-        viewModelScope.launch {
-            rsvpPost(postId).onSuccess { mutateFeedRsvp(postId, delta = +1) }
-        }
-    }
-
-    fun unRsvp(postId: String) {
-        if (!rsvpPost.isRsvpd(postId)) return
-        viewModelScope.launch {
-            rsvpPost.unRsvp(postId).onSuccess { mutateFeedRsvp(postId, delta = -1) }
-        }
-    }
-
     fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
-
-    private fun mutateFeedRsvp(postId: String, delta: Int) {
-        _uiState.update { current ->
-            val feed = current.feed as? ExploreUiState.FeedState.Success ?: return@update current
-            val nextPosts = feed.posts.map { post ->
-                if (post.id == postId) {
-                    post.copy(rsvpCount = (post.rsvpCount + delta).coerceAtLeast(0))
-                } else post
-            }
-            current.copy(feed = ExploreUiState.FeedState.Success(nextPosts))
-        }
-    }
-
-    fun findPost(postId: String): Post? {
-        val feed = _uiState.value.feed
-        return (feed as? ExploreUiState.FeedState.Success)?.posts?.firstOrNull { it.id == postId }
-    }
 
     private fun bootstrap(loadFeed: Boolean = true) {
         viewModelScope.launch {
@@ -155,7 +123,7 @@ class ExploreViewModel(
         println("[InIndy] ExploreViewModel loadFeed — filter: $filter, neighborhoodId: $neighborhoodId")
         feedJob = viewModelScope.launch {
             val result = when (filter) {
-                is ExploreFilter.All -> postRepository.getNeighborhoodFeed(neighborhoodId)
+                is ExploreFilter.All -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
                 is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
                 is ExploreFilter.Group -> postRepository.getGroupFeed(filter.groupId)
             }
@@ -171,10 +139,9 @@ class ExploreViewModel(
                 if (current.activeFilter != filter) return@update current
                 val nextFeed = result.fold(
                     onSuccess = { ExploreUiState.FeedState.Success(it) },
-                    onFailure = {
-                        ExploreUiState.FeedState.Error(
-                            it.message ?: "Something went wrong"
-                        )
+                    onFailure = { e ->
+                        if (e is CancellationException) return@update current
+                        ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
                     }
                 )
                 current.copy(feed = nextFeed)

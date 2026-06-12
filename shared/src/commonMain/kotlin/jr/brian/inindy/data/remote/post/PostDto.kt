@@ -19,6 +19,7 @@ data class PostDto(
     @SerialName("max_attendees") val maxAttendees: Int? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("author") val author: UserDto? = null,
+    @SerialName("neighborhood") val neighborhood: PostNeighborhoodDto? = null,
     @SerialName("images") val images: List<PostImageDto> = emptyList(),
     @SerialName("tags") val tags: List<PostTagDto> = emptyList(),
     @SerialName("rsvp_count") val rsvpCount: Int = 0

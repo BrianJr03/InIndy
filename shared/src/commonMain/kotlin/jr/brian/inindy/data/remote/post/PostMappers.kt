@@ -30,6 +30,7 @@ fun PostDto.toDomain(): Post {
         rsvpCount = rsvpCount,
         author = author?.toDomain(),
         neighborhoodId = neighborhoodId,
+        neighborhoodName = neighborhood?.name,
         groupId = groupId
     )
 }

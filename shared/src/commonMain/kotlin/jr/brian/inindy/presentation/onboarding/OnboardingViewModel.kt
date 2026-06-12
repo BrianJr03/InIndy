@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 class OnboardingViewModel(
     private val onboardingRepository: OnboardingRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow<OnboardingUiState>(OnboardingUiState.ProfileStep())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 

@@ -16,7 +16,6 @@ class AppViewModel(
     private val authRepository: AuthRepository,
     private val userPreferencesStore: UserPreferencesStore
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = _state.asStateFlow()
 
