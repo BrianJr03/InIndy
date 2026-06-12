@@ -77,6 +77,7 @@ fun MainScreen(
                         rootNavController.navigate(RootRoutes.postDetail(postId))
                     },
                     isRsvpd = exploreViewModel::isRsvpd,
+                    isOwnPost = exploreViewModel::isOwnPost,
                     onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) },
                     listState = listState,
                     refreshTrigger = exploreRefreshTrigger

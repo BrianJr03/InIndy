@@ -18,5 +18,6 @@ data class Post(
     val author: User?,
     val neighborhoodId: String? = null,
     val neighborhoodName: String? = null,
-    val groupId: String? = null
+    val groupId: String? = null,
+    val previewAttendees: List<User> = emptyList()
 )

@@ -16,6 +16,7 @@
     <!-- Post card -->
     <string name="post_author_anonymous">Someone in Indy</string>
     <string name="post_in_count_label">folks are in!</string>
+    <string name="post_in_count_label_single">person is in!</string>
     <string name="post_im_in_button">I'm in! →</string>
     <string name="post_interested_button">Interested →</string>
     <string name="post_video_unavailable">Video unavailable on web</string>
@@ -56,6 +57,8 @@
     <string name="detail_attendees_dialog_title">Who's in</string>
     <string name="detail_attendees_dialog_close">Close</string>
     <string name="detail_attendees_empty">No one has RSVPd yet</string>
+    <string name="detail_attendees_going">%1$d going</string>
+    <string name="detail_attendees_overflow">+%1$d</string>
     <string name="detail_im_in_button">I'm in!</string>
     <string name="detail_image_count">%1$d of %2$d</string>
     <string name="detail_un_rsvp_content_description">Cancel your RSVP</string>

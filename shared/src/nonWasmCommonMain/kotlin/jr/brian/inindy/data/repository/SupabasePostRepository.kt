@@ -12,11 +12,13 @@ import io.github.jan.supabase.realtime.realtime
 import jr.brian.inindy.data.remote.post.PostDto
 import jr.brian.inindy.data.remote.post.PostImageDto
 import jr.brian.inindy.data.remote.post.PostTagDto
+import jr.brian.inindy.data.remote.post.RsvpWithUserDto
 import jr.brian.inindy.data.remote.post.toDomain
 import jr.brian.inindy.data.remote.post.toDto
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
+import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.PostRepository
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -110,6 +112,8 @@ class SupabasePostRepository(
         println("[InIndy] getPostById — postId: $postId")
         val post = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("id", postId) }
+            order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+            limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeSingle<PostDto>().toDomain()
         println("[InIndy] getPostById — found post: ${post.id} with ${post.images.size} images")
         post
@@ -164,6 +168,8 @@ class SupabasePostRepository(
         println("[InIndy] createPost — re-fetching post with joins")
         val finalPost = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("id", inserted.id) }
+            order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+            limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeSingle<PostDto>().toDomain()
 
         println("[InIndy] createPost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}")
@@ -181,6 +187,69 @@ class SupabasePostRepository(
         println("[InIndy] deletePost — success for postId: $postId")
     }
 
+    // ── Realtime feed observers ──────────────────────────────────────────────
+    // These flows emit the latest feed on subscribe and re-emit whenever the
+    // posts table changes for the matching scope. The rsvp_count column lives
+    // on posts, so any RSVP from any device triggers an UPDATE here and the
+    // feed re-fetch picks up the new count automatically.
+    //
+    // NOTE: requires Supabase Realtime to be enabled for the `posts` table.
+    // Supabase dashboard → Database → Replication → enable `posts`. Without it
+    // the postgresChangeFlow never fires and counts won't sync across devices.
+
+    override fun observeNeighborhoodOnlyFeed(neighborhoodId: String): Flow<Result<List<Post>>> =
+        channelFlow {
+            println("[InIndy] observeNeighborhoodOnlyFeed — subscribing for neighborhoodId: $neighborhoodId")
+
+            suspend fun emitLatest() {
+                send(getNeighborhoodOnlyFeed(neighborhoodId))
+            }
+
+            emitLatest()
+
+            val channel = supabase.channel("posts-nh-$neighborhoodId-${Uuid.random()}")
+            val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = POSTS_TABLE
+                filter("neighborhood_id", FilterOperator.EQ, neighborhoodId)
+            }
+            launch { changes.collect { emitLatest() } }
+            channel.subscribe()
+
+            try {
+                awaitCancellation()
+            } finally {
+                withContext(NonCancellable) {
+                    supabase.realtime.removeChannel(channel)
+                }
+            }
+        }
+
+    override fun observeGroupFeed(groupId: String): Flow<Result<List<Post>>> = channelFlow {
+        println("[InIndy] observeGroupFeed — subscribing for groupId: $groupId")
+
+        suspend fun emitLatest() {
+            send(getGroupFeed(groupId))
+        }
+
+        emitLatest()
+
+        val channel = supabase.channel("posts-group-$groupId-${Uuid.random()}")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = POSTS_TABLE
+            filter("group_id", FilterOperator.EQ, groupId)
+        }
+        launch { changes.collect { emitLatest() } }
+        channel.subscribe()
+
+        try {
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                supabase.realtime.removeChannel(channel)
+            }
+        }
+    }
+
     override suspend fun getNeighborhoodFeed(neighborhoodId: String): Result<List<Post>> =
         runCatching {
             println("[InIndy] getNeighborhoodFeed — neighborhoodId: $neighborhoodId")
@@ -188,6 +257,8 @@ class SupabasePostRepository(
                 filter { eq("neighborhood_id", neighborhoodId) }
                 order("created_at", order = Order.DESCENDING)
                 limit(FEED_LIMIT)
+                order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+                limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
             }.decodeList<PostDto>().map { it.toDomain() }
             println("[InIndy] getNeighborhoodFeed — loaded ${posts.size} posts")
             posts
@@ -203,6 +274,8 @@ class SupabasePostRepository(
                 }
                 order("created_at", order = Order.DESCENDING)
                 limit(FEED_LIMIT)
+                order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+                limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
             }.decodeList<PostDto>().map { it.toDomain() }
             println("[InIndy] getNeighborhoodOnlyFeed — loaded ${posts.size} posts")
             posts
@@ -213,15 +286,37 @@ class SupabasePostRepository(
         val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("group_id", groupId) }
             order("created_at", order = Order.DESCENDING)
+            order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+            limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeList<PostDto>().map { it.toDomain() }
         println("[InIndy] getGroupFeed — loaded ${posts.size} posts")
         posts
+    }
+
+    override suspend fun getPostAttendees(postId: String): Result<List<User>> = runCatching {
+        println("[InIndy] getPostAttendees — postId: $postId")
+        val attendees = supabase.from(RSVPS_TABLE)
+            .select(ATTENDEES_COLUMNS) {
+                filter {
+                    eq("post_id", postId)
+                    eq("status", "confirmed")
+                }
+                order("created_at", order = Order.ASCENDING)
+            }
+            .decodeList<RsvpWithUserDto>()
+            .map { it.user.toDomain() }
+        println("[InIndy] getPostAttendees — loaded ${attendees.size} attendees")
+        attendees
+    }.onFailure { e ->
+        println("[InIndy] getPostAttendees FAILED — postId: $postId, error: ${e::class.simpleName}: ${e.message}")
     }
 
     private suspend fun fetchUserPosts(userId: String): Result<List<Post>> = runCatching {
         supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("user_id", userId) }
             order("created_at", order = Order.DESCENDING)
+            order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+            limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeList<PostDto>().map { it.toDomain() }
     }
 
@@ -232,10 +327,15 @@ class SupabasePostRepository(
         const val POSTS_TABLE = "posts"
         const val POST_IMAGES_TABLE = "post_images"
         const val POST_TAGS_TABLE = "post_tags"
+        const val RSVPS_TABLE = "rsvps"
         const val FEED_LIMIT = 50L
         const val STOP_TIMEOUT_MS = 5_000L
+        const val ATTENDEE_PREVIEW_LIMIT = 5L
         val JOINED_COLUMNS = Columns.raw(
-            "*, author:users(id, full_name, avatar_url), neighborhood:neighborhoods(name), images:post_images(*), tags:post_tags(*)"
+            "*, author:users(id, full_name, avatar_url), neighborhood:neighborhoods(name), images:post_images(*), tags:post_tags(*), rsvps(user_id, user:users(id, full_name, avatar_url))"
+        )
+        val ATTENDEES_COLUMNS = Columns.raw(
+            "user_id, user:users(id, full_name, avatar_url)"
         )
     }
 }

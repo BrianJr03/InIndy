@@ -10,7 +10,7 @@ import org.koin.dsl.module
 val authModule = module {
     // Resolved per platform: SupabaseAuthRepository on Android/iOS/JS,
     // FakeAuthRepository on wasmJs (no supabase-kt artifact there).
-    single<AuthRepository> { provideAuthRepository(get(), get()) }
+    single<AuthRepository> { provideAuthRepository(get(), get(), get()) }
     single<OnboardingRepository> { provideOnboardingRepository(get()) }
     viewModel { AuthViewModel(get(), get()) }
     viewModel { OnboardingViewModel(get()) }

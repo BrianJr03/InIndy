@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.ExploreFilter
+import jr.brian.inindy.domain.model.Post
+import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.toBrandMarkText
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
@@ -34,6 +36,7 @@ class ExploreViewModel(
     private var searchJob: Job? = null
     private var feedJob: Job? = null
     private var neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
+    private var currentUserId: String? = null
 
     init {
         observeSearchQuery()
@@ -82,10 +85,65 @@ class ExploreViewModel(
 
     fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
 
+    fun isOwnPost(post: Post): Boolean = post.userId == currentUserId
+
+    fun rsvp(postId: String) {
+        if (rsvpPost.isRsvpd(postId)) return
+        viewModelScope.launch {
+            rsvpPost(postId).onSuccess {
+                mutateFeedRsvp(postId, delta = 1, me = currentUserAsAttendee())
+            }.onFailure { e ->
+                println("[InIndy] ExploreViewModel rsvp FAILED — postId: $postId, error: ${e.message}")
+            }
+        }
+    }
+
+    fun unRsvp(postId: String) {
+        if (!rsvpPost.isRsvpd(postId)) return
+        viewModelScope.launch {
+            rsvpPost.unRsvp(postId).onSuccess {
+                mutateFeedRsvp(postId, delta = -1, me = currentUserAsAttendee())
+            }.onFailure { e ->
+                println("[InIndy] ExploreViewModel unRsvp FAILED — postId: $postId, error: ${e.message}")
+            }
+        }
+    }
+
+    private fun mutateFeedRsvp(postId: String, delta: Int, me: User?) {
+        _uiState.update { current ->
+            val feed = current.feed as? ExploreUiState.FeedState.Success ?: return@update current
+            val updated = feed.posts.map { post ->
+                if (post.id == postId) {
+                    post.copy(
+                        rsvpCount = (post.rsvpCount + delta).coerceAtLeast(0),
+                        previewAttendees = updatedAttendees(post.previewAttendees, me, delta)
+                    )
+                } else post
+            }
+            current.copy(feed = ExploreUiState.FeedState.Success(updated))
+        }
+    }
+
+    private fun updatedAttendees(current: List<User>, me: User?, delta: Int): List<User> {
+        if (me == null) return current
+        return when {
+            delta > 0 && current.none { it.id == me.id } -> current + me
+            delta < 0 -> current.filterNot { it.id == me.id }
+            else -> current
+        }
+    }
+
+    private suspend fun currentUserAsAttendee(): User? {
+        val prefs = currentUserProvider.get()
+        val id = prefs.userId ?: return null
+        return User(id = id, fullName = prefs.fullName, avatarUrl = prefs.avatarUrl)
+    }
+
     private fun bootstrap(loadFeed: Boolean = true) {
         viewModelScope.launch {
             val prefs = currentUserProvider.get()
             neighborhoodId = prefs.neighborhoodId ?: DEFAULT_NEIGHBORHOOD_ID
+            currentUserId = prefs.userId
             val neighborhoodName = prefs.neighborhoodName ?: DEFAULT_NEIGHBORHOOD_NAME
             println("[InIndy] ExploreViewModel bootstrap — neighborhoodId: $neighborhoodId, neighborhoodName: $neighborhoodName, loadFeed: $loadFeed")
             _uiState.update {
@@ -121,30 +179,32 @@ class ExploreViewModel(
         feedJob?.cancel()
         val filter = _uiState.value.activeFilter
         println("[InIndy] ExploreViewModel loadFeed — filter: $filter, neighborhoodId: $neighborhoodId")
+        val feedFlow = when (filter) {
+            is ExploreFilter.All,
+            is ExploreFilter.Neighborhood -> postRepository.observeNeighborhoodOnlyFeed(neighborhoodId)
+            is ExploreFilter.Group -> postRepository.observeGroupFeed(filter.groupId)
+        }
         feedJob = viewModelScope.launch {
-            val result = when (filter) {
-                is ExploreFilter.All -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
-                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
-                is ExploreFilter.Group -> postRepository.getGroupFeed(filter.groupId)
-            }
-            result
-                .onSuccess { posts ->
-                    println("[InIndy] ExploreViewModel loadFeed SUCCESS — ${posts.size} posts for filter: $filter")
-                }
-                .onFailure { e ->
-                    println("[InIndy] ExploreViewModel loadFeed FAILED — filter: $filter, error: ${e::class.simpleName}: ${e.message}")
-                    e.printStackTrace()
-                }
-            _uiState.update { current ->
-                if (current.activeFilter != filter) return@update current
-                val nextFeed = result.fold(
-                    onSuccess = { ExploreUiState.FeedState.Success(it) },
-                    onFailure = { e ->
-                        if (e is CancellationException) return@update current
-                        ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
+            feedFlow.collect { result ->
+                result
+                    .onSuccess { posts ->
+                        println("[InIndy] ExploreViewModel feed emission — ${posts.size} posts for filter: $filter")
                     }
-                )
-                current.copy(feed = nextFeed)
+                    .onFailure { e ->
+                        if (e is CancellationException) return@collect
+                        println("[InIndy] ExploreViewModel feed emission FAILED — filter: $filter, error: ${e::class.simpleName}: ${e.message}")
+                    }
+                _uiState.update { current ->
+                    if (current.activeFilter != filter) return@update current
+                    val nextFeed = result.fold(
+                        onSuccess = { ExploreUiState.FeedState.Success(it) },
+                        onFailure = { e ->
+                            if (e is CancellationException) return@update current
+                            ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
+                        }
+                    )
+                    current.copy(feed = nextFeed)
+                }
             }
         }
     }

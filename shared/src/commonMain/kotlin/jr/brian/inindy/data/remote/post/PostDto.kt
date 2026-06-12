@@ -22,5 +22,6 @@ data class PostDto(
     @SerialName("neighborhood") val neighborhood: PostNeighborhoodDto? = null,
     @SerialName("images") val images: List<PostImageDto> = emptyList(),
     @SerialName("tags") val tags: List<PostTagDto> = emptyList(),
-    @SerialName("rsvp_count") val rsvpCount: Int = 0
+    @SerialName("rsvp_count") val rsvpCount: Int = 0,
+    @SerialName("rsvps") val rsvps: List<RsvpWithUserDto> = emptyList()
 )

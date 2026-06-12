@@ -56,6 +56,7 @@ fun ExploreScreen(
     onRefresh: () -> Unit,
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean = { false },
+    isOwnPost: (Post) -> Boolean = { false },
     onSettingsClick: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
@@ -98,6 +99,7 @@ fun ExploreScreen(
                             posts = feed.posts,
                             onRsvpClick = onRsvpClick,
                             isRsvpd = isRsvpd,
+                            isOwnPost = isOwnPost,
                             listState = listState
                         )
                     }
@@ -134,6 +136,7 @@ private fun ExplorePostFeedList(
     posts: List<Post>,
     onRsvpClick: (String) -> Unit,
     isRsvpd: (String) -> Boolean,
+    isOwnPost: (Post) -> Boolean,
     listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
@@ -149,7 +152,8 @@ private fun ExplorePostFeedList(
             PostCard(
                 post = post,
                 isRsvpd = isRsvpd(post.id),
-                onRsvpClick = onRsvpClick
+                onRsvpClick = onRsvpClick,
+                isOwnPost = isOwnPost(post)
             )
         }
     }

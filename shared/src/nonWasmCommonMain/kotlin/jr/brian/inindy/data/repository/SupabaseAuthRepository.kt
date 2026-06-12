@@ -11,6 +11,7 @@ import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.AuthSessionState
+import jr.brian.inindy.domain.repository.RsvpRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -35,7 +36,8 @@ import kotlinx.serialization.Serializable
 class SupabaseAuthRepository(
     private val supabase: SupabaseClient,
     private val tokenStorage: TokenStorage,
-    private val userPreferencesStore: UserPreferencesStore
+    private val userPreferencesStore: UserPreferencesStore,
+    private val rsvpRepository: RsvpRepository
 ) : AuthRepository {
 
     override val sessionState: Flow<AuthSessionState> =
@@ -136,6 +138,10 @@ class SupabaseAuthRepository(
                     && interests.isNotEmpty()
 
             userPreferencesStore.setOnboardingComplete(isComplete)
+
+            // 6. Hydrate the RSVP cache so PostCard / PostDetail can render
+            // the correct toggle state immediately on first feed render.
+            rsvpRepository.getRsvpdPostIds(userId)
 
             println("[InIndy] syncUserProfile complete — onboardingComplete: $isComplete")
 

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -69,6 +71,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +86,7 @@ import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.detail_attendees_dialog_close
 import jr.brian.inindy.resources.detail_attendees_dialog_title
 import jr.brian.inindy.resources.detail_attendees_empty
+import jr.brian.inindy.resources.detail_attendees_overflow
 import jr.brian.inindy.resources.detail_ends_label
 import jr.brian.inindy.resources.detail_im_in_button
 import jr.brian.inindy.resources.detail_image_count
@@ -107,6 +111,8 @@ import jr.brian.inindy.resources.post_detail_edit
 import jr.brian.inindy.resources.post_detail_loading
 import jr.brian.inindy.resources.post_detail_menu_cd
 import jr.brian.inindy.resources.post_detail_not_found
+import jr.brian.inindy.resources.post_in_count_label
+import jr.brian.inindy.resources.post_in_count_label_single
 import jr.brian.inindy.ui.components.FloatingBackButton
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
@@ -302,6 +308,7 @@ private fun PostDetailContent(
                 WhosInStat(
                     rsvpCount = post.rsvpCount,
                     accent = accent,
+                    attendees = attendees,
                     onClick = {
                         showAttendeesDialog = true
                         onLoadAttendees()
@@ -481,7 +488,7 @@ private fun DetailHero(
     modifier: Modifier = Modifier
 ) {
     val media = images.map { DetailMedia.Image(it) } +
-        videos.map { DetailMedia.Video(it.url, it.thumbnailUrl) }
+            videos.map { DetailMedia.Video(it.url, it.thumbnailUrl) }
 
     val scrim = Brush.verticalGradient(
         colors = listOf(
@@ -512,6 +519,7 @@ private fun DetailHero(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+
                     is DetailMedia.Video -> DetailVideoPage(
                         video = item,
                         contentDescription = contentDescription,
@@ -554,6 +562,7 @@ private fun DetailHero(
 
 private sealed interface DetailMedia {
     val url: String
+
     data class Image(override val url: String) : DetailMedia
     data class Video(override val url: String, val thumbnailUrl: String?) : DetailMedia
 }
@@ -980,6 +989,7 @@ private fun WhosInStat(
     rsvpCount: Int,
     accent: Color,
     modifier: Modifier = Modifier,
+    attendees: List<User> = emptyList(),
     onClick: (() -> Unit)? = null
 ) {
     Row(
@@ -1016,11 +1026,25 @@ private fun WhosInStat(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(Res.string.detail_whos_in_subtitle),
+                text = if (rsvpCount == 1) {
+                    stringResource(Res.string.post_in_count_label_single)
+                } else {
+                    stringResource(Res.string.post_in_count_label)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            if (attendees.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OverlappingAvatars(
+                    attendees = attendees,
+                    totalCount = rsvpCount,
+                    avatarSize = 28.dp,
+                    maxVisible = 4,
+                    ringColor = MaterialTheme.colorScheme.surface
+                )
+            }
         }
         Icon(
             imageVector = PersonIcon,
@@ -1028,6 +1052,89 @@ private fun WhosInStat(
             modifier = Modifier.size(22.dp),
             tint = accent
         )
+    }
+}
+
+@Composable
+internal fun OverlappingAvatars(
+    attendees: List<User>,
+    totalCount: Int,
+    avatarSize: Dp,
+    maxVisible: Int,
+    ringColor: Color,
+    modifier: Modifier = Modifier
+) {
+    if (attendees.isEmpty()) return
+    val visible = attendees.take(maxVisible)
+    val overflow = (totalCount - visible.size).coerceAtLeast(0)
+    val overlap = avatarSize / 4
+
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        visible.forEachIndexed { index, user ->
+            AttendeePreviewAvatar(
+                user = user,
+                size = avatarSize,
+                ringColor = ringColor,
+                modifier = Modifier.offset(x = if (index == 0) 0.dp else -overlap * index)
+            )
+        }
+        if (overflow > 0) {
+            Box(
+                modifier = Modifier
+                    .offset(x = -overlap * visible.size)
+                    .size(avatarSize)
+                    .clip(CircleShape)
+                    .border(width = 2.dp, color = ringColor, shape = CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(Res.string.detail_attendees_overflow, overflow),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttendeePreviewAvatar(
+    user: User,
+    size: Dp,
+    ringColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val anonymous = stringResource(Res.string.post_author_anonymous)
+    val displayName = user.fullName ?: anonymous
+    val initial = displayName.firstOrNull()?.uppercase() ?: "?"
+    if (!user.avatarUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = user.avatarUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .border(width = 2.dp, color = ringColor, shape = CircleShape)
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .border(width = 2.dp, color = ringColor, shape = CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }
 
@@ -1180,12 +1287,14 @@ private fun AttendeesDialog(
                     loading -> CircularProgressIndicator(
                         color = MaterialTheme.colorScheme.primary
                     )
+
                     attendees.isEmpty() -> Text(
                         text = stringResource(Res.string.detail_attendees_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),

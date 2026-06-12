@@ -31,7 +31,8 @@ fun PostDto.toDomain(): Post {
         author = author?.toDomain(),
         neighborhoodId = neighborhoodId,
         neighborhoodName = neighborhood?.name,
-        groupId = groupId
+        groupId = groupId,
+        previewAttendees = rsvps.map { it.user.toDomain() }
     )
 }
 

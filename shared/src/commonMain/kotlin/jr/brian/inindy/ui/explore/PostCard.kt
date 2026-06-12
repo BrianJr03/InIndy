@@ -1,10 +1,15 @@
 package jr.brian.inindy.ui.explore
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +58,7 @@ import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.post_author_anonymous
 import jr.brian.inindy.resources.post_im_in_button
 import jr.brian.inindy.resources.post_in_count_label
+import jr.brian.inindy.resources.post_in_count_label_single
 import jr.brian.inindy.resources.post_interested_button
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
@@ -69,9 +75,7 @@ private const val MAX_FOOTER_TAGS = 2
 private const val RELATIVE_TIME_REFRESH_MS = 60_000L
 private val AvatarSize = 36.dp
 
-// Portrait-friendly aspect ratio: 4:5 shows more of tall phone photos
-// vs the old fixed 200dp height that cropped portrait shots aggressively
-private const val HERO_ASPECT_RATIO = 4f / 5f
+private const val HERO_ASPECT_RATIO = 16f / 12f
 
 @Composable
 fun PostCard(
@@ -80,6 +84,7 @@ fun PostCard(
     onRsvpClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     onCardClick: (String) -> Unit = onRsvpClick,
+    isOwnPost: Boolean = false,
     nowMs: Long = rememberTickingNowMs()
 ) {
     val displayName = post.author?.fullName
@@ -111,7 +116,8 @@ fun PostCard(
                     name = firstName,
                     avatarUrl = post.author?.avatarUrl,
                     relativeTime = relativeTime,
-                    rsvpCount = post.rsvpCount
+                    rsvpCount = post.rsvpCount,
+                    attendees = post.previewAttendees
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -152,6 +158,7 @@ fun PostCard(
                     tags = post.tags,
                     neighborhoodName = post.neighborhoodName,
                     isRsvpd = isRsvpd,
+                    isOwnPost = isOwnPost,
                     onRsvpClick = { onRsvpClick(post.id) }
                 )
             }
@@ -164,7 +171,8 @@ private fun PostHeader(
     name: String,
     avatarUrl: String?,
     relativeTime: String,
-    rsvpCount: Int
+    rsvpCount: Int,
+    attendees: List<User>
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Avatar(name = name, avatarUrl = avatarUrl)
@@ -184,33 +192,57 @@ private fun PostHeader(
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
-        InCountStat(rsvpCount = rsvpCount)
+        InCountStat(rsvpCount = rsvpCount, attendees = attendees)
     }
 }
 
 @Composable
 private fun InCountStat(
     rsvpCount: Int,
+    attendees: List<User>,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = rsvpCount.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1
-        )
-        Text(
-            text = stringResource(Res.string.post_in_count_label),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1
-        )
+        if (attendees.isNotEmpty()) {
+            OverlappingAvatars(
+                attendees = attendees,
+                totalCount = attendees.size,
+                avatarSize = 24.dp,
+                maxVisible = 3,
+                ringColor = MaterialTheme.colorScheme.surface
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AnimatedContent(
+                targetState = rsvpCount,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "post-card-rsvp-count"
+            ) { count ->
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = if (rsvpCount == 1) {
+                    stringResource(Res.string.post_in_count_label_single)
+                }
+                else {
+                    stringResource(Res.string.post_in_count_label)
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -275,6 +307,7 @@ private fun PostHero(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+
                     is HeroMedia.Video -> VideoPage(
                         video = item,
                         contentDescription = contentDescription,
@@ -310,6 +343,7 @@ private fun PostHero(
 
 private sealed interface HeroMedia {
     val url: String
+
     data class Image(override val url: String) : HeroMedia
     data class Video(override val url: String, val thumbnailUrl: String?) : HeroMedia
 }
@@ -415,9 +449,9 @@ private fun MetaRow(
     location: String,
     date: String
 ) {
-    Column(
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Row {
             Icon(
@@ -437,7 +471,9 @@ private fun MetaRow(
             )
         }
 
-        Row{
+        Spacer(Modifier.weight(1f))
+
+        Row {
             Icon(
                 imageVector = DateRangeIcon,
                 contentDescription = null,
@@ -461,6 +497,7 @@ private fun FooterRow(
     tags: List<Interest>,
     neighborhoodName: String?,
     isRsvpd: Boolean,
+    isOwnPost: Boolean,
     onRsvpClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -477,70 +514,76 @@ private fun FooterRow(
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (!neighborhoodName.isNullOrBlank()) {
-                NeighborhoodTag(name = neighborhoodName)
-            }
+//            if (!neighborhoodName.isNullOrBlank()) {
+//                Button(
+//                    onClick = {},
+//                    shape = RoundedCornerShape(12.dp),
+//                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+//                    colors = ButtonDefaults.buttonColors(
+//                        containerColor = if (isRsvpd)
+//                            MaterialTheme.colorScheme.secondaryContainer
+//                        else
+//                            MaterialTheme.colorScheme.primary,
+//                        contentColor = if (isRsvpd)
+//                            MaterialTheme.colorScheme.onSecondaryContainer
+//                        else
+//                            MaterialTheme.colorScheme.onPrimary
+//                    )
+//                ) {
+//                    Row(
+//                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+//                        verticalAlignment = Alignment.CenterVertically,
+//                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+//                    ) {
+//                        Icon(
+//                            imageVector = LocationOnIcon,
+//                            contentDescription = null,
+//                            modifier = Modifier.size(12.dp),
+//                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//                        Text(
+//                            text = neighborhoodName,
+//                            style = MaterialTheme.typography.labelLarge,
+//                            fontWeight = FontWeight.SemiBold
+//                        )
+//                    }
+//                }
+//            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = onRsvpClick,
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRsvpd)
-                        MaterialTheme.colorScheme.secondaryContainer
-                    else
-                        MaterialTheme.colorScheme.primary,
-                    contentColor = if (isRsvpd)
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    else
-                        MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text(
-                    text = stringResource(
-                        if (isRsvpd) Res.string.post_interested_button
-                        else Res.string.post_im_in_button
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
+            if (!isOwnPost) {
+                Button(
+                    onClick = onRsvpClick,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRsvpd)
+                            MaterialTheme.colorScheme.secondaryContainer
+                        else
+                            MaterialTheme.colorScheme.primary,
+                        contentColor = if (isRsvpd)
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        else
+                            MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isRsvpd) Res.string.post_interested_button
+                            else Res.string.post_im_in_button
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun NeighborhoodTag(
-    name: String,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = LocationOnIcon,
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = name,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -649,7 +692,12 @@ private fun PostCardPreview() {
                 ),
                 rsvpCount = 12,
                 author = User("u1", "Sarah M.", null),
-                neighborhoodName = "Broad Ripple"
+                neighborhoodName = "Broad Ripple",
+                previewAttendees = listOf(
+                    User("a1", "Alex P.", null),
+                    User("a2", "Bree K.", null),
+                    User("a3", "Carlos R.", null)
+                )
             ),
             isRsvpd = false,
             onRsvpClick = {},
