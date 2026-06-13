@@ -164,6 +164,9 @@
     <string name="me_status_upcoming">Upcoming</string>
     <string name="me_status_past">Past</string>
     <string name="me_post_rsvp_count">%1$d folks are in</string>
+    <string name="me_post_rsvp_count_past">%1$d folks were in</string>
+    <string name="me_post_rsvp_count_single">%1$d person is in</string>
+    <string name="me_post_rsvp_count_single_past">%1$d person was in</string>
     <string name="me_role_admin">Admin</string>
     <string name="me_role_member">Member</string>
     <string name="me_group_member_count">%1$d members</string>

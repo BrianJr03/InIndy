@@ -25,6 +25,8 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
     private val neighborhoodNameKey = stringPreferencesKey(UserPreferencesKeys.NEIGHBORHOOD_NAME)
     private val interestsKey = stringPreferencesKey(UserPreferencesKeys.INTERESTS)
     private val onboardingCompleteKey = booleanPreferencesKey(UserPreferencesKeys.ONBOARDING_COMPLETE)
+    private val lastSelectedGroupIdKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_ID)
+    private val lastSelectedGroupNameKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
 
     override val preferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
         UserPreferences(
@@ -37,7 +39,9 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
                 ?.split(',')
                 ?.filter { it.isNotBlank() }
                 ?: emptyList(),
-            onboardingComplete = prefs[onboardingCompleteKey] ?: false
+            onboardingComplete = prefs[onboardingCompleteKey] ?: false,
+            lastSelectedGroupId = prefs[lastSelectedGroupIdKey],
+            lastSelectedGroupName = prefs[lastSelectedGroupNameKey]
         )
     }
 
@@ -67,6 +71,20 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
 
     override suspend fun setOnboardingComplete(complete: Boolean) {
         dataStore.edit { it[onboardingCompleteKey] = complete }
+    }
+
+    override suspend fun saveLastSelectedGroup(groupId: String, groupName: String) {
+        dataStore.edit {
+            it[lastSelectedGroupIdKey] = groupId
+            it[lastSelectedGroupNameKey] = groupName
+        }
+    }
+
+    override suspend fun clearLastSelectedGroup() {
+        dataStore.edit {
+            it.remove(lastSelectedGroupIdKey)
+            it.remove(lastSelectedGroupNameKey)
+        }
     }
 
     override suspend fun clear() {

@@ -43,7 +43,6 @@ import jr.brian.inindy.resources.intro_get_started
 import jr.brian.inindy.resources.intro_next
 import jr.brian.inindy.resources.intro_skip
 import jr.brian.inindy.ui.auth.animations.AnimatedBrandMarkBackground
-import jr.brian.inindy.ui.brand.BrandMark
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource

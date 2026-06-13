@@ -10,7 +10,9 @@ data class UserPreferences(
     val neighborhoodId: String? = null,
     val neighborhoodName: String? = null,
     val interests: List<String> = emptyList(),
-    val onboardingComplete: Boolean = false
+    val onboardingComplete: Boolean = false,
+    val lastSelectedGroupId: String? = null,
+    val lastSelectedGroupName: String? = null
 )
 
 interface UserPreferencesStore {
@@ -20,6 +22,8 @@ interface UserPreferencesStore {
     suspend fun saveNeighborhood(id: String, name: String)
     suspend fun saveInterests(interests: List<Interest>)
     suspend fun setOnboardingComplete(complete: Boolean)
+    suspend fun saveLastSelectedGroup(groupId: String, groupName: String)
+    suspend fun clearLastSelectedGroup()
     suspend fun clear()
 }
 
@@ -31,4 +35,6 @@ internal object UserPreferencesKeys {
     const val NEIGHBORHOOD_NAME = "neighborhood_name"
     const val INTERESTS = "interests"
     const val ONBOARDING_COMPLETE = "onboarding_complete"
+    const val LAST_SELECTED_GROUP_ID = "last_selected_group_id"
+    const val LAST_SELECTED_GROUP_NAME = "last_selected_group_name"
 }

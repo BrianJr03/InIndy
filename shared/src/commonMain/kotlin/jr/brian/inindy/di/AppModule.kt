@@ -17,7 +17,8 @@ val exploreModule = module {
             postRepository = get<PostRepository>(),
             rsvpPost = get(),
             groupRepository = get(),
-            currentUserProvider = get()
+            currentUserProvider = get(),
+            userPreferencesStore = get()
         )
     }
 }

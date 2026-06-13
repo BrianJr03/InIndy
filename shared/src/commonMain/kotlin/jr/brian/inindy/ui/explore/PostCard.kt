@@ -449,9 +449,9 @@ private fun MetaRow(
     location: String,
     date: String
 ) {
-    Row(
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.Start
     ) {
         Row {
             Icon(
@@ -471,7 +471,6 @@ private fun MetaRow(
             )
         }
 
-        Spacer(Modifier.weight(1f))
 
         Row {
             Icon(

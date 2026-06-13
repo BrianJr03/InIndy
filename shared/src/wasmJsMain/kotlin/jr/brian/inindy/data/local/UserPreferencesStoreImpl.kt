@@ -45,6 +45,18 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
         refresh()
     }
 
+    override suspend fun saveLastSelectedGroup(groupId: String, groupName: String) {
+        localStorage.setItem(UserPreferencesKeys.LAST_SELECTED_GROUP_ID, groupId)
+        localStorage.setItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME, groupName)
+        refresh()
+    }
+
+    override suspend fun clearLastSelectedGroup() {
+        localStorage.removeItem(UserPreferencesKeys.LAST_SELECTED_GROUP_ID)
+        localStorage.removeItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
+        refresh()
+    }
+
     override suspend fun clear() {
         listOf(
             UserPreferencesKeys.USER_ID,
@@ -53,7 +65,9 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             UserPreferencesKeys.NEIGHBORHOOD_ID,
             UserPreferencesKeys.NEIGHBORHOOD_NAME,
             UserPreferencesKeys.INTERESTS,
-            UserPreferencesKeys.ONBOARDING_COMPLETE
+            UserPreferencesKeys.ONBOARDING_COMPLETE,
+            UserPreferencesKeys.LAST_SELECTED_GROUP_ID,
+            UserPreferencesKeys.LAST_SELECTED_GROUP_NAME
         ).forEach { localStorage.removeItem(it) }
         refresh()
     }
@@ -72,6 +86,8 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             ?.split(',')
             ?.filter { it.isNotBlank() }
             ?: emptyList(),
-        onboardingComplete = localStorage.getItem(UserPreferencesKeys.ONBOARDING_COMPLETE)?.toBoolean() ?: false
+        onboardingComplete = localStorage.getItem(UserPreferencesKeys.ONBOARDING_COMPLETE)?.toBoolean() ?: false,
+        lastSelectedGroupId = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_ID),
+        lastSelectedGroupName = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
     )
 }

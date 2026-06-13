@@ -2,8 +2,11 @@ package jr.brian.inindy.presentation.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.ExploreFilter
+import jr.brian.inindy.domain.model.Group
+import jr.brian.inindy.domain.model.GroupRole
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.toBrandMarkText
@@ -27,7 +30,8 @@ class ExploreViewModel(
     private val postRepository: PostRepository,
     private val rsvpPost: RsvpPostUseCase,
     private val groupRepository: GroupRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val userPreferencesStore: UserPreferencesStore
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
@@ -77,6 +81,9 @@ class ExploreViewModel(
             is ExploreIntent.SelectFilterGroup -> {
                 _uiState.update { it.copy(lastSelectedGroup = intent.group) }
                 applyFilter(ExploreFilter.Group(intent.group.id, intent.group.name))
+                viewModelScope.launch {
+                    userPreferencesStore.saveLastSelectedGroup(intent.group.id, intent.group.name)
+                }
             }
         }
     }
@@ -151,6 +158,25 @@ class ExploreViewModel(
                     neighborhoodName = neighborhoodName,
                     brandMarkText = it.activeFilter.toBrandMarkText(neighborhoodName)
                 )
+            }
+            val lastGroupId = prefs.lastSelectedGroupId
+            val lastGroupName = prefs.lastSelectedGroupName
+            if (!lastGroupId.isNullOrBlank() && !lastGroupName.isNullOrBlank()) {
+                _uiState.update {
+                    it.copy(
+                        lastSelectedGroup = Group(
+                            id = lastGroupId,
+                            name = lastGroupName,
+                            description = null,
+                            coverUrl = null,
+                            createdBy = "",
+                            isOpen = true,
+                            memberCount = 0,
+                            role = GroupRole.MEMBER,
+                            createdAt = 0L
+                        )
+                    )
+                }
             }
             if (loadFeed) {
                 loadFeed()

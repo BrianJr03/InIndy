@@ -70,6 +70,9 @@ import jr.brian.inindy.resources.me_empty_groups
 import jr.brian.inindy.resources.me_empty_posts
 import jr.brian.inindy.resources.me_group_member_count
 import jr.brian.inindy.resources.me_post_rsvp_count
+import jr.brian.inindy.resources.me_post_rsvp_count_past
+import jr.brian.inindy.resources.me_post_rsvp_count_single
+import jr.brian.inindy.resources.me_post_rsvp_count_single_past
 import jr.brian.inindy.resources.me_role_admin
 import jr.brian.inindy.resources.me_role_member
 import jr.brian.inindy.resources.me_section_attendance
@@ -501,7 +504,16 @@ private fun PostManageCard(
                 ) {
                     StatusChip(isUpcoming = isUpcoming)
                     Text(
-                        text = stringResource(Res.string.me_post_rsvp_count, post.rsvpCount),
+                        text = when {
+                            isUpcoming && post.rsvpCount == 1 ->
+                                stringResource(Res.string.me_post_rsvp_count_single, post.rsvpCount)
+                            isUpcoming ->
+                                stringResource(Res.string.me_post_rsvp_count, post.rsvpCount)
+                            post.rsvpCount == 1 ->
+                                stringResource(Res.string.me_post_rsvp_count_single_past, post.rsvpCount)
+                            else ->
+                                stringResource(Res.string.me_post_rsvp_count_past, post.rsvpCount)
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
@@ -550,7 +562,8 @@ private fun PostThumbnail(imageUrl: String?) {
 
 @Composable
 private fun StatusChip(isUpcoming: Boolean) {
-    val color = if (isUpcoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val color =
+        if (isUpcoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     Surface(
         shape = RoundedCornerShape(50),
         color = color.copy(alpha = 0.14f)
