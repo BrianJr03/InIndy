@@ -12,7 +12,7 @@ struct iOSApp: App {
             ContentView()
                 .onOpenURL { url in
                     Task {
-                        try? await SupabaseDeepLinksIosKt.handleSupabaseDeepLink(url: url.absoluteString)
+                        try? await DeepLinkRouterIosKt.handleInIndyDeepLink(url: url.absoluteString)
                     }
                 }
         }

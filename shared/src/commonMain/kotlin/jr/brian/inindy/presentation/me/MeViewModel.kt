@@ -3,7 +3,6 @@ package jr.brian.inindy.presentation.me
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.domain.CurrentUserProvider
-import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AttendanceRepository
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class MeViewModel(
@@ -34,12 +34,21 @@ class MeViewModel(
 
     fun refresh() {
         loadUserPosts()
+        loadUserGroups()
     }
 
     private fun loadUserPosts() {
         viewModelScope.launch {
             postRepository.getUserPosts().onSuccess { posts ->
                 _uiState.value = _uiState.value.copy(recentPosts = posts)
+            }
+        }
+    }
+
+    private fun loadUserGroups() {
+        viewModelScope.launch {
+            groupRepository.getUserGroups().onSuccess { groups ->
+                _uiState.value = _uiState.value.copy(groups = groups)
             }
         }
     }
@@ -104,6 +113,16 @@ class MeViewModel(
     fun deletePost(postId: String) {
         viewModelScope.launch {
             postRepository.deletePost(postId)
+                .onSuccess {
+                    _uiState.update { current ->
+                        current.copy(
+                            recentPosts = current.recentPosts.filterNot { it.id == postId }
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    println("[InIndy] MeViewModel deletePost FAILED — postId: $postId, error: ${e.message}")
+                }
         }
     }
 }

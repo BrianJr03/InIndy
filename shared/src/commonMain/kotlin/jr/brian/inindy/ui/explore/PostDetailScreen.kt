@@ -87,6 +87,7 @@ import jr.brian.inindy.resources.detail_attendees_dialog_close
 import jr.brian.inindy.resources.detail_attendees_dialog_title
 import jr.brian.inindy.resources.detail_attendees_empty
 import jr.brian.inindy.resources.detail_attendees_overflow
+import jr.brian.inindy.resources.detail_back_content_description
 import jr.brian.inindy.resources.detail_ends_label
 import jr.brian.inindy.resources.detail_im_in_button
 import jr.brian.inindy.resources.detail_image_count
@@ -110,7 +111,7 @@ import jr.brian.inindy.resources.post_detail_delete
 import jr.brian.inindy.resources.post_detail_edit
 import jr.brian.inindy.resources.post_detail_loading
 import jr.brian.inindy.resources.post_detail_menu_cd
-import jr.brian.inindy.resources.post_detail_not_found
+import jr.brian.inindy.resources.post_detail_unavailable
 import jr.brian.inindy.resources.post_in_count_label
 import jr.brian.inindy.resources.post_in_count_label_single
 import jr.brian.inindy.ui.components.FloatingBackButton
@@ -160,7 +161,7 @@ fun PostDetailScreen(
     ) {
         when (val s = state) {
             is PostDetailUiState.Loading -> DetailLoadingState()
-            is PostDetailUiState.Error -> DetailErrorState(message = s.message, onBack = onBack)
+            is PostDetailUiState.Unavailable -> DetailUnavailableState(onBack = onBack)
             is PostDetailUiState.Success -> PostDetailContent(
                 post = s.post,
                 isHost = s.isHost && allowHostActions,
@@ -197,7 +198,7 @@ private fun DetailLoadingState() {
 }
 
 @Composable
-private fun DetailErrorState(message: String, onBack: () -> Unit) {
+private fun DetailUnavailableState(onBack: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -206,18 +207,14 @@ private fun DetailErrorState(message: String, onBack: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = stringResource(Res.string.post_detail_not_found),
+                text = stringResource(Res.string.post_detail_unavailable),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(onClick = onBack) { Text("Back") }
+            OutlinedButton(onClick = onBack) {
+                Text(stringResource(Res.string.detail_back_content_description))
+            }
         }
     }
 }

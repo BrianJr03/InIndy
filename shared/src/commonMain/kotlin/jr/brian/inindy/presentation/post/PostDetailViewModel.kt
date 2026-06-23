@@ -29,7 +29,7 @@ class PostDetailViewModel(
             val post = postRepository.getPostById(postId).getOrNull()
                 ?: findInExplore(postId)
             if (post == null) {
-                _uiState.value = PostDetailUiState.Error("Post not found")
+                _uiState.value = PostDetailUiState.Unavailable
                 return@launch
             }
             val currentUserId = currentUserProvider.get().userId

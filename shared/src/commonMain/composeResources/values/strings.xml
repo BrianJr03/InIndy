@@ -220,6 +220,7 @@
     <string name="post_detail_delete">Delete post</string>
     <string name="post_detail_loading">Loading…</string>
     <string name="post_detail_not_found">We couldn't find that post.</string>
+    <string name="post_detail_unavailable">This post is no longer available.</string>
     <string name="post_detail_hosted_by">Hosted by %1$s</string>
 
     <!-- Quick create group -->
@@ -248,6 +249,9 @@
     <string name="group_revoke_invite_cd">Revoke invite</string>
     <string name="group_invite_token_label">Invite link</string>
     <string name="group_invite_expires">expires %1$s</string>
+    <string name="group_invite_expires_today">Expires today</string>
+    <string name="group_invite_expires_in_one_day">Expires in 1 day</string>
+    <string name="group_invite_expires_in_days">Expires in %1$d days</string>
     <string name="group_admin_chip">Admin</string>
     <string name="group_menu_edit">Edit group info</string>
     <string name="group_menu_delete">Delete group</string>
@@ -260,8 +264,21 @@
     <string name="group_leave_dialog_message">You'll lose access to group posts. You can be re-invited later.</string>
     <string name="group_leave_confirm">Leave</string>
     <string name="group_leave_dismiss">Stay</string>
-    <string name="group_invite_link_title">Invite link ready</string>
-    <string name="group_invite_link_dismiss">Done</string>
+    <string name="group_invite_share_text">Join my group on InIndy: %1$s</string>
+    <string name="group_invite_share_title">Invite to %1$s</string>
+    <string name="group_invite_share_fallback_name">group</string>
+
+    <!-- Group invite accept -->
+    <string name="group_invite_accept_title">Join %1$s?</string>
+    <string name="group_invite_accept_subtitle">You're invited to join this group on InIndy.</string>
+    <string name="group_invite_accept_member_count">%1$d members</string>
+    <string name="group_invite_accept_join">Join group</string>
+    <string name="group_invite_accept_joining">Joining…</string>
+    <string name="group_invite_accept_decline">Decline</string>
+    <string name="group_invite_accept_loading">Loading invite…</string>
+    <string name="group_invite_accept_error_title">Invite unavailable</string>
+    <string name="group_invite_accept_error_message">This invite link is invalid or has expired.</string>
+    <string name="group_invite_accept_error_dismiss">Close</string>
 
     <!-- Profile edit -->
     <string name="profile_edit_title">Edit profile</string>

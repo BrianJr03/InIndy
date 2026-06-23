@@ -9,6 +9,7 @@ import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.repository.ProfileEditRepository
 import jr.brian.inindy.presentation.creategroup.CreateGroupViewModel
 import jr.brian.inindy.presentation.createpost.CreatePostViewModel
+import jr.brian.inindy.presentation.me.GroupInviteViewModel
 import jr.brian.inindy.presentation.me.GroupManagementViewModel
 import jr.brian.inindy.presentation.me.MeViewModel
 import jr.brian.inindy.presentation.post.PostDetailViewModel
@@ -27,6 +28,7 @@ val postModule = module {
     viewModel { CreatePostViewModel(get(), get(), get(), get(), get()) }
     viewModel { CreateGroupViewModel(get(), get()) }
     viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get()) }
+    viewModel { GroupInviteViewModel(get()) }
     viewModel { PostDetailViewModel(get(), get(), get(), get()) }
     viewModel { ProfileEditViewModel(get(), get()) }
 }

@@ -21,4 +21,6 @@ interface GroupRepository {
     suspend fun revokeInvite(inviteId: String): Result<Unit>
     suspend fun deleteGroup(groupId: String): Result<Unit>
     suspend fun leaveGroup(groupId: String): Result<Unit>
+    suspend fun getGroupByInviteToken(token: String): Result<Group>
+    suspend fun joinGroupByToken(token: String): Result<Group>
 }

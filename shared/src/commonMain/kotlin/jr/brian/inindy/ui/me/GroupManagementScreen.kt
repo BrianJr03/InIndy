@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import jr.brian.inindy.data.share.shareText
 import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.GroupInvite
 import jr.brian.inindy.domain.model.GroupRole
@@ -65,9 +66,12 @@ import jr.brian.inindy.resources.group_delete_dialog_title
 import jr.brian.inindy.resources.group_delete_dismiss
 import jr.brian.inindy.resources.group_invite_cta
 import jr.brian.inindy.resources.group_invite_cta_generating
-import jr.brian.inindy.resources.group_invite_expires
-import jr.brian.inindy.resources.group_invite_link_dismiss
-import jr.brian.inindy.resources.group_invite_link_title
+import jr.brian.inindy.resources.group_invite_expires_in_days
+import jr.brian.inindy.resources.group_invite_expires_in_one_day
+import jr.brian.inindy.resources.group_invite_expires_today
+import jr.brian.inindy.resources.group_invite_share_fallback_name
+import jr.brian.inindy.resources.group_invite_share_text
+import jr.brian.inindy.resources.group_invite_share_title
 import jr.brian.inindy.resources.group_invite_token_label
 import jr.brian.inindy.resources.group_member_count
 import jr.brian.inindy.resources.group_members_header
@@ -85,7 +89,6 @@ import jr.brian.inindy.ui.icons.ArrowBackIcon
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.GroupIcon
 import jr.brian.inindy.ui.icons.MoreVertIcon
-import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -111,6 +114,21 @@ fun GroupManagementScreen(
         viewModel.postNavigation.collect { postId -> onPostClick(postId) }
     }
     LaunchedEffect(state.deleted) { if (state.deleted) onBack() }
+
+    val fallbackGroupName = stringResource(Res.string.group_invite_share_fallback_name)
+    val shareTitle = stringResource(
+        Res.string.group_invite_share_title,
+        state.group?.name ?: fallbackGroupName
+    )
+    val shareBody = stringResource(
+        Res.string.group_invite_share_text,
+        state.inviteLink.orEmpty()
+    )
+    LaunchedEffect(state.inviteLink) {
+        if (state.inviteLink == null) return@LaunchedEffect
+        shareText(text = shareBody, title = shareTitle)
+        viewModel.clearInviteLink()
+    }
 
     BackHandler(onBack = onBack)
 
@@ -153,7 +171,7 @@ fun GroupManagementScreen(
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     item { GroupCover(group) }
-                    item { GroupInfo(group) }
+                    item { GroupInfo(group, memberCount = state.members.size) }
                     item { SectionDivider() }
                     item { SectionHeader(text = stringResource(Res.string.group_at_a_glance)) }
                     if (state.recentPosts.isEmpty()) {
@@ -294,31 +312,6 @@ fun GroupManagementScreen(
         )
     }
 
-    state.inviteLink?.let { link ->
-        AlertDialog(
-            onDismissRequest = {
-                viewModel.onIntent(GroupManagementIntent.DismissInviteLink)
-            },
-            title = { Text(stringResource(Res.string.group_invite_link_title)) },
-            text = {
-                Text(
-                    text = link,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onIntent(GroupManagementIntent.DismissInviteLink)
-                }) {
-                    Text(
-                        text = stringResource(Res.string.group_invite_link_dismiss),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        )
-    }
 }
 
 @Composable
@@ -417,7 +410,7 @@ private fun GroupCover(group: Group) {
 }
 
 @Composable
-private fun GroupInfo(group: Group) {
+private fun GroupInfo(group: Group, memberCount: Int) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -447,7 +440,7 @@ private fun GroupInfo(group: Group) {
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                text = stringResource(Res.string.group_member_count, group.memberCount),
+                text = stringResource(Res.string.group_member_count, memberCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
@@ -493,7 +486,8 @@ private fun AtAGlanceEmpty() {
 
 @Composable
 private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
-    val now = currentTimeMillis()
+    val daysRemaining = daysUntil(invite.expiresAt)
+    val isExpiringSoon = daysRemaining <= 2
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -510,13 +504,11 @@ private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(Res.string.group_invite_token_label) + " · " +
-                        stringResource(
-                            Res.string.group_invite_expires,
-                            DateUtil.formatRelativeDate(invite.expiresAt, now)
-                        ),
+                        inviteExpiryLabel(daysRemaining),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isExpiringSoon) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -539,4 +531,16 @@ private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
             }
         }
     }
+}
+
+private fun daysUntil(expiresAtMs: Long): Int {
+    val remainingMs = expiresAtMs - currentTimeMillis()
+    return (remainingMs / 86_400_000L).toInt()
+}
+
+@Composable
+private fun inviteExpiryLabel(daysRemaining: Int): String = when {
+    daysRemaining <= 0 -> stringResource(Res.string.group_invite_expires_today)
+    daysRemaining == 1 -> stringResource(Res.string.group_invite_expires_in_one_day)
+    else -> stringResource(Res.string.group_invite_expires_in_days, daysRemaining)
 }

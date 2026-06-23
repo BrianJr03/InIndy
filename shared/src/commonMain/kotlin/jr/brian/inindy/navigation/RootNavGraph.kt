@@ -26,6 +26,7 @@ import jr.brian.inindy.ui.creategroup.CreateGroupScreen
 import jr.brian.inindy.ui.createpost.CreatePostScreen
 import jr.brian.inindy.ui.explore.PostDetailScreen
 import jr.brian.inindy.ui.main.MainScreen
+import jr.brian.inindy.ui.me.GroupInviteSheet
 import jr.brian.inindy.ui.me.GroupManagementScreen
 import jr.brian.inindy.ui.onboarding.OnboardingNavHost
 import jr.brian.inindy.ui.settings.SettingsScreen
@@ -56,6 +57,7 @@ fun RootNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
+    val pendingInviteToken by appViewModel.pendingInviteToken.collectAsStateWithLifecycle()
     var exploreRefreshTrigger by remember { mutableIntStateOf(0) }
     var meRefreshTrigger by remember { mutableIntStateOf(0) }
 
@@ -134,6 +136,7 @@ fun RootNavGraph(
                 CreateGroupScreen(
                     onClose = { navController.popBackStack() },
                     onCreated = { newGroupId ->
+                        meRefreshTrigger++
                         navController.popBackStack()
                         navController.navigate(RootRoutes.groupManagement(newGroupId))
                     }
@@ -159,13 +162,29 @@ fun RootNavGraph(
                 val groupId = backStackEntry.arguments?.read { getString("groupId") }.orEmpty()
                 GroupManagementScreen(
                     groupId = groupId,
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        meRefreshTrigger++
+                        navController.popBackStack()
+                    },
                     onPostClick = { postId ->
                         navController.navigate(RootRoutes.postDetail(postId))
                     }
                 )
             }
         }
+    }
+
+    val activeInviteToken = pendingInviteToken
+    if (activeInviteToken != null && state.destination == AppDestination.Main) {
+        GroupInviteSheet(
+            token = activeInviteToken,
+            onDismiss = { appViewModel.consumeInviteToken() },
+            onJoined = { group ->
+                appViewModel.consumeInviteToken()
+                meRefreshTrigger++
+                navController.navigate(RootRoutes.groupManagement(group.id))
+            }
+        )
     }
 }
 

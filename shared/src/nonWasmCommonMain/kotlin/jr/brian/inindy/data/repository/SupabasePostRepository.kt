@@ -71,6 +71,9 @@ class SupabasePostRepository(
             }
         }
 
+    // IMPORTANT: posts table must have Realtime enabled in Supabase dashboard
+    // Database → Replication → enable posts
+    // Without this the flow never updates and the UI only refreshes on app restart
     private fun buildUserPostsFlow(userId: String): Flow<List<Post>> = channelFlow {
         println("[InIndy] observeUserPosts — subscribing for userId: $userId")
 
@@ -87,7 +90,25 @@ class SupabasePostRepository(
             table = POSTS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
         }
-        launch { changes.collect { emitLatest() } }
+        launch {
+            changes.collect { action ->
+                when (action) {
+                    is PostgresAction.Insert -> {
+                        println("[InIndy] observeUserPosts — INSERT, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Update -> {
+                        println("[InIndy] observeUserPosts — UPDATE, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Delete -> {
+                        println("[InIndy] observeUserPosts — DELETE, re-fetching")
+                        emitLatest()
+                    }
+                    else -> {}
+                }
+            }
+        }
         channel.subscribe()
 
         try {
@@ -212,7 +233,25 @@ class SupabasePostRepository(
                 table = POSTS_TABLE
                 filter("neighborhood_id", FilterOperator.EQ, neighborhoodId)
             }
-            launch { changes.collect { emitLatest() } }
+            launch {
+                changes.collect { action ->
+                    when (action) {
+                        is PostgresAction.Insert -> {
+                            println("[InIndy] observeNeighborhoodOnlyFeed — INSERT, re-fetching")
+                            emitLatest()
+                        }
+                        is PostgresAction.Update -> {
+                            println("[InIndy] observeNeighborhoodOnlyFeed — UPDATE, re-fetching")
+                            emitLatest()
+                        }
+                        is PostgresAction.Delete -> {
+                            println("[InIndy] observeNeighborhoodOnlyFeed — DELETE, re-fetching")
+                            emitLatest()
+                        }
+                        else -> {}
+                    }
+                }
+            }
             channel.subscribe()
 
             try {
@@ -238,7 +277,25 @@ class SupabasePostRepository(
             table = POSTS_TABLE
             filter("group_id", FilterOperator.EQ, groupId)
         }
-        launch { changes.collect { emitLatest() } }
+        launch {
+            changes.collect { action ->
+                when (action) {
+                    is PostgresAction.Insert -> {
+                        println("[InIndy] observeGroupFeed — INSERT, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Update -> {
+                        println("[InIndy] observeGroupFeed — UPDATE, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Delete -> {
+                        println("[InIndy] observeGroupFeed — DELETE, re-fetching")
+                        emitLatest()
+                    }
+                    else -> {}
+                }
+            }
+        }
         channel.subscribe()
 
         try {

@@ -30,6 +30,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -132,6 +137,7 @@ private fun MeScreenContent(
     modifier: Modifier = Modifier
 ) {
     var postPendingDeletion by remember { mutableStateOf<String?>(null) }
+    var deletingPostIds by remember { mutableStateOf(setOf<String>()) }
     var showProfileEditSheet by remember { mutableStateOf(false) }
     val now = currentTimeMillis()
 
@@ -168,13 +174,22 @@ private fun MeScreenContent(
                     EmptyHint(text = stringResource(Res.string.me_empty_posts))
                 }
             } else {
-                items(state.recentPosts.take(3)) { post ->
-                    PostManageCard(
-                        post = post,
-                        nowMs = now,
-                        onClick = { onPostClick(post.id) },
-                        onDeleteClick = { postPendingDeletion = post.id }
-                    )
+                items(
+                    items = state.recentPosts.take(3),
+                    key = { it.id }
+                ) { post ->
+                    AnimatedVisibility(
+                        visible = post.id !in deletingPostIds,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        PostManageCard(
+                            post = post,
+                            nowMs = now,
+                            onClick = { onPostClick(post.id) },
+                            onDeleteClick = { postPendingDeletion = post.id }
+                        )
+                    }
                 }
             }
             item {
@@ -223,7 +238,9 @@ private fun MeScreenContent(
             text = { Text(stringResource(Res.string.me_delete_post_dialog_message)) },
             confirmButton = {
                 TextButton(onClick = {
-                    onDeletePost(postPendingDeletion!!)
+                    val id = postPendingDeletion!!
+                    deletingPostIds = deletingPostIds + id
+                    onDeletePost(id)
                     postPendingDeletion = null
                 }) {
                     Text(

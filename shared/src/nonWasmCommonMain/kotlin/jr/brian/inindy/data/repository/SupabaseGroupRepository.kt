@@ -1,7 +1,9 @@
 package jr.brian.inindy.data.repository
 
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
@@ -40,6 +42,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @OptIn(ExperimentalUuidApi::class)
 class SupabaseGroupRepository(
@@ -72,6 +76,9 @@ class SupabaseGroupRepository(
             }
         }
 
+    // IMPORTANT: group_members table must have Realtime enabled in Supabase dashboard
+    // Database → Replication → enable group_members
+    // Without this the flow never updates and the UI only refreshes on app restart
     private fun buildUserGroupsFlow(userId: String): Flow<List<Group>> = channelFlow {
         suspend fun emitLatest() {
             send(fetchUserGroups(userId).getOrElse { emptyList() })
@@ -175,13 +182,16 @@ class SupabaseGroupRepository(
             ) { select() }
             .decodeSingle<GroupDto>()
 
-        supabase.from(GROUP_MEMBERS_TABLE).insert(
+        supabase.from(GROUP_MEMBERS_TABLE).upsert(
             GroupMemberInsertDto(
                 groupId = inserted.id,
                 userId = userId,
                 role = GroupRole.ADMIN.name.lowercase()
             )
-        )
+        ) {
+            onConflict = "group_id,user_id"
+            ignoreDuplicates = true
+        }
 
         inserted.toGroup(GroupRole.ADMIN)
     }
@@ -213,13 +223,15 @@ class SupabaseGroupRepository(
             .select { filter { eq("group_id", groupId) } }
             .decodeList<GroupInviteDto>()
             .map { dto ->
+                val parsedExpiresAt = parseIso8601UtcSafe(dto.expiresAt)
+                println("[InIndy] getPendingInvites — raw expiresAt: ${dto.expiresAt}, parsed: $parsedExpiresAt, now: $now")
                 GroupInvite(
                     id = dto.id,
                     groupId = dto.groupId,
                     invitedBy = dto.invitedBy,
                     token = dto.token,
-                    createdAt = parseIso8601UtcSafe(dto.createdAt),
-                    expiresAt = parseIso8601UtcSafe(dto.expiresAt)
+                    createdAt = parseIso8601UtcSafe(dto.createdAt ?: ""),
+                    expiresAt = parsedExpiresAt
                 )
             }
             .filter { it.expiresAt > now }
@@ -232,18 +244,7 @@ class SupabaseGroupRepository(
                 eq("user_id", userId)
             }
         }
-        val currentCount = supabase.from(GROUPS_TABLE)
-            .select(Columns.list("member_count")) {
-                filter { eq("id", groupId) }
-            }
-            .decodeSingleOrNull<MemberCountRow>()
-            ?.memberCount
-            ?: 0
-        supabase.from(GROUPS_TABLE).update({
-            set("member_count", (currentCount - 1).coerceAtLeast(0))
-        }) {
-            filter { eq("id", groupId) }
-        }
+        syncMemberCount(groupId)
     }
 
     override suspend fun generateInviteLink(groupId: String): Result<String> = runCatching {
@@ -259,7 +260,7 @@ class SupabaseGroupRepository(
                 expiresAt = formatIso8601Utc(expiresAtMs)
             )
         )
-        "https://inindy.app/i/$token"
+        "https://in-indy-invite.thaballa79.workers.dev/invite/$token"
     }
 
     override suspend fun revokeInvite(inviteId: String): Result<Unit> = runCatching {
@@ -280,6 +281,72 @@ class SupabaseGroupRepository(
         removeMember(groupId, userId).getOrThrow()
     }
 
+    override suspend fun getGroupByInviteToken(token: String): Result<Group> = runCatching {
+        val invite = fetchValidInvite(token)
+        getGroupById(invite.groupId).getOrThrow()
+    }
+
+    override suspend fun joinGroupByToken(token: String): Result<Group> = runCatching {
+        val userId = currentUserProvider.get().userId
+            ?: throw IllegalStateException("No signed-in user")
+        val invite = fetchValidInvite(token)
+
+        val alreadyMember = supabase.from(GROUP_MEMBERS_TABLE)
+            .select(Columns.list("role")) {
+                filter {
+                    eq("group_id", invite.groupId)
+                    eq("user_id", userId)
+                }
+            }
+            .decodeSingleOrNull<RoleRow>() != null
+
+        println("[InIndy] joinGroupByToken — alreadyMember: $alreadyMember, userId: $userId, groupId: ${invite.groupId}")
+
+        if (!alreadyMember) {
+            supabase.from(GROUP_MEMBERS_TABLE).upsert(
+                GroupMemberInsertDto(
+                    groupId = invite.groupId,
+                    userId = userId,
+                    role = GroupRole.MEMBER.name.lowercase()
+                )
+            ) {
+                onConflict = "group_id,user_id"
+                ignoreDuplicates = true
+            }
+        }
+
+        syncMemberCount(invite.groupId)
+
+        getGroupById(invite.groupId).getOrThrow()
+    }
+
+    private suspend fun syncMemberCount(groupId: String) {
+        supabase.postgrest.rpc(
+            function = "sync_group_member_count",
+            parameters = buildJsonObject { put("group_id_input", groupId) }
+        )
+    }
+
+    private suspend fun fetchValidInvite(token: String): GroupInviteDto {
+        val currentUser = supabase.auth.currentUserOrNull()
+        println("[InIndy] fetchValidInvite — current user: ${currentUser?.id}")
+        println("[InIndy] fetchValidInvite — token: $token")
+
+        val response = supabase.from(GROUP_INVITES_TABLE)
+            .select { filter { eq("token", token) } }
+
+        println("[InIndy] fetchValidInvite — raw response: ${response.data}")
+
+        val invite = response.decodeSingleOrNull<GroupInviteDto>()
+        println("[InIndy] fetchValidInvite — decoded invite: $invite")
+
+        if (invite == null) throw IllegalStateException("Invite not found")
+        val expiresAtMs = parseIso8601UtcSafe(invite.expiresAt)
+        val nowMs = currentTimeMillis()
+        println("[InIndy] fetchValidInvite — expiresAt ms: $expiresAtMs, now ms: $nowMs, expired: ${expiresAtMs <= nowMs}")
+        if (expiresAtMs <= nowMs) throw IllegalStateException("Invite expired")
+        return invite
+    }
     // ── Mapping helpers ──────────────────────────────────────────────────────
 
     private fun GroupDto.toGroup(role: GroupRole): Group = Group(
@@ -305,12 +372,20 @@ class SupabaseGroupRepository(
         runCatching { parseIso8601Utc(iso) }.getOrDefault(0L)
 
     private fun parseIso8601Utc(iso: String): Long {
-        val year = iso.substring(0, 4).toInt()
-        val month = iso.substring(5, 7).toInt()
-        val day = iso.substring(8, 10).toInt()
-        val hour = iso.substring(11, 13).toInt()
-        val minute = iso.substring(14, 16).toInt()
-        val second = iso.substring(17, 19).toInt()
+        // Normalize: replace space separator with T, strip timezone suffix
+        val normalized = iso
+            .replace(" ", "T")      // "2026-06-22 20:46:56+00" → "2026-06-22T20:46:56+00"
+            .replace("+00:00", "Z")
+            .replace("+00", "Z")    // handles both "+00:00" and "+00"
+            .substringBefore(".")              // strip milliseconds if present e.g. ".123Z"
+            .replace("Z", "")       // strip Z, we treat everything as UTC
+
+        val year = normalized.substring(0, 4).toInt()
+        val month = normalized.substring(5, 7).toInt()
+        val day = normalized.substring(8, 10).toInt()
+        val hour = normalized.substring(11, 13).toInt()
+        val minute = normalized.substring(14, 16).toInt()
+        val second = normalized.substring(17, 19).toInt()
         return civilToEpochDays(year, month, day) * 86_400_000L +
                 hour * 3_600_000L +
                 minute * 60_000L +
@@ -404,8 +479,9 @@ class SupabaseGroupRepository(
         @SerialName("group_id") val groupId: String,
         @SerialName("invited_by") val invitedBy: String,
         @SerialName("token") val token: String,
-        @SerialName("created_at") val createdAt: String,
-        @SerialName("expires_at") val expiresAt: String
+        @SerialName("created_at") val createdAt: String? = null,
+        @SerialName("expires_at") val expiresAt: String,
+        @SerialName("used_at") val usedAt: String? = null
     )
 
     @Serializable
@@ -434,9 +510,6 @@ class SupabaseGroupRepository(
 
     @Serializable
     private data class RoleRow(@SerialName("role") val role: String)
-
-    @Serializable
-    private data class MemberCountRow(@SerialName("member_count") val memberCount: Int)
 
     private companion object {
         const val GROUPS_TABLE = "groups"

@@ -14,7 +14,7 @@ sealed class PostDetailUiState {
         val attendees: List<User> = emptyList(),
         val attendeesLoading: Boolean = false
     ) : PostDetailUiState()
-    data class Error(val message: String) : PostDetailUiState()
+    data object Unavailable : PostDetailUiState()
 }
 
 sealed class PostDetailIntent {

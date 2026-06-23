@@ -34,13 +34,16 @@ class GroupManagementViewModel(
             GroupManagementIntent.Load -> load()
             is GroupManagementIntent.RemoveMember -> removeMember(intent.userId)
             GroupManagementIntent.GenerateInviteLink -> generateInvite()
-            GroupManagementIntent.DismissInviteLink -> dismissInviteLink()
             is GroupManagementIntent.RevokeInvite -> revokeInvite(intent.inviteId)
             GroupManagementIntent.ShowDeleteConfirmation -> showDeleteConfirmation()
             GroupManagementIntent.DismissDeleteConfirmation -> dismissDeleteConfirmation()
             GroupManagementIntent.ConfirmDeleteGroup -> confirmDeleteGroup()
             is GroupManagementIntent.NavigateToPost -> emitNavigateToPost(intent.postId)
         }
+    }
+
+    fun clearInviteLink() {
+        _uiState.value = _uiState.value.copy(inviteLink = null)
     }
 
     private fun load() {
@@ -91,10 +94,6 @@ class GroupManagementViewModel(
             )
             refresh()
         }
-    }
-
-    private fun dismissInviteLink() {
-        _uiState.value = _uiState.value.copy(inviteLink = null)
     }
 
     private fun revokeInvite(inviteId: String) {
