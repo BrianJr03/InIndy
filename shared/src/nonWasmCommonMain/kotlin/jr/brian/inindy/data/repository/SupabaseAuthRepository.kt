@@ -4,7 +4,10 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.isSuccess
 import jr.brian.inindy.data.local.TokenStorage
 import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.model.Interest
@@ -188,6 +191,21 @@ class SupabaseAuthRepository(
     // ── Session ─────────────────────────────────────────────────────────────
 
     override suspend fun signOut(): Result<Unit> = runCatching {
+        supabase.auth.signOut()
+        tokenStorage.clearToken()
+        userPreferencesStore.clear()
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> = runCatching {
+        // The SDK attaches the current session JWT to functions.invoke automatically,
+        // same as MediaRemoteDataSourceImpl uses for get-upload-url. The edge function
+        // resolves the caller server-side from that token.
+        val response: HttpResponse = supabase.functions.invoke(function = "delete-account")
+        if (!response.status.isSuccess()) {
+            error("delete-account edge function failed with status ${response.status.value}")
+        }
+        // Server-side deletion succeeded — tear down the local session so the
+        // session flow emits SignedOut and RootNavGraph redirects to auth.
         supabase.auth.signOut()
         tokenStorage.clearToken()
         userPreferencesStore.clear()

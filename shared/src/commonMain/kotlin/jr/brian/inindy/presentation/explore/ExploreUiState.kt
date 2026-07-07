@@ -15,7 +15,8 @@ data class ExploreUiState(
     val userGroups: List<Group> = emptyList(),
     val searchedGroups: List<Group> = emptyList(),
     val isSearchingGroups: Boolean = false,
-    val lastSelectedGroup: Group? = null
+    val lastSelectedGroup: Group? = null,
+    val isRefreshing: Boolean = false
 ) {
     sealed class FeedState {
         data object Loading : FeedState()

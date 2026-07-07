@@ -91,6 +91,7 @@ fun ProfileStepScreen(
                         onImageSelected = { avatarUri = it }
                     )
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(

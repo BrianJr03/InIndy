@@ -13,6 +13,7 @@ interface AuthRepository {
     suspend fun signInWithGoogle(idToken: String): Result<User>
     suspend fun signInWithApple(idToken: String): Result<User>
     suspend fun signOut(): Result<Unit>
+    suspend fun deleteAccount(): Result<Unit>
     suspend fun getCurrentUser(): User?
     suspend fun isSessionValid(): Boolean
 }

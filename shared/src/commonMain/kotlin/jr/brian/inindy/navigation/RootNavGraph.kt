@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +71,23 @@ fun RootNavGraph(
         AppDestination.Auth -> RootRoutes.AUTH_GRAPH
         AppDestination.Onboarding -> RootRoutes.ONBOARDING_GRAPH
         AppDestination.Main -> RootRoutes.MAIN_GRAPH
+    }
+
+    // Reactive redirect: when the session ends (e.g. sign-out, account deletion)
+    // AppViewModel flips destination to Auth. If we're currently anywhere other
+    // than the auth graph, blow away the back stack and go to auth. Guarded on
+    // currentBackStackEntry != null so the initial cold-start composition
+    // (where NavHost has just been set up at startDestination) doesn't
+    // double-navigate.
+    LaunchedEffect(state.destination) {
+        if (state.destination != AppDestination.Auth) return@LaunchedEffect
+        val currentGraph = navController.currentBackStackEntry?.destination?.parent?.route
+        if (currentGraph != null && currentGraph != RootRoutes.AUTH_GRAPH) {
+            navController.navigate(RootRoutes.AUTH_GRAPH) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
 
     NavHost(

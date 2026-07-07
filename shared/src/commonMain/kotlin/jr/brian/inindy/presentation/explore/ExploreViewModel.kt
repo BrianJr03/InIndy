@@ -13,8 +13,10 @@ import jr.brian.inindy.domain.model.toBrandMarkText
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
+import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +41,10 @@ class ExploreViewModel(
     private val searchQueryFlow = MutableSharedFlow<String>(extraBufferCapacity = 1)
     private var searchJob: Job? = null
     private var feedJob: Job? = null
+    // Kept on viewModelScope (not feedJob) so a rapid second pull can't leave the spinner stuck on
+    // when the feedJob for the prior refresh is cancelled by loadFeed().
+    private var refreshClearJob: Job? = null
+    private var refreshStartMs: Long? = null
     private var neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
     private var currentUserId: String? = null
 
@@ -52,6 +58,9 @@ class ExploreViewModel(
         when (intent) {
             ExploreIntent.Refresh -> {
                 println("[InIndy] ExploreViewModel — Refresh intent received")
+                refreshClearJob?.cancel()
+                refreshStartMs = currentTimeMillis()
+                _uiState.update { it.copy(isRefreshing = true) }
                 loadFeed()
             }
             ExploreIntent.ToggleFilterDropdown -> {
@@ -186,6 +195,9 @@ class ExploreViewModel(
 
     private fun applyFilter(filter: ExploreFilter) {
         println("[InIndy] ExploreViewModel applyFilter — filter: $filter")
+        // A filter switch supersedes any in-flight refresh; make sure the spinner doesn't linger.
+        refreshClearJob?.cancel()
+        refreshStartMs = null
         _uiState.update { current ->
             current.copy(
                 activeFilter = filter,
@@ -195,7 +207,8 @@ class ExploreViewModel(
                 groupSearchQuery = "",
                 searchedGroups = emptyList(),
                 isSearchingGroups = false,
-                feed = ExploreUiState.FeedState.Loading
+                feed = ExploreUiState.FeedState.Loading,
+                isRefreshing = false
             )
         }
         loadFeed()
@@ -231,7 +244,21 @@ class ExploreViewModel(
                     )
                     current.copy(feed = nextFeed)
                 }
+                maybeScheduleRefreshClear()
             }
+        }
+    }
+
+    private fun maybeScheduleRefreshClear() {
+        val start = refreshStartMs ?: return
+        // One-shot per refresh: subsequent realtime emissions in the same subscription won't
+        // re-arm the clear.
+        refreshStartMs = null
+        refreshClearJob?.cancel()
+        refreshClearJob = viewModelScope.launch {
+            val remaining = REFRESH_MIN_SPINNER_MS - (currentTimeMillis() - start)
+            if (remaining > 0) delay(remaining)
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
@@ -308,6 +335,7 @@ class ExploreViewModel(
 
     private companion object {
         const val SEARCH_DEBOUNCE_MS = 300L
+        const val REFRESH_MIN_SPINNER_MS = 600L
         const val DEFAULT_NEIGHBORHOOD_NAME = "Broad Ripple"
         const val DEFAULT_NEIGHBORHOOD_ID = "broad_ripple"
     }

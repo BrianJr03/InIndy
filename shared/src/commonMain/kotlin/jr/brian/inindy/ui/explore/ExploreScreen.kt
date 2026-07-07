@@ -21,12 +21,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -73,41 +76,47 @@ fun ExploreScreen(
                 onIntent = onIntent,
                 onSettingsClick = onSettingsClick
             )
-            AnimatedContent(
-                targetState = FeedContentKey(uiState.feed, uiState.activeFilter),
-                transitionSpec = {
-                    fadeIn(tween(durationMillis = 200)) togetherWith
-                        fadeOut(tween(durationMillis = 150))
-                },
-                label = "feedTransition",
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onIntent(ExploreIntent.Refresh) },
                 modifier = Modifier.fillMaxSize()
-            ) { key ->
-                when (val feed = key.feed) {
-                    ExploreUiState.FeedState.Loading -> Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                    is ExploreUiState.FeedState.Success -> if (feed.posts.isEmpty()) {
-                        ExploreEmptyState(
-                            filter = key.filter,
+            ) {
+                AnimatedContent(
+                    targetState = FeedContentKey(uiState.feed, uiState.activeFilter),
+                    transitionSpec = {
+                        fadeIn(tween(durationMillis = 200)) togetherWith
+                            fadeOut(tween(durationMillis = 150))
+                    },
+                    label = "feedTransition",
+                    modifier = Modifier.fillMaxSize()
+                ) { key ->
+                    when (val feed = key.feed) {
+                        ExploreUiState.FeedState.Loading -> Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                        is ExploreUiState.FeedState.Success -> if (feed.posts.isEmpty()) {
+                            ExploreEmptyState(
+                                filter = key.filter,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            ExplorePostFeedList(
+                                posts = feed.posts,
+                                onRsvpClick = onRsvpClick,
+                                isRsvpd = isRsvpd,
+                                isOwnPost = isOwnPost,
+                                listState = listState
+                            )
+                        }
+                        is ExploreUiState.FeedState.Error -> ExploreErrorContent(
+                            message = feed.message,
+                            onRetry = onRefresh,
                             modifier = Modifier.fillMaxSize()
                         )
-                    } else {
-                        ExplorePostFeedList(
-                            posts = feed.posts,
-                            onRsvpClick = onRsvpClick,
-                            isRsvpd = isRsvpd,
-                            isOwnPost = isOwnPost,
-                            listState = listState
-                        )
                     }
-                    is ExploreUiState.FeedState.Error -> ExploreErrorContent(
-                        message = feed.message,
-                        onRetry = onRefresh,
-                        modifier = Modifier.fillMaxSize()
-                    )
                 }
             }
         }
@@ -170,7 +179,9 @@ private fun ExploreEmptyState(
         is ExploreFilter.Group -> Res.string.explore_feed_empty_group
     }
     Box(
-        modifier = modifier.padding(32.dp),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -252,6 +263,7 @@ private fun ExploreErrorContent(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally

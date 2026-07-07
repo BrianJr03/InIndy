@@ -73,6 +73,16 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_dark_mode_title">Dark mode</string>
     <string name="settings_dark_mode_description">Use the dark theme across the app</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_delete_account_title">Delete account</string>
+    <string name="settings_delete_account_description">Permanently remove your account and all your data</string>
+    <string name="settings_delete_account_dialog_title">Delete your account?</string>
+    <string name="settings_delete_account_dialog_body">This permanently deletes your profile, posts, RSVPs, and any groups you founded that have no other admin. This cannot be undone.</string>
+    <string name="settings_delete_account_dialog_confirm_hint">Type DELETE to confirm</string>
+    <string name="settings_delete_account_dialog_confirm">Delete account</string>
+    <string name="settings_delete_account_dialog_cancel">Cancel</string>
+    <string name="settings_delete_account_error_generic">Couldn't delete your account. Please try again.</string>
+    <string name="settings_delete_account_confirm_word">DELETE</string>
 
     <!-- Intro / splash -->
     <string name="intro_1_title">Find your people</string>
