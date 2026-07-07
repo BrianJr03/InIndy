@@ -14,7 +14,14 @@ class MediaRepositoryImpl(
         uploadInternal(uri, context = "post", fileName = "post_${currentTimeMillis()}.jpg")
 
     override suspend fun uploadAvatar(uri: String): Result<String> =
-        uploadInternal(uri, context = "avatar", fileName = "avatar.jpg")
+        uploadInternal(
+            uri,
+            context = "avatar",
+            fileName = "avatar.jpg",
+            // Avatar R2 keys are deterministic (avatars/{userId}.{ext}); append a
+            // cache-buster so refreshed avatars aren't served stale from CDN/Coil cache.
+            cacheBust = true
+        )
 
     override suspend fun uploadGroupCover(uri: String): Result<String> =
         uploadInternal(uri, context = "group", fileName = "cover.jpg")
@@ -22,7 +29,8 @@ class MediaRepositoryImpl(
     private suspend fun uploadInternal(
         uri: String,
         context: String,
-        fileName: String
+        fileName: String,
+        cacheBust: Boolean = false
     ): Result<String> = runCatching {
         require(!uri.startsWith("http")) {
             "uploadInternal received a remote URL instead of a local URI: $uri"
@@ -34,7 +42,12 @@ class MediaRepositoryImpl(
         remoteDataSource
             .uploadImage(uploadResponse.uploadUrl, bytes, CONTENT_TYPE)
             .getOrThrow()
-        uploadResponse.publicUrl
+        if (cacheBust) {
+            val separator = if (uploadResponse.publicUrl.contains('?')) '&' else '?'
+            "${uploadResponse.publicUrl}${separator}v=${currentTimeMillis()}"
+        } else {
+            uploadResponse.publicUrl
+        }
     }
 
     private companion object {

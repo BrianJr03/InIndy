@@ -7,13 +7,15 @@ import io.github.jan.supabase.postgrest.query.Order
 import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Neighborhood
+import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.OnboardingRepository
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 class SupabaseOnboardingRepository(
     private val supabase: SupabaseClient,
-    private val userPreferencesStore: UserPreferencesStore
+    private val userPreferencesStore: UserPreferencesStore,
+    private val mediaRepository: MediaRepository
 ) : OnboardingRepository {
     override suspend fun getNeighborhoods(): Result<List<Neighborhood>> = runCatching {
         supabase.from(NEIGHBORHOODS_TABLE)
@@ -25,10 +27,17 @@ class SupabaseOnboardingRepository(
     override suspend fun updateProfile(fullName: String, avatarUrl: String?): Result<Unit> = runCatching {
         val userId = supabase.auth.currentUserOrNull()?.id
             ?: throw IllegalStateException("No signed-in user")
+
+        val avatarCdnUrl = when {
+            avatarUrl == null -> null
+            avatarUrl.startsWith("http") -> avatarUrl
+            else -> mediaRepository.uploadAvatar(avatarUrl).getOrThrow()
+        }
+
         supabase.from(USERS_TABLE).upsert(
-            UserProfileUpsertDto(id = userId, fullName = fullName, avatarUrl = avatarUrl)
+            UserProfileUpsertDto(id = userId, fullName = fullName, avatarUrl = avatarCdnUrl)
         )
-        userPreferencesStore.saveProfile(fullName, avatarUrl)
+        userPreferencesStore.saveProfile(fullName, avatarCdnUrl)
     }
 
     override suspend fun updateNeighborhood(neighborhoodId: String): Result<Unit> = runCatching {

@@ -11,7 +11,7 @@ val authModule = module {
     // Resolved per platform: SupabaseAuthRepository on Android/iOS/JS,
     // FakeAuthRepository on wasmJs (no supabase-kt artifact there).
     single<AuthRepository> { provideAuthRepository(get(), get(), get()) }
-    single<OnboardingRepository> { provideOnboardingRepository(get()) }
+    single<OnboardingRepository> { provideOnboardingRepository(get(), get()) }
     viewModel { AuthViewModel(get(), get()) }
     viewModel { OnboardingViewModel(get()) }
 }
