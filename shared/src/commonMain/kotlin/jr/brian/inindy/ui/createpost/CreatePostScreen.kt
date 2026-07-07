@@ -29,16 +29,27 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +71,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import jr.brian.inindy.data.location.LocationPermissionManager
+import jr.brian.inindy.data.location.LocationPermissionResult
 import jr.brian.inindy.domain.model.AddressResult
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.Interest
@@ -70,6 +83,7 @@ import jr.brian.inindy.resources.create_post_address_placeholder
 import jr.brian.inindy.resources.create_post_audience_group
 import jr.brian.inindy.resources.create_post_audience_neighborhood
 import jr.brian.inindy.resources.create_post_chars_remaining
+import jr.brian.inindy.resources.create_post_cancel
 import jr.brian.inindy.resources.create_post_close_cd
 import jr.brian.inindy.resources.create_post_create_new_group
 import jr.brian.inindy.resources.create_post_decrease_cd
@@ -78,12 +92,25 @@ import jr.brian.inindy.resources.create_post_discard_body
 import jr.brian.inindy.resources.create_post_discard_confirm
 import jr.brian.inindy.resources.create_post_discard_dismiss
 import jr.brian.inindy.resources.create_post_discard_title
-import jr.brian.inindy.resources.create_post_ends
+import jr.brian.inindy.resources.create_post_end_after_start_error
+import jr.brian.inindy.resources.create_post_end_label
+import jr.brian.inindy.resources.create_post_end_time_title
 import jr.brian.inindy.resources.create_post_increase_cd
+import jr.brian.inindy.resources.create_post_location_permission_blocked
+import jr.brian.inindy.resources.create_post_location_permission_denied
+import jr.brian.inindy.resources.create_post_location_warning_body
+import jr.brian.inindy.resources.create_post_location_warning_cancel
+import jr.brian.inindy.resources.create_post_location_warning_confirm
+import jr.brian.inindy.resources.create_post_location_warning_title
 import jr.brian.inindy.resources.create_post_max_no_limit
-import jr.brian.inindy.resources.create_post_optional
-import jr.brian.inindy.resources.create_post_pick_date
+import jr.brian.inindy.resources.create_post_next
+import jr.brian.inindy.resources.create_post_no_end_time
 import jr.brian.inindy.resources.create_post_pick_group
+import jr.brian.inindy.resources.create_post_set
+import jr.brian.inindy.resources.create_post_set_start_first
+import jr.brian.inindy.resources.create_post_start_in_future_error
+import jr.brian.inindy.resources.create_post_start_label
+import jr.brian.inindy.resources.create_post_start_time_title
 import jr.brian.inindy.resources.create_post_section_audience
 import jr.brian.inindy.resources.create_post_section_datetime
 import jr.brian.inindy.resources.create_post_section_description
@@ -92,7 +119,6 @@ import jr.brian.inindy.resources.create_post_section_max
 import jr.brian.inindy.resources.create_post_section_photos
 import jr.brian.inindy.resources.create_post_section_tags
 import jr.brian.inindy.resources.create_post_section_title
-import jr.brian.inindy.resources.create_post_starts
 import jr.brian.inindy.resources.create_post_submit
 import jr.brian.inindy.resources.create_post_submitting
 import jr.brian.inindy.resources.create_post_tags_helper
@@ -108,6 +134,7 @@ import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(
@@ -119,14 +146,42 @@ fun CreatePostScreen(
     onClose: () -> Unit,
     onSubmitted: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CreatePostViewModel = koinViewModel()
+    viewModel: CreatePostViewModel = koinViewModel(),
+    locationPermissionManager: LocationPermissionManager = koinInject()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showQuickGroupSheet by remember { mutableStateOf(false) }
+    var showLocationWarning by remember { mutableStateOf(false) }
+    var triggerLocationAfterWarning by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+    var dateTimeError by remember { mutableStateOf<String?>(null) }
+
+    val locationPermissionDeniedMsg = stringResource(Res.string.create_post_location_permission_denied)
+    val locationPermissionBlockedMsg = stringResource(Res.string.create_post_location_permission_blocked)
+    val startInFutureMsg = stringResource(Res.string.create_post_start_in_future_error)
+    val endAfterStartMsg = stringResource(Res.string.create_post_end_after_start_error)
+    val setStartFirstMsg = stringResource(Res.string.create_post_set_start_first)
 
     LaunchedEffect(state.submitted) {
         if (state.submitted) onSubmitted()
+    }
+
+    LaunchedEffect(triggerLocationAfterWarning) {
+        if (!triggerLocationAfterWarning) return@LaunchedEffect
+        triggerLocationAfterWarning = false
+        when (locationPermissionManager.requestPermission()) {
+            LocationPermissionResult.Granted -> viewModel.useCurrentLocation()
+            LocationPermissionResult.Denied ->
+                snackbarHostState.showSnackbar(locationPermissionDeniedMsg)
+            LocationPermissionResult.PermanentlyDenied ->
+                snackbarHostState.showSnackbar(locationPermissionBlockedMsg)
+        }
     }
 
     val handleClose: () -> Unit = {
@@ -179,16 +234,27 @@ fun CreatePostScreen(
                     suggestions = state.addressSuggestions,
                     locationLoading = state.locationLoading,
                     error = state.addressError,
-                    onUseCurrentLocation = viewModel::useCurrentLocation,
+                    onUseCurrentLocation = {
+                        if (state.locationWarningSeen) {
+                            triggerLocationAfterWarning = true
+                        } else {
+                            showLocationWarning = true
+                        }
+                    },
                     onAddressChange = viewModel::onAddressQueryChanged,
                     onAddressSelected = viewModel::selectAddress
                 )
                 DateTimeSection(
                     startsAt = state.startsAt,
                     endsAt = state.endsAt,
-                    error = state.startsAtError,
-                    onPickStart = viewModel::setStartsAt,
-                    onPickEnd = viewModel::setEndsAt
+                    startError = state.startsAtError,
+                    dateTimeError = dateTimeError,
+                    onPickStart = { showStartDatePicker = true },
+                    onPickEnd = { showEndDatePicker = true },
+                    onClearEnd = {
+                        dateTimeError = null
+                        viewModel.setEndsAt(null)
+                    }
                 )
                 AudienceSection(
                     state = state,
@@ -216,7 +282,102 @@ fun CreatePostScreen(
                 }
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
+
+    if (showLocationWarning) {
+        AlertDialog(
+            onDismissRequest = { showLocationWarning = false },
+            title = { Text(stringResource(Res.string.create_post_location_warning_title)) },
+            text = { Text(stringResource(Res.string.create_post_location_warning_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.acknowledgeLocationWarning()
+                    showLocationWarning = false
+                    triggerLocationAfterWarning = true
+                }) {
+                    Text(stringResource(Res.string.create_post_location_warning_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationWarning = false }) {
+                    Text(stringResource(Res.string.create_post_location_warning_cancel))
+                }
+            }
+        )
+    }
+
+    StartDatePickerDialog(
+        visible = showStartDatePicker,
+        startsAt = state.startsAt,
+        onDismiss = { showStartDatePicker = false },
+        onDateSelected = { dateMs ->
+            val existingTimeMs = state.startsAt?.let { it % 86_400_000L } ?: 32_400_000L
+            viewModel.setStartsAt(dateMs + existingTimeMs)
+            showStartDatePicker = false
+            showStartTimePicker = true
+        }
+    )
+
+    StartTimePickerDialog(
+        visible = showStartTimePicker,
+        startsAt = state.startsAt,
+        onDismiss = { showStartTimePicker = false },
+        onTimeSelected = { hour, minute ->
+            val dateOnly = state.startsAt?.let { it - (it % 86_400_000L) } ?: 0L
+            val timeMs = hour * 3_600_000L + minute * 60_000L
+            val newStartsAt = dateOnly + timeMs
+            if (newStartsAt <= currentTimeMillis()) {
+                dateTimeError = startInFutureMsg
+            } else {
+                dateTimeError = null
+                viewModel.setStartsAt(newStartsAt)
+                val end = state.endsAt
+                if (end != null && end <= newStartsAt) {
+                    viewModel.setEndsAt(null)
+                }
+            }
+            showStartTimePicker = false
+        }
+    )
+
+    EndDatePickerDialog(
+        visible = showEndDatePicker,
+        startsAt = state.startsAt,
+        endsAt = state.endsAt,
+        onDismiss = { showEndDatePicker = false },
+        onDateSelected = { dateMs ->
+            val existingTimeMs = state.endsAt?.let { it % 86_400_000L }
+                ?: (state.startsAt?.let { (it % 86_400_000L) + 2 * 3_600_000L } ?: 39_600_000L)
+            viewModel.setEndsAt(dateMs + (existingTimeMs % 86_400_000L))
+            showEndDatePicker = false
+            showEndTimePicker = true
+        }
+    )
+
+    EndTimePickerDialog(
+        visible = showEndTimePicker,
+        endsAt = state.endsAt,
+        onDismiss = { showEndTimePicker = false },
+        onTimeSelected = { hour, minute ->
+            val dateOnly = state.endsAt?.let { it - (it % 86_400_000L) } ?: 0L
+            val timeMs = hour * 3_600_000L + minute * 60_000L
+            val newEndsAt = dateOnly + timeMs
+            val start = state.startsAt
+            if (start == null) {
+                dateTimeError = setStartFirstMsg
+            } else if (newEndsAt <= start) {
+                dateTimeError = endAfterStartMsg
+            } else {
+                dateTimeError = null
+                viewModel.setEndsAt(newEndsAt)
+            }
+            showEndTimePicker = false
+        }
+    )
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -502,74 +663,217 @@ private fun LocationSection(
 private fun DateTimeSection(
     startsAt: Long?,
     endsAt: Long?,
-    error: String?,
-    onPickStart: (Long) -> Unit,
-    onPickEnd: (Long?) -> Unit
+    startError: String?,
+    dateTimeError: String?,
+    onPickStart: () -> Unit,
+    onPickEnd: () -> Unit,
+    onClearEnd: () -> Unit
 ) {
+    val noEndTime = endsAt == null
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionLabel(stringResource(Res.string.create_post_section_datetime))
-        DateChip(
-            prefix = stringResource(Res.string.create_post_starts),
-            value = startsAt,
-            isOptional = false,
-            onClick = {
-                val target = startsAt ?: (currentTimeMillis() + DEFAULT_START_OFFSET_MS)
-                onPickStart(target)
-            }
+        DateTimeField(
+            label = stringResource(Res.string.create_post_start_label),
+            value = startsAt?.let { DateUtil.formatEventDate(it) }.orEmpty(),
+            error = startError,
+            onClick = onPickStart
         )
-        DateChip(
-            prefix = stringResource(Res.string.create_post_ends),
-            value = endsAt,
-            isOptional = true,
-            onClick = {
-                val target = endsAt ?: ((startsAt ?: currentTimeMillis()) + 2 * 3_600_000L)
-                onPickEnd(target)
-            }
-        )
-        FieldError(error)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = stringResource(Res.string.create_post_no_end_time),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+            Switch(
+                checked = noEndTime,
+                onCheckedChange = { checked -> if (checked) onClearEnd() else onPickEnd() }
+            )
+        }
+        if (!noEndTime) {
+            DateTimeField(
+                label = stringResource(Res.string.create_post_end_label),
+                value = endsAt?.let { DateUtil.formatEventDate(it) }.orEmpty(),
+                error = null,
+                onClick = onPickEnd
+            )
+        }
+        dateTimeError?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun DateChip(
-    prefix: String,
-    value: Long?,
-    isOptional: Boolean,
+private fun DateTimeField(
+    label: String,
+    value: String,
+    error: String?,
     onClick: () -> Unit
 ) {
-    val pickText = stringResource(Res.string.create_post_pick_date)
-    val optionalText = stringResource(Res.string.create_post_optional)
-    val label = when {
-        value != null -> "$prefix · ${DateUtil.formatEventDate(value)}"
-        isOptional -> "$prefix · $optionalText"
-        else -> "$prefix · $pickText"
+    Box {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text(label) },
+            trailingIcon = {
+                Icon(imageVector = DateRangeIcon, contentDescription = null)
+            },
+            isError = error != null,
+            supportingText = error?.let { { Text(it) } },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = if (error != null)
+                    MaterialTheme.colorScheme.error
+                else
+                    MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        Box(modifier = Modifier.matchParentSize().clickable(onClick = onClick))
     }
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = DateRangeIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StartDatePickerDialog(
+    visible: Boolean,
+    startsAt: Long?,
+    onDismiss: () -> Unit,
+    onDateSelected: (Long) -> Unit
+) {
+    if (!visible) return
+    val now = currentTimeMillis()
+    val todayStart = now - (now % 86_400_000L)
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = startsAt ?: now,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                utcTimeMillis >= todayStart
         }
-    }
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let(onDateSelected)
+            }) { Text(stringResource(Res.string.create_post_next)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.create_post_cancel))
+            }
+        }
+    ) { DatePicker(state = datePickerState) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StartTimePickerDialog(
+    visible: Boolean,
+    startsAt: Long?,
+    onDismiss: () -> Unit,
+    onTimeSelected: (hour: Int, minute: Int) -> Unit
+) {
+    if (!visible) return
+    val timePickerState = rememberTimePickerState(
+        initialHour = startsAt?.let { ((it / 3_600_000L) % 24L).toInt() } ?: 9,
+        initialMinute = startsAt?.let { ((it / 60_000L) % 60L).toInt() } ?: 0,
+        is24Hour = false
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.create_post_start_time_title)) },
+        text = { TimePicker(state = timePickerState) },
+        confirmButton = {
+            TextButton(onClick = {
+                onTimeSelected(timePickerState.hour, timePickerState.minute)
+            }) { Text(stringResource(Res.string.create_post_set)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.create_post_cancel))
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EndDatePickerDialog(
+    visible: Boolean,
+    startsAt: Long?,
+    endsAt: Long?,
+    onDismiss: () -> Unit,
+    onDateSelected: (Long) -> Unit
+) {
+    if (!visible) return
+    val now = currentTimeMillis()
+    val floor = (startsAt ?: now).let { it - (it % 86_400_000L) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = endsAt ?: startsAt ?: now,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                utcTimeMillis >= floor
+        }
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let(onDateSelected)
+            }) { Text(stringResource(Res.string.create_post_next)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.create_post_cancel))
+            }
+        }
+    ) { DatePicker(state = datePickerState) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EndTimePickerDialog(
+    visible: Boolean,
+    endsAt: Long?,
+    onDismiss: () -> Unit,
+    onTimeSelected: (hour: Int, minute: Int) -> Unit
+) {
+    if (!visible) return
+    val timePickerState = rememberTimePickerState(
+        initialHour = endsAt?.let { ((it / 3_600_000L) % 24L).toInt() } ?: 11,
+        initialMinute = endsAt?.let { ((it / 60_000L) % 60L).toInt() } ?: 0,
+        is24Hour = false
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.create_post_end_time_title)) },
+        text = { TimePicker(state = timePickerState) },
+        confirmButton = {
+            TextButton(onClick = {
+                onTimeSelected(timePickerState.hour, timePickerState.minute)
+            }) { Text(stringResource(Res.string.create_post_set)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.create_post_cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -904,8 +1208,6 @@ private fun ActionChip(
         }
     }
 }
-
-private const val DEFAULT_START_OFFSET_MS = 86_400_000L + 9 * 3_600_000L
 
 @Preview
 @Composable

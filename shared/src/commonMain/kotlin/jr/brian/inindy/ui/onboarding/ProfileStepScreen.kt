@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +45,8 @@ fun ProfileStepScreen(
     onContinue: (fullName: String, avatarUri: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var name by remember { mutableStateOf("") }
-    var avatarUri by remember { mutableStateOf<String?>(null) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
     val canContinue = name.isNotBlank()
 
     OnboardingBackground(modifier = modifier) {
@@ -56,54 +58,61 @@ fun ProfileStepScreen(
                 .imePadding()
                 .padding(horizontal = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                BrandMark(size = 56.dp)
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-            OnboardingStepIndicator(step = 1, totalSteps = 3)
-            Spacer(modifier = Modifier.height(24.dp))
-            AuthHeading(
-                title = stringResource(Res.string.onboarding_profile_title),
-                subtitle = stringResource(Res.string.onboarding_profile_subtitle)
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
-                AvatarPickerSection(
-                    currentImageUrl = null,
-                    newImageUri = avatarUri,
-                    onImageSelected = { avatarUri = it }
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BrandMark(size = 56.dp)
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                OnboardingStepIndicator(step = 1, totalSteps = 3)
+                Spacer(modifier = Modifier.height(24.dp))
+                AuthHeading(
+                    title = stringResource(Res.string.onboarding_profile_title),
+                    subtitle = stringResource(Res.string.onboarding_profile_subtitle)
                 )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(Res.string.onboarding_profile_name_label)) },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                isError = error != null,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (error != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AvatarPickerSection(
+                        currentImageUrl = null,
+                        newImageUri = avatarUri,
+                        onImageSelected = { avatarUri = it }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(Res.string.onboarding_profile_name_label)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    isError = error != null,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.weight(1f))
             Button(
                 onClick = { onContinue(name, avatarUri) },
                 enabled = canContinue,

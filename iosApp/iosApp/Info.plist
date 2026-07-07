@@ -6,6 +6,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>InIndy uses the camera so you can take photos for your posts, group covers, and profile.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>InIndy uses your location to help you share where your activity is happening.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>InIndy saves photos you take to your library when you choose to do so.</string>
 	<key>SUPABASE_URL</key>

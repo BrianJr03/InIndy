@@ -1,5 +1,7 @@
 package jr.brian.inindy.di
 
+import jr.brian.inindy.data.location.LocationPermissionManager
+import jr.brian.inindy.data.location.LocationProvider
 import jr.brian.inindy.data.media.ActivityProvider
 import jr.brian.inindy.data.media.AppSettingsOpener
 import jr.brian.inindy.data.media.CameraCapture
@@ -20,6 +22,8 @@ actual val mediaModule: Module = module {
     single { ImagePicker(get()) }
     single { ImageCompressor(androidContext()) }
     single { AppSettingsOpener(androidContext()) }
+    single { LocationPermissionManager(get()) }
+    single { LocationProvider(androidContext(), get()) }
     single<MediaRemoteDataSource> {
         MediaRemoteDataSourceImpl(
             supabase = SupabaseClientProvider.client,

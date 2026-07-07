@@ -57,6 +57,11 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
         refresh()
     }
 
+    override suspend fun setLocationWarningSeen() {
+        localStorage.setItem(UserPreferencesKeys.LOCATION_WARNING_SEEN, true.toString())
+        refresh()
+    }
+
     override suspend fun clear() {
         listOf(
             UserPreferencesKeys.USER_ID,
@@ -67,7 +72,8 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             UserPreferencesKeys.INTERESTS,
             UserPreferencesKeys.ONBOARDING_COMPLETE,
             UserPreferencesKeys.LAST_SELECTED_GROUP_ID,
-            UserPreferencesKeys.LAST_SELECTED_GROUP_NAME
+            UserPreferencesKeys.LAST_SELECTED_GROUP_NAME,
+            UserPreferencesKeys.LOCATION_WARNING_SEEN
         ).forEach { localStorage.removeItem(it) }
         refresh()
     }
@@ -88,6 +94,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             ?: emptyList(),
         onboardingComplete = localStorage.getItem(UserPreferencesKeys.ONBOARDING_COMPLETE)?.toBoolean() ?: false,
         lastSelectedGroupId = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_ID),
-        lastSelectedGroupName = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
+        lastSelectedGroupName = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME),
+        locationWarningSeen = localStorage.getItem(UserPreferencesKeys.LOCATION_WARNING_SEEN)?.toBoolean() ?: false
     )
 }

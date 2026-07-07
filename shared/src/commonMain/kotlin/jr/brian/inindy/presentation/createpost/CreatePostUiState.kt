@@ -29,7 +29,9 @@ data class CreatePostUiState(
     val titleError: String? = null,
     val descriptionError: String? = null,
     val addressError: String? = null,
-    val startsAtError: String? = null
+    val startsAtError: String? = null,
+    val endsAtError: String? = null,
+    val locationWarningSeen: Boolean = false
 ) {
     val isDirty: Boolean
         get() = images.isNotEmpty()

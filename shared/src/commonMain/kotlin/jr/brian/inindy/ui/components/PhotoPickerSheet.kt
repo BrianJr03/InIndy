@@ -94,24 +94,24 @@ fun PhotoPickerSheet(
             modifier = modifier
         ) {
             Column(modifier = Modifier.navigationBarsPadding().fillMaxWidth()) {
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.photo_picker_take_photo)) },
-                    leadingContent = {
-                        Icon(
-                            imageVector = CameraAltIcon,
-                            contentDescription = stringResource(Res.string.photo_picker_camera_icon_cd),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    modifier = Modifier.clickable(enabled = !isProcessing) {
-                        pendingLaunch = PendingLaunch.Camera
-                        sheetVisible = false
-                    }
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+//                ListItem(
+//                    headlineContent = { Text(stringResource(Res.string.photo_picker_take_photo)) },
+//                    leadingContent = {
+//                        Icon(
+//                            imageVector = CameraAltIcon,
+//                            contentDescription = stringResource(Res.string.photo_picker_camera_icon_cd),
+//                            tint = MaterialTheme.colorScheme.primary
+//                        )
+//                    },
+//                    colors = ListItemDefaults.colors(
+//                        containerColor = MaterialTheme.colorScheme.surface
+//                    ),
+//                    modifier = Modifier.clickable(enabled = !isProcessing) {
+//                        pendingLaunch = PendingLaunch.Camera
+//                        sheetVisible = false
+//                    }
+//                )
+//                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 val galleryLabel = when (mode) {
                     is PhotoPickerMode.Single -> stringResource(Res.string.photo_picker_choose_gallery)
                     is PhotoPickerMode.Multiple -> stringResource(

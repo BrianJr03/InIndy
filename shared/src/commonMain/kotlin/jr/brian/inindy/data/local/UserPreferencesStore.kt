@@ -12,7 +12,8 @@ data class UserPreferences(
     val interests: List<String> = emptyList(),
     val onboardingComplete: Boolean = false,
     val lastSelectedGroupId: String? = null,
-    val lastSelectedGroupName: String? = null
+    val lastSelectedGroupName: String? = null,
+    val locationWarningSeen: Boolean = false
 )
 
 interface UserPreferencesStore {
@@ -24,6 +25,7 @@ interface UserPreferencesStore {
     suspend fun setOnboardingComplete(complete: Boolean)
     suspend fun saveLastSelectedGroup(groupId: String, groupName: String)
     suspend fun clearLastSelectedGroup()
+    suspend fun setLocationWarningSeen()
     suspend fun clear()
 }
 
@@ -37,4 +39,5 @@ internal object UserPreferencesKeys {
     const val ONBOARDING_COMPLETE = "onboarding_complete"
     const val LAST_SELECTED_GROUP_ID = "last_selected_group_id"
     const val LAST_SELECTED_GROUP_NAME = "last_selected_group_name"
+    const val LOCATION_WARNING_SEEN = "location_warning_seen"
 }

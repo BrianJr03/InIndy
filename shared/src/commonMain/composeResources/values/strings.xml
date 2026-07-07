@@ -334,4 +334,26 @@
     <string name="create_group_description_placeholder">What's this group about? Who should join?</string>
     <string name="create_group_char_counter">%1$d / %2$d</string>
     <string name="create_group_loading_label">Bringing your crew together…</string>
+
+    <!-- Create post — location warning -->
+    <string name="create_post_location_warning_title">Heads up about your location</string>
+    <string name="create_post_location_warning_body">InIndy will use your current location for this activity. Avoid using your home address or any private location. Only share public meeting spots like parks, coffee shops, or trails.</string>
+    <string name="create_post_location_warning_confirm">Got it, use my location</string>
+    <string name="create_post_location_warning_cancel">Cancel</string>
+    <string name="create_post_location_permission_denied">Permission denied — type your location manually</string>
+    <string name="create_post_location_permission_blocked">Enable location in Settings to use this feature</string>
+
+    <!-- Create post — date &amp; time pickers -->
+    <string name="create_post_start_label">Start date &amp; time *</string>
+    <string name="create_post_end_label">End date &amp; time</string>
+    <string name="create_post_start_time_title">Start time</string>
+    <string name="create_post_end_time_title">End time</string>
+    <string name="create_post_no_end_time">No end time</string>
+    <string name="create_post_next">Next</string>
+    <string name="create_post_set">Set</string>
+    <string name="create_post_cancel">Cancel</string>
+    <string name="create_post_start_in_future_error">Start time must be in the future</string>
+    <string name="create_post_end_after_start_error">End time must be after start time</string>
+    <string name="create_post_set_start_first">Set a start time first</string>
+    <string name="create_post_start_required">Please set a start date and time</string>
 </resources>

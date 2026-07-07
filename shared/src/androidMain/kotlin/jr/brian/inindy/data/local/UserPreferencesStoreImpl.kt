@@ -27,6 +27,7 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
     private val onboardingCompleteKey = booleanPreferencesKey(UserPreferencesKeys.ONBOARDING_COMPLETE)
     private val lastSelectedGroupIdKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_ID)
     private val lastSelectedGroupNameKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
+    private val locationWarningSeenKey = booleanPreferencesKey(UserPreferencesKeys.LOCATION_WARNING_SEEN)
 
     override val preferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
         UserPreferences(
@@ -41,7 +42,8 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
                 ?: emptyList(),
             onboardingComplete = prefs[onboardingCompleteKey] ?: false,
             lastSelectedGroupId = prefs[lastSelectedGroupIdKey],
-            lastSelectedGroupName = prefs[lastSelectedGroupNameKey]
+            lastSelectedGroupName = prefs[lastSelectedGroupNameKey],
+            locationWarningSeen = prefs[locationWarningSeenKey] ?: false
         )
     }
 
@@ -85,6 +87,10 @@ class UserPreferencesStoreImpl(context: Context) : UserPreferencesStore {
             it.remove(lastSelectedGroupIdKey)
             it.remove(lastSelectedGroupNameKey)
         }
+    }
+
+    override suspend fun setLocationWarningSeen() {
+        dataStore.edit { it[locationWarningSeenKey] = true }
     }
 
     override suspend fun clear() {

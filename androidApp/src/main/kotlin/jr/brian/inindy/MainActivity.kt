@@ -11,6 +11,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import jr.brian.inindy.data.media.ActivityProvider
+import jr.brian.inindy.data.media.CameraCapture
+import jr.brian.inindy.data.media.ImagePicker
 import jr.brian.inindy.data.remote.handleSupabaseDeepLink
 import jr.brian.inindy.navigation.DeepLinkBus
 import jr.brian.inindy.navigation.DeepLinkResult
@@ -21,6 +23,8 @@ class MainActivity : ComponentActivity() {
 
     private val activityProvider: ActivityProvider by inject()
     private val deepLinkBus: DeepLinkBus by inject()
+    private val cameraCapture: CameraCapture by inject()
+    private val imagePicker: ImagePicker by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -34,6 +38,8 @@ class MainActivity : ComponentActivity() {
         }
 
         activityProvider.attach(this)
+        cameraCapture.bindToActivity(this)
+        imagePicker.bindToActivity(this)
         routeDeepLink(intent)
 
         setContent {

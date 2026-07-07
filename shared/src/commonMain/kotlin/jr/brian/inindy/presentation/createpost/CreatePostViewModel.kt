@@ -2,6 +2,7 @@ package jr.brian.inindy.presentation.createpost
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.data.location.AddressSearchDataSource
 import jr.brian.inindy.data.location.LocationProvider
 import jr.brian.inindy.domain.model.AddressResult
@@ -32,7 +33,8 @@ class CreatePostViewModel(
     private val groupRepository: GroupRepository,
     private val addressSearch: AddressSearchDataSource,
     private val locationProvider: LocationProvider,
-    private val mediaRepository: MediaRepository
+    private val mediaRepository: MediaRepository,
+    private val userPreferencesStore: UserPreferencesStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreatePostUiState())
@@ -46,6 +48,19 @@ class CreatePostViewModel(
                 _uiState.value = _uiState.value.copy(userGroups = groups)
             }
             .launchIn(viewModelScope)
+        userPreferencesStore.preferences
+            .onEach { prefs ->
+                _uiState.value = _uiState.value.copy(
+                    locationWarningSeen = prefs.locationWarningSeen
+                )
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun acknowledgeLocationWarning() {
+        viewModelScope.launch {
+            userPreferencesStore.setLocationWarningSeen()
+        }
     }
 
     fun addImage(uri: String) {
@@ -136,7 +151,7 @@ class CreatePostViewModel(
     }
 
     fun setEndsAt(epochMs: Long?) {
-        _uiState.value = _uiState.value.copy(endsAt = epochMs)
+        _uiState.value = _uiState.value.copy(endsAt = epochMs, endsAtError = null)
     }
 
     fun selectNeighborhoodAudience() {
@@ -207,7 +222,8 @@ class CreatePostViewModel(
                 titleError = null,
                 descriptionError = null,
                 addressError = null,
-                startsAtError = null
+                startsAtError = null,
+                endsAtError = null
             )
 
             val uploadResults = coroutineScope {
@@ -256,11 +272,15 @@ class CreatePostViewModel(
     }
 
     private fun CreatePostUiState.withValidationErrors(): CreatePostUiState {
-        val now = currentTimeMillis()
         val starts = startsAt
         val startsError = when {
             starts == null -> "Please set a start date and time"
-            starts <= now -> "Pick a future start time"
+            starts <= currentTimeMillis() -> "Start time must be in the future"
+            else -> null
+        }
+        val endsError = when {
+            endsAt != null && endsAt <= (starts ?: 0L) ->
+                "End time must be after start time"
             else -> null
         }
         return copy(
@@ -268,7 +288,8 @@ class CreatePostViewModel(
             titleError = if (title.length < 3) "Title must be at least 3 characters" else null,
             descriptionError = if (description.length < 10) "Description must be at least 10 characters" else null,
             addressError = if (address.isBlank()) "Please set a location" else null,
-            startsAtError = startsError
+            startsAtError = startsError,
+            endsAtError = endsError
         )
     }
 
@@ -278,6 +299,7 @@ class CreatePostViewModel(
             || descriptionError != null
             || addressError != null
             || startsAtError != null
+            || endsAtError != null
 
     private companion object {
         const val INDIANAPOLIS_LAT = 39.7684
