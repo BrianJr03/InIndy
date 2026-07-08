@@ -86,12 +86,15 @@ import jr.brian.inindy.resources.create_post_chars_remaining
 import jr.brian.inindy.resources.create_post_cancel
 import jr.brian.inindy.resources.create_post_close_cd
 import jr.brian.inindy.resources.create_post_create_new_group
+import jr.brian.inindy.resources.create_post_group_empty
 import jr.brian.inindy.resources.create_post_decrease_cd
 import jr.brian.inindy.resources.create_post_description_placeholder
 import jr.brian.inindy.resources.create_post_discard_body
+import jr.brian.inindy.resources.create_post_discard_body_edit
 import jr.brian.inindy.resources.create_post_discard_confirm
 import jr.brian.inindy.resources.create_post_discard_dismiss
 import jr.brian.inindy.resources.create_post_discard_title
+import jr.brian.inindy.resources.create_post_discard_title_edit
 import jr.brian.inindy.resources.create_post_end_after_start_error
 import jr.brian.inindy.resources.create_post_end_label
 import jr.brian.inindy.resources.create_post_end_time_title
@@ -119,8 +122,11 @@ import jr.brian.inindy.resources.create_post_section_max
 import jr.brian.inindy.resources.create_post_section_photos
 import jr.brian.inindy.resources.create_post_section_tags
 import jr.brian.inindy.resources.create_post_section_title
+import jr.brian.inindy.resources.create_post_edit_title
 import jr.brian.inindy.resources.create_post_submit
 import jr.brian.inindy.resources.create_post_submitting
+import jr.brian.inindy.resources.create_post_update_submit
+import jr.brian.inindy.resources.create_post_updating
 import jr.brian.inindy.resources.create_post_tags_helper
 import jr.brian.inindy.resources.create_post_title
 import jr.brian.inindy.resources.create_post_title_placeholder
@@ -136,6 +142,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(
     ExperimentalComposeUiApi::class,
@@ -146,7 +153,17 @@ fun CreatePostScreen(
     onClose: () -> Unit,
     onSubmitted: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CreatePostViewModel = koinViewModel(),
+    postId: String? = null,
+    // Optional pre-selected group audience for the "create from Explore with a
+    // group filter" path. Ignored in edit mode (postId != null) — the loaded
+    // post's own audience wins.
+    initialGroupId: String? = null,
+    // Key on postId so create vs edit-of-a-specific-post get distinct VM instances
+    // and one can't leak state into the other.
+    viewModel: CreatePostViewModel = koinViewModel(
+        key = postId?.let { "create-post-edit-$it" } ?: "create-post-new",
+        parameters = { parametersOf(postId) }
+    ),
     locationPermissionManager: LocationPermissionManager = koinInject()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -167,6 +184,15 @@ fun CreatePostScreen(
     val startInFutureMsg = stringResource(Res.string.create_post_start_in_future_error)
     val endAfterStartMsg = stringResource(Res.string.create_post_end_after_start_error)
     val setStartFirstMsg = stringResource(Res.string.create_post_set_start_first)
+
+    // One-shot audience seed for the Explore FAB → create-with-group path.
+    // Guarded on postId == null so it can never overwrite the edit-mode
+    // audience that loadForEdit sets from the loaded post.
+    LaunchedEffect(Unit) {
+        if (postId == null && initialGroupId != null) {
+            viewModel.selectGroupAudience(initialGroupId)
+        }
+    }
 
     LaunchedEffect(state.submitted) {
         if (state.submitted) onSubmitted()
@@ -202,7 +228,8 @@ fun CreatePostScreen(
             CreatePostTopBar(
                 onClose = handleClose,
                 onSubmit = viewModel::submit,
-                isSubmitting = state.isSubmitting
+                isSubmitting = state.isSubmitting,
+                isEditMode = state.isEditMode
             )
             Column(
                 modifier = Modifier
@@ -260,6 +287,7 @@ fun CreatePostScreen(
                     state = state,
                     onSelectNeighborhood = viewModel::selectNeighborhoodAudience,
                     onSelectGroup = viewModel::selectGroupAudience,
+                    onEnterGroupMode = viewModel::enterGroupAudienceMode,
                     onCreateGroup = { showQuickGroupSheet = true }
                 )
                 TagsSection(
@@ -382,8 +410,22 @@ fun CreatePostScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(Res.string.create_post_discard_title)) },
-            text = { Text(stringResource(Res.string.create_post_discard_body)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (state.isEditMode) Res.string.create_post_discard_title_edit
+                        else Res.string.create_post_discard_title
+                    )
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (state.isEditMode) Res.string.create_post_discard_body_edit
+                        else Res.string.create_post_discard_body
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
@@ -419,8 +461,16 @@ fun CreatePostScreen(
 private fun CreatePostTopBar(
     onClose: () -> Unit,
     onSubmit: () -> Unit,
-    isSubmitting: Boolean
+    isSubmitting: Boolean,
+    isEditMode: Boolean
 ) {
+    val titleRes = if (isEditMode) Res.string.create_post_edit_title else Res.string.create_post_title
+    val submitRes = when {
+        isSubmitting && isEditMode -> Res.string.create_post_updating
+        isSubmitting -> Res.string.create_post_submitting
+        isEditMode -> Res.string.create_post_update_submit
+        else -> Res.string.create_post_submit
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -436,7 +486,7 @@ private fun CreatePostTopBar(
             )
         }
         Text(
-            text = stringResource(Res.string.create_post_title),
+            text = stringResource(titleRes),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
@@ -451,9 +501,7 @@ private fun CreatePostTopBar(
             )
         ) {
             Text(
-                text = stringResource(
-                    if (isSubmitting) Res.string.create_post_submitting else Res.string.create_post_submit
-                ),
+                text = stringResource(submitRes),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -881,9 +929,14 @@ private fun AudienceSection(
     state: CreatePostUiState,
     onSelectNeighborhood: () -> Unit,
     onSelectGroup: (String) -> Unit,
+    onEnterGroupMode: () -> Unit,
     onCreateGroup: () -> Unit
 ) {
-    val isNeighborhood = state.audience is PostAudience.Neighborhood
+    // "Group mode" covers both a concrete GroupAudience and the pending-flag
+    // case (user tapped Group with no groups). Neighborhood is only the true
+    // fallback when neither of those hold.
+    val isGroupMode = state.audience is PostAudience.GroupAudience || state.pendingGroupAudience
+    val isNeighborhood = !isGroupMode
     val selectedGroupId = (state.audience as? PostAudience.GroupAudience)?.groupId
     var groupMenuExpanded by remember { mutableStateOf(false) }
 
@@ -900,10 +953,14 @@ private fun AudienceSection(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
-                selected = !isNeighborhood,
+                selected = isGroupMode,
                 onClick = {
+                    // Fall through instead of bouncing: if we have groups,
+                    // pre-select the first (existing behaviour); if not,
+                    // enter group mode so the picker/empty state renders
+                    // right below. Never auto-navigate to create-group.
                     val first = state.userGroups.firstOrNull()
-                    if (first != null) onSelectGroup(first.id) else onCreateGroup()
+                    if (first != null) onSelectGroup(first.id) else onEnterGroupMode()
                 }
             )
             Text(
@@ -913,50 +970,80 @@ private fun AudienceSection(
                 fontWeight = FontWeight.Medium
             )
         }
-        if (!isNeighborhood) {
-            Box {
+        if (isGroupMode) {
+            if (state.userGroups.isEmpty()) {
+                // Inline empty state — no groups yet, offer the create action
+                // right here rather than an implicit redirect.
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { groupMenuExpanded = true }
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    val current = state.userGroups.firstOrNull { it.id == selectedGroupId }
-                    Text(
-                        text = current?.name ?: stringResource(Res.string.create_post_pick_group),
+                    Column(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.create_post_group_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = stringResource(Res.string.create_post_create_new_group),
+                            modifier = Modifier
+                                .clickable(onClick = onCreateGroup)
+                                .padding(vertical = 4.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
-                DropdownMenu(
-                    expanded = groupMenuExpanded,
-                    onDismissRequest = { groupMenuExpanded = false }
-                ) {
-                    state.userGroups.forEach { group ->
+            } else {
+                Box {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { groupMenuExpanded = true }
+                    ) {
+                        val current = state.userGroups.firstOrNull { it.id == selectedGroupId }
+                        Text(
+                            text = current?.name ?: stringResource(Res.string.create_post_pick_group),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = groupMenuExpanded,
+                        onDismissRequest = { groupMenuExpanded = false }
+                    ) {
+                        state.userGroups.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group.name) },
+                                onClick = {
+                                    onSelectGroup(group.id)
+                                    groupMenuExpanded = false
+                                }
+                            )
+                        }
                         DropdownMenuItem(
-                            text = { Text(group.name) },
+                            text = {
+                                Text(
+                                    text = stringResource(Res.string.create_post_create_new_group),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
                             onClick = {
-                                onSelectGroup(group.id)
                                 groupMenuExpanded = false
+                                onCreateGroup()
                             }
                         )
                     }
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(Res.string.create_post_create_new_group),
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        onClick = {
-                            groupMenuExpanded = false
-                            onCreateGroup()
-                        }
-                    )
                 }
             }
         }

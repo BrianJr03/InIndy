@@ -19,5 +19,7 @@ data class Post(
     val neighborhoodId: String? = null,
     val neighborhoodName: String? = null,
     val groupId: String? = null,
+    val maxAttendees: Int? = null,
+    val moderationStatus: ModerationStatus = ModerationStatus.APPROVED,
     val previewAttendees: List<User> = emptyList()
 )

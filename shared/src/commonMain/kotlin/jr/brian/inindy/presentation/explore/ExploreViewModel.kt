@@ -50,15 +50,18 @@ class ExploreViewModel(
     private var refreshStartMs: Long? = null
     private var neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
     private var currentUserId: String? = null
-    // Latest known viewer interests, kept in sync via observeUserInterests().
+    // Latest known viewer interests, kept in sync via observeFeedOrderingPreferences().
     // Read by the feed emission handler to rank neighborhood/explore posts;
     // empty until the first UserPreferences emission arrives (early emissions
     // sort as recency-only, which is safe and matches the no-interests case).
     private var currentInterests: Set<Interest> = emptySet()
+    // Persisted toggle from Settings — defaults to false ("off") until the
+    // first UserPreferences emission arrives, matching the store default.
+    private var feedInterestOrderingEnabled: Boolean = false
 
     init {
         observeSearchQuery()
-        observeUserInterests()
+        observeFeedOrderingPreferences()
         loadUserGroups()
         bootstrap()
     }
@@ -245,15 +248,7 @@ class ExploreViewModel(
                     if (current.activeFilter != filter) return@update current
                     val nextFeed = result.fold(
                         onSuccess = { posts ->
-                            // Rank the neighborhood/Explore feed by tag-overlap with the
-                            // viewer's interests; leave group feeds strictly recency-ordered.
-                            val ordered = when (filter) {
-                                is ExploreFilter.All,
-                                is ExploreFilter.Neighborhood ->
-                                    rankPostsByInterests(posts, currentInterests)
-                                is ExploreFilter.Group -> posts
-                            }
-                            ExploreUiState.FeedState.Success(ordered)
+                            ExploreUiState.FeedState.Success(orderPostsFor(filter, posts))
                         },
                         onFailure = { e ->
                             if (e is CancellationException) return@update current
@@ -278,15 +273,45 @@ class ExploreViewModel(
         post.tags.count { it in interests }
     }
 
-    private fun observeUserInterests() {
+    // Single point that resolves "what order should this feed be in right now?"
+    // — the toggle gate + the "group feeds are recency-only" rule both live
+    // here so loadFeed's emission handler and the reactive re-order below stay
+    // in sync.
+    private fun orderPostsFor(filter: ExploreFilter, posts: List<Post>): List<Post> =
+        when (filter) {
+            is ExploreFilter.All,
+            is ExploreFilter.Neighborhood ->
+                if (feedInterestOrderingEnabled) {
+                    rankPostsByInterests(posts, currentInterests)
+                } else {
+                    posts
+                }
+            is ExploreFilter.Group -> posts
+        }
+
+    private fun observeFeedOrderingPreferences() {
         userPreferencesStore.preferences
             .map { prefs ->
-                prefs.interests
+                val interests = prefs.interests
                     .mapNotNull { name -> runCatching { Interest.valueOf(name) }.getOrNull() }
                     .toSet()
+                interests to prefs.feedInterestOrderingEnabled
             }
             .distinctUntilChanged()
-            .onEach { interests -> currentInterests = interests }
+            .onEach { (interests, enabled) ->
+                currentInterests = interests
+                feedInterestOrderingEnabled = enabled
+                // Live re-order: if the feed is already loaded, apply the new
+                // ordering immediately so the Settings toggle (and interest
+                // edits) reflect in the current view without a refresh.
+                _uiState.update { current ->
+                    val success = current.feed as? ExploreUiState.FeedState.Success
+                        ?: return@update current
+                    val ordered = orderPostsFor(current.activeFilter, success.posts)
+                    if (ordered === success.posts) current
+                    else current.copy(feed = ExploreUiState.FeedState.Success(ordered))
+                }
+            }
             .launchIn(viewModelScope)
     }
 

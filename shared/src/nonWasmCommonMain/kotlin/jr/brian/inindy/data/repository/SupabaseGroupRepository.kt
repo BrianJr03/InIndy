@@ -14,6 +14,7 @@ import io.github.jan.supabase.realtime.realtime
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreateGroupRequest
 import jr.brian.inindy.domain.model.Group
+import jr.brian.inindy.domain.model.GROUP_INVITE_URL_PREFIX
 import jr.brian.inindy.domain.model.GroupInvite
 import jr.brian.inindy.domain.model.GroupMember
 import jr.brian.inindy.domain.model.GroupRole
@@ -260,7 +261,7 @@ class SupabaseGroupRepository(
                 expiresAt = formatIso8601Utc(expiresAtMs)
             )
         )
-        "https://in-indy-invite.thaballa79.workers.dev/invite/$token"
+        "$GROUP_INVITE_URL_PREFIX$token"
     }
 
     override suspend fun revokeInvite(inviteId: String): Result<Unit> = runCatching {

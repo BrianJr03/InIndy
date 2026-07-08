@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import jr.brian.inindy.domain.model.Interest
+import jr.brian.inindy.domain.model.ModerationStatus
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.VideoMedia
@@ -60,6 +61,8 @@ import jr.brian.inindy.resources.post_im_in_button
 import jr.brian.inindy.resources.post_in_count_label
 import jr.brian.inindy.resources.post_in_count_label_single
 import jr.brian.inindy.resources.post_interested_button
+import jr.brian.inindy.resources.post_moderation_pending
+import jr.brian.inindy.resources.post_moderation_rejected
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.ui.icons.PlayArrowIcon
@@ -120,6 +123,11 @@ fun PostCard(
                     attendees = post.previewAttendees
                 )
 
+                if (isOwnPost && post.moderationStatus != ModerationStatus.APPROVED) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    ModerationBadge(status = post.moderationStatus)
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
@@ -163,6 +171,37 @@ fun PostCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun ModerationBadge(
+    status: ModerationStatus,
+    modifier: Modifier = Modifier
+) {
+    // APPROVED shouldn't get here — callers gate on `status != APPROVED` — but
+    // fail closed with an early return so a future enum value can't render an
+    // unstyled placeholder.
+    if (status == ModerationStatus.APPROVED) return
+    val (labelRes, color) = when (status) {
+        ModerationStatus.REJECTED ->
+            Res.string.post_moderation_rejected to MaterialTheme.colorScheme.error
+        ModerationStatus.PENDING ->
+            Res.string.post_moderation_pending to MaterialTheme.colorScheme.onSurfaceVariant
+        ModerationStatus.APPROVED -> return
+    }
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.12f),
+        modifier = modifier
+    ) {
+        Text(
+            text = stringResource(labelRes),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

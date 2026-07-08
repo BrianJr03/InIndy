@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.savedstate.read
 import jr.brian.inindy.domain.model.isOnboardingComplete
 import jr.brian.inindy.presentation.app.AppDestination
@@ -40,14 +42,22 @@ object RootRoutes {
     const val ONBOARDING_ROOT = "onboarding_root"
     const val MAIN_GRAPH = "main_graph"
     const val MAIN = "main"
-    const val CREATE_POST = "create_post"
+    // Route pattern with an optional query param — callers should use
+    // createPost(groupId) rather than navigating to this string directly.
+    const val CREATE_POST = "create_post?groupId={groupId}"
     const val CREATE_GROUP = "create_group"
+    const val EDIT_POST = "edit_post/{postId}"
     const val SETTINGS = "settings"
     const val POST_DETAIL = "post_detail/{postId}"
     const val GROUP_MANAGEMENT = "group_management/{groupId}"
 
     fun postDetail(postId: String) = "post_detail/$postId"
+    fun editPost(postId: String) = "edit_post/$postId"
     fun groupManagement(groupId: String) = "group_management/$groupId"
+    // The optional query param can be omitted entirely; the composable's
+    // nullable arg + defaultValue = null makes both forms match the same route.
+    fun createPost(groupId: String? = null): String =
+        if (groupId == null) "create_post" else "create_post?groupId=$groupId"
 }
 
 @Composable
@@ -61,6 +71,9 @@ fun RootNavGraph(
     val pendingInviteToken by appViewModel.pendingInviteToken.collectAsStateWithLifecycle()
     var exploreRefreshTrigger by remember { mutableIntStateOf(0) }
     var meRefreshTrigger by remember { mutableIntStateOf(0) }
+    // Bumped when returning from EDIT_POST so PostDetailScreen re-fetches the
+    // post it's showing instead of holding the stale pre-edit copy.
+    var postDetailRefreshTrigger by remember { mutableIntStateOf(0) }
 
     if (state.isLoading) {
         SplashScreen()
@@ -140,14 +153,44 @@ fun RootNavGraph(
                     meRefreshTrigger = meRefreshTrigger
                 )
             }
-            composable(RootRoutes.CREATE_POST) {
+            composable(
+                route = RootRoutes.CREATE_POST,
+                arguments = listOf(
+                    navArgument("groupId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                // getString(...) throws when the key is missing — the case
+                // where the FAB was tapped without a group filter. Use the
+                // Nullable-suffixed getter so the "no group" navigation path
+                // just yields null.
+                val initialGroupId = backStackEntry.arguments?.read {
+                    getStringOrNull("groupId")
+                }
                 CreatePostScreen(
                     onClose = { navController.popBackStack() },
                     onSubmitted = {
                         exploreRefreshTrigger++
                         meRefreshTrigger++
                         navController.popBackStack()
-                    }
+                    },
+                    initialGroupId = initialGroupId
+                )
+            }
+            composable(RootRoutes.EDIT_POST) { backStackEntry ->
+                val postId = backStackEntry.arguments?.read { getString("postId") }.orEmpty()
+                CreatePostScreen(
+                    onClose = { navController.popBackStack() },
+                    onSubmitted = {
+                        exploreRefreshTrigger++
+                        meRefreshTrigger++
+                        postDetailRefreshTrigger++
+                        navController.popBackStack()
+                    },
+                    postId = postId
                 )
             }
             composable(RootRoutes.CREATE_GROUP) {
@@ -172,8 +215,11 @@ fun RootNavGraph(
                 PostDetailScreen(
                     postId = postId,
                     onBack = { navController.popBackStack() },
-                    onEdit = { navController.popBackStack() },
-                    allowHostActions = true
+                    onEdit = { editPostId ->
+                        navController.navigate(RootRoutes.editPost(editPostId))
+                    },
+                    allowHostActions = true,
+                    refreshTrigger = postDetailRefreshTrigger
                 )
             }
             composable(RootRoutes.GROUP_MANAGEMENT) { backStackEntry ->

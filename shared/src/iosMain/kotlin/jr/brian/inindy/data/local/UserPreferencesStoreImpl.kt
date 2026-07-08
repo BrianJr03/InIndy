@@ -32,6 +32,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
     private val lastSelectedGroupIdKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_ID)
     private val lastSelectedGroupNameKey = stringPreferencesKey(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME)
     private val locationWarningSeenKey = booleanPreferencesKey(UserPreferencesKeys.LOCATION_WARNING_SEEN)
+    private val feedInterestOrderingKey = booleanPreferencesKey(UserPreferencesKeys.FEED_INTEREST_ORDERING)
 
     override val preferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
         UserPreferences(
@@ -47,7 +48,9 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             onboardingComplete = prefs[onboardingCompleteKey] ?: false,
             lastSelectedGroupId = prefs[lastSelectedGroupIdKey],
             lastSelectedGroupName = prefs[lastSelectedGroupNameKey],
-            locationWarningSeen = prefs[locationWarningSeenKey] ?: false
+            locationWarningSeen = prefs[locationWarningSeenKey] ?: false,
+            // Absence in the store means "user hasn't chosen" → default off.
+            feedInterestOrderingEnabled = prefs[feedInterestOrderingKey] ?: false
         )
     }
 
@@ -95,6 +98,10 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
 
     override suspend fun setLocationWarningSeen() {
         dataStore.edit { it[locationWarningSeenKey] = true }
+    }
+
+    override suspend fun setFeedInterestOrdering(enabled: Boolean) {
+        dataStore.edit { it[feedInterestOrderingKey] = enabled }
     }
 
     override suspend fun clear() {

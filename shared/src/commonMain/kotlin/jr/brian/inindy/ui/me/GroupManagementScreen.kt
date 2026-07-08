@@ -1,6 +1,7 @@
 package jr.brian.inindy.ui.me
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -44,6 +49,8 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,7 @@ import jr.brian.inindy.data.share.shareText
 import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.GroupInvite
 import jr.brian.inindy.domain.model.GroupRole
+import jr.brian.inindy.domain.model.toShareableUrl
 import jr.brian.inindy.presentation.me.GroupManagementIntent
 import jr.brian.inindy.presentation.me.GroupManagementViewModel
 import jr.brian.inindy.resources.Res
@@ -64,8 +72,10 @@ import jr.brian.inindy.resources.group_delete_confirm
 import jr.brian.inindy.resources.group_delete_dialog_message
 import jr.brian.inindy.resources.group_delete_dialog_title
 import jr.brian.inindy.resources.group_delete_dismiss
+import jr.brian.inindy.resources.group_invite_copy_link_cd
 import jr.brian.inindy.resources.group_invite_cta
 import jr.brian.inindy.resources.group_invite_cta_generating
+import jr.brian.inindy.resources.group_invite_link_copied
 import jr.brian.inindy.resources.group_invite_expires_in_days
 import jr.brian.inindy.resources.group_invite_expires_in_one_day
 import jr.brian.inindy.resources.group_invite_expires_today
@@ -87,9 +97,11 @@ import jr.brian.inindy.ui.components.CompactPostCard
 import jr.brian.inindy.ui.components.MemberRow
 import jr.brian.inindy.ui.icons.ArrowBackIcon
 import jr.brian.inindy.ui.icons.CloseIcon
+import jr.brian.inindy.ui.icons.ContentCopyIcon
 import jr.brian.inindy.ui.icons.GroupIcon
 import jr.brian.inindy.ui.icons.MoreVertIcon
 import jr.brian.inindy.util.currentTimeMillis
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -137,6 +149,15 @@ fun GroupManagementScreen(
 
     val group = state.group
     val isAdmin = state.currentUserRole == GroupRole.ADMIN
+
+    val clipboard = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    val linkCopiedMessage = stringResource(Res.string.group_invite_link_copied)
+    val onCopyInvite: (GroupInvite) -> Unit = { invite ->
+        clipboard.setText(AnnotatedString(invite.toShareableUrl()))
+        snackbarScope.launch { snackbarHostState.showSnackbar(linkCopiedMessage) }
+    }
 
     Box(
         modifier = modifier
@@ -218,6 +239,7 @@ fun GroupManagementScreen(
                         items(state.pendingInvites, key = { it.id }) { invite ->
                             InviteRow(
                                 invite = invite,
+                                onCopy = { onCopyInvite(invite) },
                                 onRevoke = {
                                     viewModel.onIntent(GroupManagementIntent.RevokeInvite(invite.id))
                                 }
@@ -253,6 +275,19 @@ fun GroupManagementScreen(
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface
+            )
         }
     }
 
@@ -485,7 +520,11 @@ private fun AtAGlanceEmpty() {
 }
 
 @Composable
-private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
+private fun InviteRow(
+    invite: GroupInvite,
+    onCopy: () -> Unit,
+    onRevoke: () -> Unit
+) {
     val daysRemaining = daysUntil(invite.expiresAt)
     val isExpiringSoon = daysRemaining <= 2
     Surface(
@@ -494,6 +533,10 @@ private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
+            // Tap the whole card to copy the shareable link. The revoke
+            // IconButton below is a separate hit target and doesn't fall
+            // through to this clickable.
+            .clickable(onClick = onCopy)
     ) {
         Row(
             modifier = Modifier
@@ -521,6 +564,14 @@ private fun InviteRow(invite: GroupInvite, onRevoke: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            Icon(
+                imageVector = ContentCopyIcon,
+                contentDescription = stringResource(Res.string.group_invite_copy_link_cd),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .size(18.dp)
+            )
             IconButton(onClick = onRevoke) {
                 Icon(
                     imageVector = CloseIcon,

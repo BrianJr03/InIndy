@@ -34,20 +34,46 @@ class CreatePostViewModel(
     private val addressSearch: AddressSearchDataSource,
     private val locationProvider: LocationProvider,
     private val mediaRepository: MediaRepository,
-    private val userPreferencesStore: UserPreferencesStore
+    private val userPreferencesStore: UserPreferencesStore,
+    private val postId: String? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CreatePostUiState())
+    private val _uiState = MutableStateFlow(
+        CreatePostUiState(
+            isEditMode = postId != null,
+            isEditPrefillLoading = postId != null
+        )
+    )
     val uiState: StateFlow<CreatePostUiState> = _uiState.asStateFlow()
 
     private var addressSearchJob: Job? = null
 
     init {
+        // Realtime-backed shared flow — good for live updates while the screen
+        // is open, but can start empty/stale when Realtime for group_members
+        // isn't enabled. Only accept non-empty emissions so a stale-empty
+        // replay can't clobber the one-shot seed below.
         groupRepository.observeUserGroups()
             .onEach { groups ->
-                _uiState.value = _uiState.value.copy(userGroups = groups)
+                if (groups.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(userGroups = groups)
+                }
             }
             .launchIn(viewModelScope)
+        // Reliable one-shot fetch — mirrors ExploreViewModel.loadUserGroups().
+        // Guarantees the audience picker is populated on open regardless of
+        // whether Realtime is enabled server-side.
+        viewModelScope.launch {
+            groupRepository.getUserGroups()
+                .onSuccess { groups ->
+                    if (groups.isNotEmpty()) {
+                        _uiState.value = _uiState.value.copy(userGroups = groups)
+                    }
+                }
+                .onFailure { e ->
+                    println("[InIndy] CreatePostViewModel getUserGroups FAILED — ${e.message}")
+                }
+        }
         userPreferencesStore.preferences
             .onEach { prefs ->
                 _uiState.value = _uiState.value.copy(
@@ -55,6 +81,65 @@ class CreatePostViewModel(
                 )
             }
             .launchIn(viewModelScope)
+        if (postId != null) {
+            loadForEdit(postId)
+        }
+    }
+
+    private fun loadForEdit(postId: String) {
+        viewModelScope.launch {
+            postRepository.getPostById(postId)
+                .onSuccess { post ->
+                    val audience = if (post.groupId != null) {
+                        PostAudience.GroupAudience(post.groupId)
+                    } else {
+                        PostAudience.Neighborhood
+                    }
+                    val tags = post.tags.toSet()
+                    val noLimit = post.maxAttendees == null
+                    // Baseline captures exactly what we're about to write into
+                    // state so isDirty reads false until the user actually
+                    // changes something.
+                    val baseline = EditBaseline(
+                        title = post.title,
+                        description = post.description,
+                        address = post.address,
+                        latitude = post.latitude,
+                        longitude = post.longitude,
+                        startsAt = post.startsAt,
+                        endsAt = post.endsAt,
+                        tags = tags,
+                        maxAttendees = post.maxAttendees,
+                        noLimit = noLimit,
+                        images = post.images,
+                        audience = audience
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        title = post.title,
+                        description = post.description,
+                        address = post.address,
+                        latitude = post.latitude,
+                        longitude = post.longitude,
+                        startsAt = post.startsAt,
+                        endsAt = post.endsAt,
+                        tags = tags,
+                        // Existing images are CDN URLs — flagged in submit() to skip re-upload.
+                        images = post.images,
+                        audience = audience,
+                        maxAttendees = post.maxAttendees,
+                        noLimit = noLimit,
+                        isEditPrefillLoading = false,
+                        editBaseline = baseline
+                    )
+                }
+                .onFailure { e ->
+                    println("[InIndy] CreatePostViewModel loadForEdit FAILED — postId: $postId, error: ${e.message}")
+                    _uiState.value = _uiState.value.copy(
+                        isEditPrefillLoading = false,
+                        submitError = "Couldn't load post to edit — try again"
+                    )
+                }
+        }
     }
 
     fun acknowledgeLocationWarning() {
@@ -155,11 +240,24 @@ class CreatePostViewModel(
     }
 
     fun selectNeighborhoodAudience() {
-        _uiState.value = _uiState.value.copy(audience = PostAudience.Neighborhood)
+        _uiState.value = _uiState.value.copy(
+            audience = PostAudience.Neighborhood,
+            pendingGroupAudience = false
+        )
     }
 
     fun selectGroupAudience(groupId: String) {
-        _uiState.value = _uiState.value.copy(audience = PostAudience.GroupAudience(groupId))
+        _uiState.value = _uiState.value.copy(
+            audience = PostAudience.GroupAudience(groupId),
+            pendingGroupAudience = false
+        )
+    }
+
+    // Called when the user taps the "Group" radio while they aren't in any
+    // group. Keeps audience as-is (still Neighborhood) but flips the UI into
+    // group-picker mode so the picker + empty-state render — no navigation.
+    fun enterGroupAudienceMode() {
+        _uiState.value = _uiState.value.copy(pendingGroupAudience = true)
     }
 
     fun toggleTag(tag: Interest) {
@@ -226,9 +324,15 @@ class CreatePostViewModel(
                 endsAtError = null
             )
 
+            // Existing images (edit mode) are CDN http URLs — skip re-upload
+            // and keep them as-is. Local device URIs get uploaded fresh. Order
+            // is preserved so the sort_order rows match what the user sees.
             val uploadResults = coroutineScope {
                 state.images.map { uri ->
-                    async { mediaRepository.uploadPostImage(uri) }
+                    async {
+                        if (uri.startsWith("http")) Result.success(uri)
+                        else mediaRepository.uploadPostImage(uri)
+                    }
                 }.awaitAll()
             }
             val firstFailure = uploadResults.firstOrNull { it.isFailure }
@@ -255,7 +359,12 @@ class CreatePostViewModel(
                 audience = state.audience,
                 maxAttendees = state.maxAttendees
             )
-            postRepository.createPost(request)
+            val result = if (postId != null) {
+                postRepository.updatePost(postId, request)
+            } else {
+                postRepository.createPost(request)
+            }
+            result
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
                         isSubmitting = false,

@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.navigation.RootRoutes
 import jr.brian.inindy.presentation.explore.ExploreViewModel
 import jr.brian.inindy.ui.explore.ExploreScreen
@@ -79,13 +80,17 @@ fun MainScreen(
                     isRsvpd = exploreViewModel::isRsvpd,
                     isOwnPost = exploreViewModel::isOwnPost,
                     onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) },
+                    onCreatePost = { filter ->
+                        val groupId = (filter as? ExploreFilter.Group)?.groupId
+                        rootNavController.navigate(RootRoutes.createPost(groupId))
+                    },
                     listState = listState,
                     refreshTrigger = exploreRefreshTrigger
                 )
             }
             composable(ROUTE_TAB_ME) {
                 MeScreen(
-                    onCreatePostClick = { rootNavController.navigate(RootRoutes.CREATE_POST) },
+                    onCreatePostClick = { rootNavController.navigate(RootRoutes.createPost()) },
                     onCreateGroupClick = { rootNavController.navigate(RootRoutes.CREATE_GROUP) },
                     onPostClick = { postId ->
                         rootNavController.navigate(RootRoutes.postDetail(postId))

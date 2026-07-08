@@ -50,6 +50,9 @@ import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.settings_back_content_description
 import jr.brian.inindy.resources.settings_dark_mode_description
 import jr.brian.inindy.resources.settings_dark_mode_title
+import jr.brian.inindy.resources.settings_feed_interest_ordering_description
+import jr.brian.inindy.resources.settings_feed_interest_ordering_title
+import jr.brian.inindy.resources.settings_section_feed
 import jr.brian.inindy.resources.settings_delete_account_confirm_word
 import jr.brian.inindy.resources.settings_delete_account_description
 import jr.brian.inindy.resources.settings_delete_account_dialog_body
@@ -80,6 +83,8 @@ fun SettingsScreen(
         onToggleDarkMode = onToggleDarkMode,
         onBack = onBack,
         deleteState = uiState.deleteAccount,
+        feedInterestOrderingEnabled = uiState.feedInterestOrderingEnabled,
+        onSetFeedInterestOrdering = viewModel::setInterestOrdering,
         onDeleteAccountConfirmed = viewModel::deleteAccount,
         onDismissDeleteError = viewModel::dismissError,
         modifier = modifier
@@ -93,6 +98,8 @@ private fun SettingsContent(
     onToggleDarkMode: (Boolean) -> Unit,
     onBack: () -> Unit,
     deleteState: DeleteAccountState,
+    feedInterestOrderingEnabled: Boolean,
+    onSetFeedInterestOrdering: (Boolean) -> Unit,
     onDeleteAccountConfirmed: () -> Unit,
     onDismissDeleteError: () -> Unit,
     modifier: Modifier = Modifier
@@ -141,6 +148,15 @@ private fun SettingsContent(
                 description = stringResource(Res.string.settings_dark_mode_description),
                 checked = isDarkMode,
                 onCheckedChange = onToggleDarkMode
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionLabel(text = stringResource(Res.string.settings_section_feed))
+            SettingToggleRow(
+                title = stringResource(Res.string.settings_feed_interest_ordering_title),
+                description = stringResource(Res.string.settings_feed_interest_ordering_description),
+                checked = feedInterestOrderingEnabled,
+                onCheckedChange = onSetFeedInterestOrdering
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -366,6 +382,8 @@ private fun SettingsScreenLightPreview() {
             onToggleDarkMode = {},
             onBack = {},
             deleteState = DeleteAccountState.Idle,
+            feedInterestOrderingEnabled = false,
+            onSetFeedInterestOrdering = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )
@@ -381,6 +399,8 @@ private fun SettingsScreenDarkPreview() {
             onToggleDarkMode = {},
             onBack = {},
             deleteState = DeleteAccountState.Idle,
+            feedInterestOrderingEnabled = true,
+            onSetFeedInterestOrdering = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )

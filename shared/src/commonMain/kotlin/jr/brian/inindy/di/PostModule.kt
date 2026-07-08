@@ -23,7 +23,14 @@ val postModule = module {
     single<ProfileEditRepository> { provideProfileEditRepository(get(), get()) }
     single<AddressSearchDataSource> { FakeAddressSearchDataSource() }
     viewModel { MeViewModel(get(), get(), get(), get()) }
-    viewModel { CreatePostViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { params ->
+        // params.getOrNull<String>() is null for create mode, populated with the
+        // postId when the caller supplies parametersOf(postId) for edit mode.
+        CreatePostViewModel(
+            get(), get(), get(), get(), get(), get(),
+            postId = params.getOrNull<String>()
+        )
+    }
     viewModel { CreateGroupViewModel(get(), get()) }
     viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get()) }
     viewModel { GroupInviteViewModel(get()) }

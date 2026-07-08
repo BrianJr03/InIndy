@@ -23,5 +23,9 @@ data class PostDto(
     @SerialName("images") val images: List<PostImageDto> = emptyList(),
     @SerialName("tags") val tags: List<PostTagDto> = emptyList(),
     @SerialName("rsvp_count") val rsvpCount: Int = 0,
-    @SerialName("rsvps") val rsvps: List<RsvpWithUserDto> = emptyList()
+    @SerialName("rsvps") val rsvps: List<RsvpWithUserDto> = emptyList(),
+    // Nullable + default so deserialization succeeds when the column doesn't
+    // exist yet (moderation backend still in progress). JOINED_COLUMNS uses "*"
+    // so this flows through automatically once the column is added.
+    @SerialName("moderation_status") val moderationStatus: String? = null
 )

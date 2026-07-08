@@ -12,6 +12,7 @@ interface PostRepository {
     suspend fun getUserPosts(): Result<List<Post>>
     suspend fun getPostById(postId: String): Result<Post>
     suspend fun createPost(request: CreatePostRequest): Result<Post>
+    suspend fun updatePost(postId: String, request: CreatePostRequest): Result<Post>
     suspend fun deletePost(postId: String): Result<Unit>
     suspend fun getNeighborhoodFeed(neighborhoodId: String): Result<List<Post>>
     suspend fun getNeighborhoodOnlyFeed(neighborhoodId: String): Result<List<Post>>

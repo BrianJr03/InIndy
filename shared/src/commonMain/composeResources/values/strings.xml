@@ -15,6 +15,8 @@
 
     <!-- Post card -->
     <string name="post_author_anonymous">Someone in Indy</string>
+    <string name="post_moderation_rejected">Rejected</string>
+    <string name="post_moderation_pending">Pending review</string>
     <string name="post_in_count_label">folks are in!</string>
     <string name="post_in_count_label_single">person is in!</string>
     <string name="post_im_in_button">I'm in! →</string>
@@ -25,6 +27,7 @@
     <string name="explore_app_title">InIndy</string>
     <string name="explore_app_title_accent">In</string>
     <string name="explore_settings_content_description">Open settings</string>
+    <string name="explore_create_post_cd">Create a post</string>
     <string name="explore_error_title">Something went wrong</string>
     <string name="explore_error_retry">Try again</string>
 
@@ -73,6 +76,9 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_dark_mode_title">Dark mode</string>
     <string name="settings_dark_mode_description">Use the dark theme across the app</string>
+    <string name="settings_section_feed">Feed</string>
+    <string name="settings_feed_interest_ordering_title">Sort feed by my interests</string>
+    <string name="settings_feed_interest_ordering_description">Rank posts tagged with your interests above others</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_delete_account_title">Delete account</string>
     <string name="settings_delete_account_description">Permanently remove your account and all your data</string>
@@ -187,9 +193,12 @@
 
     <!-- Create post -->
     <string name="create_post_title">Create a post</string>
+    <string name="create_post_edit_title">Edit post</string>
     <string name="create_post_close_cd">Close</string>
     <string name="create_post_submit">Post</string>
     <string name="create_post_submitting">Posting…</string>
+    <string name="create_post_update_submit">Save</string>
+    <string name="create_post_updating">Saving…</string>
     <string name="create_post_section_photos">Photos</string>
     <string name="create_post_photos_helper">Add up to 3 — pick a great hero shot first.</string>
     <string name="create_post_add_photo">Add photo</string>
@@ -212,6 +221,7 @@
     <string name="create_post_audience_group">A group</string>
     <string name="create_post_pick_group">Pick a group</string>
     <string name="create_post_create_new_group">+ Create a new group</string>
+    <string name="create_post_group_empty">You're not in any groups yet</string>
     <string name="create_post_section_tags">Tags</string>
     <string name="create_post_tags_helper">Pick up to 3 — helps neighbors find your post.</string>
     <string name="create_post_section_max">Max attendees</string>
@@ -219,7 +229,9 @@
     <string name="create_post_decrease_cd">Decrease</string>
     <string name="create_post_increase_cd">Increase</string>
     <string name="create_post_discard_title">Discard post?</string>
+    <string name="create_post_discard_title_edit">Discard changes?</string>
     <string name="create_post_discard_body">You'll lose what you've written.</string>
+    <string name="create_post_discard_body_edit">You'll lose your unsaved changes.</string>
     <string name="create_post_discard_confirm">Discard</string>
     <string name="create_post_discard_dismiss">Keep editing</string>
     <string name="create_post_success">Posted! Folks will see it shortly.</string>
@@ -258,6 +270,8 @@
     <string name="group_remove_member_dismiss">Cancel</string>
     <string name="group_revoke_invite_cd">Revoke invite</string>
     <string name="group_invite_token_label">Invite link</string>
+    <string name="group_invite_copy_link_cd">Copy invite link</string>
+    <string name="group_invite_link_copied">Invite link copied</string>
     <string name="group_invite_expires">expires %1$s</string>
     <string name="group_invite_expires_today">Expires today</string>
     <string name="group_invite_expires_in_one_day">Expires in 1 day</string>

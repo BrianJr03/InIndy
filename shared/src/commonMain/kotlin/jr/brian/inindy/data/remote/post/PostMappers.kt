@@ -2,6 +2,7 @@ package jr.brian.inindy.data.remote.post
 
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Interest
+import jr.brian.inindy.domain.model.ModerationStatus
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.User
@@ -32,6 +33,8 @@ fun PostDto.toDomain(): Post {
         neighborhoodId = neighborhoodId,
         neighborhoodName = neighborhood?.name,
         groupId = groupId,
+        maxAttendees = maxAttendees,
+        moderationStatus = ModerationStatus.fromServer(moderationStatus),
         previewAttendees = rsvps.map { it.user.toDomain() }
     )
 }
@@ -46,6 +49,17 @@ fun CreatePostRequest.toDto(userId: String, neighborhoodId: String): CreatePostD
     userId = userId,
     groupId = (audience as? PostAudience.GroupAudience)?.groupId,
     neighborhoodId = neighborhoodId,
+    title = title,
+    description = description,
+    location = wktPoint(longitude, latitude),
+    address = address,
+    startsAt = startsAt.toIsoString(),
+    endsAt = endsAt?.toIsoString(),
+    maxAttendees = maxAttendees
+)
+
+fun CreatePostRequest.toUpdateDto(): UpdatePostDto = UpdatePostDto(
+    groupId = (audience as? PostAudience.GroupAudience)?.groupId,
     title = title,
     description = description,
     location = wktPoint(longitude, latitude),

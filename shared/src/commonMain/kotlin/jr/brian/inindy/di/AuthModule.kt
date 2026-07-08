@@ -15,5 +15,5 @@ val authModule = module {
     single<OnboardingRepository> { provideOnboardingRepository(get(), get()) }
     viewModel { AuthViewModel(get(), get()) }
     viewModel { OnboardingViewModel(get()) }
-    viewModel { SettingsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get()) }
 }

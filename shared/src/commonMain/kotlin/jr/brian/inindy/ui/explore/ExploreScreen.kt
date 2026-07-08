@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +48,9 @@ import jr.brian.inindy.resources.explore_error_title
 import jr.brian.inindy.resources.explore_feed_empty_all
 import jr.brian.inindy.resources.explore_feed_empty_group
 import jr.brian.inindy.resources.explore_feed_empty_neighborhood
+import jr.brian.inindy.resources.explore_create_post_cd
 import jr.brian.inindy.resources.explore_settings_content_description
+import jr.brian.inindy.ui.icons.AddIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import org.jetbrains.compose.resources.stringResource
 
@@ -61,12 +64,10 @@ fun ExploreScreen(
     isRsvpd: (String) -> Boolean = { false },
     isOwnPost: (Post) -> Boolean = { false },
     onSettingsClick: () -> Unit = {},
+    onCreatePost: (ExploreFilter) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
-    LaunchedEffect(Unit) {
-        onIntent(ExploreIntent.Refresh)
-    }
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > 0) {
             onIntent(ExploreIntent.Refresh)
@@ -134,6 +135,26 @@ fun ExploreScreen(
                 onGroupSelected = { onIntent(ExploreIntent.SelectFilterGroup(it)) },
                 onDismiss = { onIntent(ExploreIntent.DismissGroupSearch) }
             )
+        }
+
+        // Hide behind the group-search sheet — otherwise the FAB floats on
+        // top of the modal and can be tapped through it. Bottom padding is
+        // just interior; the bottom nav is outside this composable's Box
+        // (MainScreen's Scaffold provides its own inset).
+        if (!uiState.isGroupSearchSheetVisible) {
+            FloatingActionButton(
+                onClick = { onCreatePost(uiState.activeFilter) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 20.dp)
+            ) {
+                Icon(
+                    imageVector = AddIcon,
+                    contentDescription = stringResource(Res.string.explore_create_post_cd)
+                )
+            }
         }
     }
 }

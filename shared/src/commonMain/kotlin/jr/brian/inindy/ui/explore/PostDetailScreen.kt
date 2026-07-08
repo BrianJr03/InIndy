@@ -106,6 +106,7 @@ import jr.brian.inindy.resources.me_delete_post_confirm
 import jr.brian.inindy.resources.me_delete_post_dialog_message
 import jr.brian.inindy.resources.me_delete_post_dialog_title
 import jr.brian.inindy.resources.me_delete_post_dismiss
+import jr.brian.inindy.domain.model.ModerationStatus
 import jr.brian.inindy.resources.post_author_anonymous
 import jr.brian.inindy.resources.post_detail_delete
 import jr.brian.inindy.resources.post_detail_edit
@@ -138,11 +139,15 @@ fun PostDetailScreen(
     onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
     allowHostActions: Boolean = false,
+    refreshTrigger: Int = 0,
     viewModel: PostDetailViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(postId) {
+    // Key includes refreshTrigger so returning from EDIT_POST (which bumps the
+    // trigger) re-fetches the post; the initial mount still runs because
+    // trigger is 0 on that first composition.
+    LaunchedEffect(postId, refreshTrigger) {
         viewModel.load(postId)
     }
 
@@ -165,6 +170,7 @@ fun PostDetailScreen(
             is PostDetailUiState.Success -> PostDetailContent(
                 post = s.post,
                 isHost = s.isHost && allowHostActions,
+                isOwnPost = s.isHost,
                 isRsvpd = s.isRsvpd,
                 attendees = s.attendees,
                 attendeesLoading = s.attendeesLoading,
@@ -230,6 +236,9 @@ private fun PostDetailContent(
     onDelete: () -> Unit,
     onConfirmRsvp: () -> Unit,
     onUnRsvp: () -> Unit,
+    // Ownership signal for the moderation badge — kept distinct from `isHost`,
+    // which is further gated by allowHostActions and controls edit/delete UI.
+    isOwnPost: Boolean = isHost,
     modifier: Modifier = Modifier,
     nowMs: Long = rememberTickingNowMs(),
     attendees: List<User> = emptyList(),
@@ -269,6 +278,10 @@ private fun PostDetailContent(
                     post = post,
                     nowMs = nowMs
                 )
+
+                if (isOwnPost && post.moderationStatus != ModerationStatus.APPROVED) {
+                    ModerationBadge(status = post.moderationStatus)
+                }
 
                 Text(
                     text = post.title,

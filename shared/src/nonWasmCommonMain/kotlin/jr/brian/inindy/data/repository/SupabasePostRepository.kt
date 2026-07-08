@@ -15,6 +15,7 @@ import jr.brian.inindy.data.remote.post.PostTagDto
 import jr.brian.inindy.data.remote.post.RsvpWithUserDto
 import jr.brian.inindy.data.remote.post.toDomain
 import jr.brian.inindy.data.remote.post.toDto
+import jr.brian.inindy.data.remote.post.toUpdateDto
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
@@ -197,6 +198,69 @@ class SupabasePostRepository(
         finalPost
     }.onFailure { e ->
         println("[InIndy] createPost FAILED: ${e::class.simpleName}: ${e.message}")
+        e.printStackTrace()
+    }
+
+    override suspend fun updatePost(
+        postId: String,
+        request: CreatePostRequest
+    ): Result<Post> = runCatching {
+        println("[InIndy] updatePost START — postId: $postId")
+        println("[InIndy] updatePost — description: ${request.description.take(50)}")
+        println("[InIndy] updatePost — images: ${request.imageUris.size}, tags: ${request.tags.size}")
+
+        val cdnUrls = request.imageUris
+
+        // ── Update posts row ────────────────────────────────────────────
+        val updateDto = request.toUpdateDto()
+        println("[InIndy] updatePost — updating posts row")
+        supabase.from(POSTS_TABLE).update(updateDto) {
+            filter { eq("id", postId) }
+        }
+        println("[InIndy] updatePost — posts row updated")
+
+        // ── Reconcile post_images: delete-then-insert ───────────────────
+        // Max 3 images per post, so wiping and re-inserting is simpler and
+        // correct compared to diffing. Fails here bubble up via runCatching;
+        // if RLS blocks the DELETE the error will name post_images and the
+        // ViewModel surfaces submitError to the user.
+        println("[InIndy] updatePost — clearing existing post_images")
+        supabase.from(POST_IMAGES_TABLE).delete {
+            filter { eq("post_id", postId) }
+        }
+        if (cdnUrls.isNotEmpty()) {
+            val imageRows = cdnUrls.mapIndexed { index, url ->
+                PostImageDto(postId = postId, storageUrl = url, sortOrder = index)
+            }
+            println("[InIndy] updatePost — inserting ${imageRows.size} post_images rows")
+            supabase.from(POST_IMAGES_TABLE).insert(imageRows)
+        }
+
+        // ── Reconcile post_tags: delete-then-insert ─────────────────────
+        println("[InIndy] updatePost — clearing existing post_tags")
+        supabase.from(POST_TAGS_TABLE).delete {
+            filter { eq("post_id", postId) }
+        }
+        if (request.tags.isNotEmpty()) {
+            val tagRows = request.tags.map { interest ->
+                PostTagDto(postId = postId, tag = interest.name)
+            }
+            println("[InIndy] updatePost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}")
+            supabase.from(POST_TAGS_TABLE).insert(tagRows)
+        }
+
+        // ── Re-fetch with joins ─────────────────────────────────────────
+        println("[InIndy] updatePost — re-fetching post with joins")
+        val finalPost = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
+            filter { eq("id", postId) }
+            order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
+            limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
+        }.decodeSingle<PostDto>().toDomain()
+
+        println("[InIndy] updatePost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}")
+        finalPost
+    }.onFailure { e ->
+        println("[InIndy] updatePost FAILED: ${e::class.simpleName}: ${e.message}")
         e.printStackTrace()
     }
 

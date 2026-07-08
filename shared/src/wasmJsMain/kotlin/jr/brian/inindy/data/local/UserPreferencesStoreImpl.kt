@@ -62,6 +62,11 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
         refresh()
     }
 
+    override suspend fun setFeedInterestOrdering(enabled: Boolean) {
+        localStorage.setItem(UserPreferencesKeys.FEED_INTEREST_ORDERING, enabled.toString())
+        refresh()
+    }
+
     override suspend fun clear() {
         listOf(
             UserPreferencesKeys.USER_ID,
@@ -73,7 +78,8 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
             UserPreferencesKeys.ONBOARDING_COMPLETE,
             UserPreferencesKeys.LAST_SELECTED_GROUP_ID,
             UserPreferencesKeys.LAST_SELECTED_GROUP_NAME,
-            UserPreferencesKeys.LOCATION_WARNING_SEEN
+            UserPreferencesKeys.LOCATION_WARNING_SEEN,
+            UserPreferencesKeys.FEED_INTEREST_ORDERING
         ).forEach { localStorage.removeItem(it) }
         refresh()
     }
@@ -95,6 +101,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
         onboardingComplete = localStorage.getItem(UserPreferencesKeys.ONBOARDING_COMPLETE)?.toBoolean() ?: false,
         lastSelectedGroupId = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_ID),
         lastSelectedGroupName = localStorage.getItem(UserPreferencesKeys.LAST_SELECTED_GROUP_NAME),
-        locationWarningSeen = localStorage.getItem(UserPreferencesKeys.LOCATION_WARNING_SEEN)?.toBoolean() ?: false
+        locationWarningSeen = localStorage.getItem(UserPreferencesKeys.LOCATION_WARNING_SEEN)?.toBoolean() ?: false,
+        feedInterestOrderingEnabled = localStorage.getItem(UserPreferencesKeys.FEED_INTEREST_ORDERING)?.toBoolean() ?: false
     )
 }

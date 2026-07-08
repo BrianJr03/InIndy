@@ -13,7 +13,10 @@ data class UserPreferences(
     val onboardingComplete: Boolean = false,
     val lastSelectedGroupId: String? = null,
     val lastSelectedGroupName: String? = null,
-    val locationWarningSeen: Boolean = false
+    val locationWarningSeen: Boolean = false,
+    // Interest-based ordering on the Explore/Neighborhood feed. Default false
+    // (off) — Settings exposes a switch to opt in.
+    val feedInterestOrderingEnabled: Boolean = false
 )
 
 interface UserPreferencesStore {
@@ -26,6 +29,7 @@ interface UserPreferencesStore {
     suspend fun saveLastSelectedGroup(groupId: String, groupName: String)
     suspend fun clearLastSelectedGroup()
     suspend fun setLocationWarningSeen()
+    suspend fun setFeedInterestOrdering(enabled: Boolean)
     suspend fun clear()
 }
 
@@ -40,4 +44,5 @@ internal object UserPreferencesKeys {
     const val LAST_SELECTED_GROUP_ID = "last_selected_group_id"
     const val LAST_SELECTED_GROUP_NAME = "last_selected_group_name"
     const val LOCATION_WARNING_SEEN = "location_warning_seen"
+    const val FEED_INTEREST_ORDERING = "feed_interest_ordering"
 }
