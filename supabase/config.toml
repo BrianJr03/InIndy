@@ -397,6 +397,10 @@ verify_jwt = false
 [functions.moderate-group]
 verify_jwt = false
 
+# Called by a database webhook on the `group_messages` table (INSERT), not by end users.
+[functions.moderate-message]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

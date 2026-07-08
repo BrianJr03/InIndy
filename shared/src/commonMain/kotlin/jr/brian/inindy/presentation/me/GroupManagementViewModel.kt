@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.domain.model.GroupRole
 import jr.brian.inindy.domain.repository.AuthRepository
+import jr.brian.inindy.domain.repository.GroupChatRepository
 import jr.brian.inindy.domain.repository.GroupRepository
+import jr.brian.inindy.domain.repository.NotificationRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +19,9 @@ import kotlinx.coroutines.launch
 class GroupManagementViewModel(
     private val groupId: String,
     private val groupRepository: GroupRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val notificationRepository: NotificationRepository,
+    private val chatRepository: GroupChatRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupManagementUiState())
     val uiState: StateFlow<GroupManagementUiState> = _uiState.asStateFlow()
@@ -39,6 +43,7 @@ class GroupManagementViewModel(
             GroupManagementIntent.DismissDeleteConfirmation -> dismissDeleteConfirmation()
             GroupManagementIntent.ConfirmDeleteGroup -> confirmDeleteGroup()
             is GroupManagementIntent.NavigateToPost -> emitNavigateToPost(intent.postId)
+            is GroupManagementIntent.SetNotificationsMuted -> setNotificationsMuted(intent.muted)
         }
     }
 
@@ -55,11 +60,15 @@ class GroupManagementViewModel(
             val membersDeferred = async { groupRepository.getGroupMembers(groupId) }
             val postsDeferred = async { groupRepository.getGroupPosts(groupId, limit = 3) }
             val invitesDeferred = async { groupRepository.getPendingInvites(groupId) }
+            val mutedDeferred = async { notificationRepository.isGroupMuted(groupId) }
+            val unreadDeferred = async { chatRepository.unreadCounts() }
 
             val groupResult = groupDeferred.await()
             val members = membersDeferred.await().getOrDefault(emptyList())
             val posts = postsDeferred.await().getOrDefault(emptyList())
             val invites = invitesDeferred.await().getOrDefault(emptyList())
+            val muted = mutedDeferred.await().getOrDefault(false)
+            val unread = unreadDeferred.await().getOrDefault(emptyMap())[groupId] ?: 0
 
             val group = groupResult.getOrNull()
             val role = members.firstOrNull { it.userId == currentUserId }?.role
@@ -73,8 +82,22 @@ class GroupManagementViewModel(
                 pendingInvites = invites,
                 currentUserRole = role,
                 isLoading = false,
-                error = groupResult.exceptionOrNull()?.message
+                error = groupResult.exceptionOrNull()?.message,
+                notificationsMuted = muted,
+                chatUnreadCount = unread
             )
+        }
+    }
+
+    private fun setNotificationsMuted(muted: Boolean) {
+        // Optimistic UI update — flip immediately and revert if the RPC fails.
+        val previous = _uiState.value.notificationsMuted
+        if (previous == muted) return
+        _uiState.value = _uiState.value.copy(notificationsMuted = muted)
+        viewModelScope.launch {
+            notificationRepository.setGroupMuted(groupId, muted).onFailure {
+                _uiState.value = _uiState.value.copy(notificationsMuted = previous)
+            }
         }
     }
 

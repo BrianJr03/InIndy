@@ -25,12 +25,14 @@ import jr.brian.inindy.domain.model.isOnboardingComplete
 import jr.brian.inindy.presentation.app.AppDestination
 import jr.brian.inindy.presentation.app.AppViewModel
 import jr.brian.inindy.ui.auth.AuthNavHost
+import jr.brian.inindy.ui.chat.GroupChatScreen
 import jr.brian.inindy.ui.creategroup.CreateGroupScreen
 import jr.brian.inindy.ui.createpost.CreatePostScreen
 import jr.brian.inindy.ui.explore.PostDetailScreen
 import jr.brian.inindy.ui.main.MainScreen
 import jr.brian.inindy.ui.me.GroupInviteSheet
 import jr.brian.inindy.ui.me.GroupManagementScreen
+import jr.brian.inindy.ui.notifications.NotificationsScreen
 import jr.brian.inindy.ui.onboarding.OnboardingNavHost
 import jr.brian.inindy.ui.settings.SettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -48,12 +50,15 @@ object RootRoutes {
     const val CREATE_GROUP = "create_group"
     const val EDIT_POST = "edit_post/{postId}"
     const val SETTINGS = "settings"
+    const val NOTIFICATIONS = "notifications"
     const val POST_DETAIL = "post_detail/{postId}"
     const val GROUP_MANAGEMENT = "group_management/{groupId}"
+    const val GROUP_CHAT = "group_chat/{groupId}"
 
     fun postDetail(postId: String) = "post_detail/$postId"
     fun editPost(postId: String) = "edit_post/$postId"
     fun groupManagement(groupId: String) = "group_management/$groupId"
+    fun groupChat(groupId: String) = "group_chat/$groupId"
     // The optional query param can be omitted entirely; the composable's
     // nullable arg + defaultValue = null makes both forms match the same route.
     fun createPost(groupId: String? = null): String =
@@ -74,6 +79,9 @@ fun RootNavGraph(
     // Bumped when returning from EDIT_POST so PostDetailScreen re-fetches the
     // post it's showing instead of holding the stale pre-edit copy.
     var postDetailRefreshTrigger by remember { mutableIntStateOf(0) }
+    // Bumped when returning from GROUP_CHAT so GroupManagementScreen re-fetches
+    // the unread count (which the chat itself just cleared).
+    var groupManagementRefreshTrigger by remember { mutableIntStateOf(0) }
 
     if (state.isLoading) {
         SplashScreen()
@@ -210,6 +218,17 @@ fun RootNavGraph(
                     onBack = { navController.popBackStack() }
                 )
             }
+            composable(RootRoutes.NOTIFICATIONS) {
+                NotificationsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNotificationClick = { notification ->
+                        val postId = notification.postId
+                        if (postId != null) {
+                            navController.navigate(RootRoutes.postDetail(postId))
+                        }
+                    }
+                )
+            }
             composable(RootRoutes.POST_DETAIL) { backStackEntry ->
                 val postId = backStackEntry.arguments?.read { getString("postId") }.orEmpty()
                 PostDetailScreen(
@@ -232,6 +251,18 @@ fun RootNavGraph(
                     },
                     onPostClick = { postId ->
                         navController.navigate(RootRoutes.postDetail(postId))
+                    },
+                    onChatClick = { navController.navigate(RootRoutes.groupChat(groupId)) },
+                    refreshTrigger = groupManagementRefreshTrigger
+                )
+            }
+            composable(RootRoutes.GROUP_CHAT) { backStackEntry ->
+                val groupId = backStackEntry.arguments?.read { getString("groupId") }.orEmpty()
+                GroupChatScreen(
+                    groupId = groupId,
+                    onBack = {
+                        groupManagementRefreshTrigger++
+                        navController.popBackStack()
                     }
                 )
             }

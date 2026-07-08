@@ -17,5 +17,7 @@ data class GroupManagementUiState(
     val isGeneratingInvite: Boolean = false,
     val inviteLink: String? = null,
     val showDeleteConfirmation: Boolean = false,
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+    val notificationsMuted: Boolean = false,
+    val chatUnreadCount: Int = 0
 )

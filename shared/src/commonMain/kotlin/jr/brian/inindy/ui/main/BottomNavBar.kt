@@ -8,5 +8,6 @@ const val ROUTE_TAB_EXPLORE = "tab_explore"
 @Composable
 expect fun BottomNavBar(
     selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
+    onItemSelected: (Int) -> Unit,
+    onCreateClick: () -> Unit
 )

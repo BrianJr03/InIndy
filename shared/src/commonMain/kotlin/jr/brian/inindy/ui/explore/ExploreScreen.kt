@@ -1,9 +1,11 @@
 package jr.brian.inindy.ui.explore
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +25,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,9 +51,10 @@ import jr.brian.inindy.resources.explore_error_title
 import jr.brian.inindy.resources.explore_feed_empty_all
 import jr.brian.inindy.resources.explore_feed_empty_group
 import jr.brian.inindy.resources.explore_feed_empty_neighborhood
-import jr.brian.inindy.resources.explore_create_post_cd
 import jr.brian.inindy.resources.explore_settings_content_description
-import jr.brian.inindy.ui.icons.AddIcon
+import jr.brian.inindy.resources.notifications_bell_cd
+import jr.brian.inindy.resources.notifications_bell_unread_cd
+import jr.brian.inindy.ui.icons.NotificationsIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import org.jetbrains.compose.resources.stringResource
 
@@ -64,7 +68,8 @@ fun ExploreScreen(
     isRsvpd: (String) -> Boolean = { false },
     isOwnPost: (Post) -> Boolean = { false },
     onSettingsClick: () -> Unit = {},
-    onCreatePost: (ExploreFilter) -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
+    unreadNotificationCount: Int = 0,
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
@@ -78,7 +83,9 @@ fun ExploreScreen(
             ExploreHeader(
                 uiState = uiState,
                 onIntent = onIntent,
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                onNotificationsClick = onNotificationsClick,
+                unreadNotificationCount = unreadNotificationCount
             )
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -136,26 +143,6 @@ fun ExploreScreen(
                 onDismiss = { onIntent(ExploreIntent.DismissGroupSearch) }
             )
         }
-
-        // Hide behind the group-search sheet — otherwise the FAB floats on
-        // top of the modal and can be tapped through it. Bottom padding is
-        // just interior; the bottom nav is outside this composable's Box
-        // (MainScreen's Scaffold provides its own inset).
-        if (!uiState.isGroupSearchSheetVisible) {
-            FloatingActionButton(
-                onClick = { onCreatePost(uiState.activeFilter) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 20.dp)
-            ) {
-                Icon(
-                    imageVector = AddIcon,
-                    contentDescription = stringResource(Res.string.explore_create_post_cd)
-                )
-            }
-        }
     }
 }
 
@@ -186,7 +173,12 @@ private fun ExplorePostFeedList(
                 post = post,
                 isRsvpd = isRsvpd(post.id),
                 onRsvpClick = onRsvpClick,
-                isOwnPost = isOwnPost(post)
+                isOwnPost = isOwnPost(post),
+                modifier = Modifier.animateItem(
+                    fadeInSpec = tween(durationMillis = 250),
+                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    fadeOutSpec = tween(durationMillis = 250)
+                )
             )
         }
     }
@@ -222,6 +214,8 @@ private fun ExploreHeader(
     uiState: ExploreUiState,
     onIntent: (ExploreIntent) -> Unit,
     onSettingsClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    unreadNotificationCount: Int,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -249,16 +243,22 @@ private fun ExploreHeader(
                 )
             }
 
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = SettingsIcon,
-                    contentDescription = stringResource(Res.string.explore_settings_content_description),
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NotificationsBell(
+                    unreadCount = unreadNotificationCount,
+                    onClick = onNotificationsClick
                 )
+                IconButton(
+                    onClick = onSettingsClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = SettingsIcon,
+                        contentDescription = stringResource(Res.string.explore_settings_content_description),
+                        modifier = Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
 
@@ -273,6 +273,45 @@ private fun ExploreHeader(
                 onSelectLastGroup = { onIntent(ExploreIntent.SelectFilterGroup(it)) },
                 onSearchGroups = { onIntent(ExploreIntent.OpenGroupSearch) },
                 onDismiss = { onIntent(ExploreIntent.DismissFilterDropdown) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotificationsBell(
+    unreadCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val contentDescription = if (unreadCount > 0) {
+        stringResource(Res.string.notifications_bell_unread_cd, unreadCount)
+    } else {
+        stringResource(Res.string.notifications_bell_cd)
+    }
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(40.dp)
+    ) {
+        BadgedBox(
+            badge = {
+                if (unreadCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Text(
+                            text = if (unreadCount > 99) "99+" else unreadCount.toString()
+                        )
+                    }
+                }
+            }
+        ) {
+            Icon(
+                imageVector = NotificationsIcon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -353,7 +392,9 @@ private fun ExploreScreenHeaderPreview() {
                 brandMarkText = "InBroadRipple"
             ),
             onIntent = {},
-            onSettingsClick = {}
+            onSettingsClick = {},
+            onNotificationsClick = {},
+            unreadNotificationCount = 3
         )
     }
 }

@@ -9,6 +9,7 @@ interface PostRepository {
     fun observeUserPosts(): Flow<List<Post>>
     fun observeNeighborhoodOnlyFeed(neighborhoodId: String): Flow<Result<List<Post>>>
     fun observeGroupFeed(groupId: String): Flow<Result<List<Post>>>
+    fun observePost(postId: String): Flow<Result<Post>>
     suspend fun getUserPosts(): Result<List<Post>>
     suspend fun getPostById(postId: String): Result<Post>
     suspend fun createPost(request: CreatePostRequest): Result<Post>
@@ -19,3 +20,5 @@ interface PostRepository {
     suspend fun getGroupFeed(groupId: String): Result<List<Post>>
     suspend fun getPostAttendees(postId: String): Result<List<User>>
 }
+
+class PostDeletedException : Exception("Post deleted")

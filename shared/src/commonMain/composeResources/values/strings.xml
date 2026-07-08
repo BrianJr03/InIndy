@@ -4,6 +4,7 @@
     <string name="nav_me">Me</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_events">Events</string>
+    <string name="nav_create">Create</string>
 
     <!-- Home placeholders -->
     <string name="home_placeholder_create">Create a post</string>
@@ -27,7 +28,6 @@
     <string name="explore_app_title">InIndy</string>
     <string name="explore_app_title_accent">In</string>
     <string name="explore_settings_content_description">Open settings</string>
-    <string name="explore_create_post_cd">Create a post</string>
     <string name="explore_error_title">Something went wrong</string>
     <string name="explore_error_retry">Try again</string>
 
@@ -366,6 +366,49 @@
     <string name="create_post_location_warning_cancel">Cancel</string>
     <string name="create_post_location_permission_denied">Permission denied — type your location manually</string>
     <string name="create_post_location_permission_blocked">Enable location in Settings to use this feature</string>
+
+    <!-- Notifications -->
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_bell_cd">Open notifications</string>
+    <string name="notifications_bell_unread_cd">Open notifications, %1$d unread</string>
+    <string name="notifications_back_cd">Back</string>
+    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notifications_empty">No notifications yet</string>
+    <string name="notifications_error_title">Couldn't load notifications</string>
+    <string name="notifications_group_post">%1$s posted in %2$s</string>
+    <string name="notifications_group_post_unknown_actor">Someone</string>
+    <string name="notifications_group_post_unknown_group">a group</string>
+    <string name="notifications_time_just_now">just now</string>
+    <string name="notifications_time_minutes">%1$dm ago</string>
+    <string name="notifications_time_hours">%1$dh ago</string>
+    <string name="notifications_time_days">%1$dd ago</string>
+
+    <!-- Group notifications mute -->
+    <string name="group_mute_title">Mute notifications</string>
+    <string name="group_mute_description">Stop getting notified when someone posts in this group</string>
+
+    <!-- Group chat -->
+    <string name="group_chat_title">Chat</string>
+    <string name="group_chat_open">Open group chat</string>
+    <string name="group_chat_unread_badge_cd">%1$d unread messages</string>
+    <string name="group_chat_back_cd">Back</string>
+    <string name="group_chat_input_placeholder">Message</string>
+    <string name="group_chat_send_cd">Send message</string>
+    <string name="group_chat_delete">Delete</string>
+    <string name="group_chat_empty">Say hi to the group — no messages yet</string>
+    <string name="group_chat_removed">Message removed</string>
+    <string name="group_chat_profanity_blocked">Please rephrase — that message uses language that isn't allowed.</string>
+    <string name="group_chat_profanity_dismiss">OK</string>
+    <string name="group_chat_typing_single">%1$s is typing…</string>
+    <string name="group_chat_typing_multiple">Several people are typing…</string>
+    <string name="group_chat_typing_unknown">Someone is typing…</string>
+    <string name="group_chat_delete_dialog_title">Delete this message?</string>
+    <string name="group_chat_delete_dialog_body">Everyone in the group will see it as removed.</string>
+    <string name="group_chat_delete_confirm">Delete</string>
+    <string name="group_chat_delete_dismiss">Cancel</string>
+    <string name="group_chat_error_title">Couldn't load chat</string>
+    <string name="group_chat_time_today">Today</string>
+    <string name="group_chat_time_yesterday">Yesterday</string>
 
     <!-- Create post — date &amp; time pickers -->
     <string name="create_post_start_label">Start date &amp; time *</string>

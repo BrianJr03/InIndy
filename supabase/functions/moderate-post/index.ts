@@ -22,6 +22,8 @@ type WebhookPayload = {
   type: "INSERT" | "UPDATE" | "DELETE";
   record: {
     id: string;
+    user_id: string | null;
+    group_id: string | null;
     title: string | null;
     description: string | null;
     moderation_status: string | null;
@@ -93,6 +95,22 @@ Deno.serve(async (req: Request) => {
 
     // ── 4. Approve ──────────────────────────────────────────────────────
     await writeDecision(admin, postId, "approved", null);
+
+    // ── 5. Fan out group notifications ─────────────────────────────────
+    // Only for group posts (group_id non-null). The Postgres function is
+    // idempotent and handles author-exclusion + mute filtering, so we just
+    // fire and log — failures here don't roll back the approval.
+    if (record.group_id && record.user_id) {
+      const { error: notifyError } = await admin.rpc("notify_group_post", {
+        p_post_id: postId,
+        p_group_id: record.group_id,
+        p_actor_id: record.user_id,
+      });
+      if (notifyError) {
+        console.error("moderate-post: notify_group_post failed", notifyError);
+      }
+    }
+
     return json({ ok: true, decision: "approved" }, 200);
   } catch (error) {
     console.error("moderate-post: unexpected error", error);

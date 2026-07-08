@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -33,6 +35,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -84,7 +87,12 @@ import jr.brian.inindy.resources.group_invite_share_text
 import jr.brian.inindy.resources.group_invite_share_title
 import jr.brian.inindy.resources.group_invite_token_label
 import jr.brian.inindy.resources.group_member_count
+import jr.brian.inindy.resources.group_chat_open
+import jr.brian.inindy.resources.group_chat_title
+import jr.brian.inindy.resources.group_chat_unread_badge_cd
 import jr.brian.inindy.resources.group_members_header
+import jr.brian.inindy.resources.group_mute_description
+import jr.brian.inindy.resources.group_mute_title
 import jr.brian.inindy.resources.group_menu_cd
 import jr.brian.inindy.resources.group_menu_delete
 import jr.brian.inindy.resources.group_pending_header
@@ -96,6 +104,7 @@ import jr.brian.inindy.resources.group_revoke_invite_cd
 import jr.brian.inindy.ui.components.CompactPostCard
 import jr.brian.inindy.ui.components.MemberRow
 import jr.brian.inindy.ui.icons.ArrowBackIcon
+import jr.brian.inindy.ui.icons.ChatIcon
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.ContentCopyIcon
 import jr.brian.inindy.ui.icons.GroupIcon
@@ -114,6 +123,8 @@ fun GroupManagementScreen(
     groupId: String,
     onBack: () -> Unit,
     onPostClick: (String) -> Unit,
+    onChatClick: () -> Unit = {},
+    refreshTrigger: Int = 0,
     modifier: Modifier = Modifier,
     viewModel: GroupManagementViewModel = koinViewModel(
         key = "group-management-$groupId",
@@ -121,6 +132,10 @@ fun GroupManagementScreen(
     )
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) viewModel.onIntent(GroupManagementIntent.Load)
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.postNavigation.collect { postId -> onPostClick(postId) }
@@ -193,6 +208,24 @@ fun GroupManagementScreen(
                 ) {
                     item { GroupCover(group) }
                     item { GroupInfo(group, memberCount = state.members.size) }
+                    item { SectionDivider() }
+                    item {
+                        ChatEntryRow(
+                            unreadCount = state.chatUnreadCount,
+                            onClick = onChatClick
+                        )
+                    }
+                    item { SectionDivider() }
+                    item {
+                        GroupMuteRow(
+                            muted = state.notificationsMuted,
+                            onCheckedChange = { muted ->
+                                viewModel.onIntent(
+                                    GroupManagementIntent.SetNotificationsMuted(muted)
+                                )
+                            }
+                        )
+                    }
                     item { SectionDivider() }
                     item { SectionHeader(text = stringResource(Res.string.group_at_a_glance)) }
                     if (state.recentPosts.isEmpty()) {
@@ -501,6 +534,86 @@ private fun SectionHeader(text: String) {
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface
     )
+}
+
+@Composable
+private fun ChatEntryRow(
+    unreadCount: Int,
+    onClick: () -> Unit
+) {
+    val badgeCd = if (unreadCount > 0) {
+        stringResource(Res.string.group_chat_unread_badge_cd, unreadCount)
+    } else null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        BadgedBox(
+            badge = {
+                if (unreadCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Text(text = if (unreadCount > 99) "99+" else unreadCount.toString())
+                    }
+                }
+            }
+        ) {
+            Icon(
+                imageVector = ChatIcon,
+                contentDescription = badgeCd ?: stringResource(Res.string.group_chat_open),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Text(
+            text = stringResource(Res.string.group_chat_title),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun GroupMuteRow(
+    muted: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = stringResource(Res.string.group_mute_title),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(Res.string.group_mute_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = muted,
+            onCheckedChange = onCheckedChange
+        )
+    }
 }
 
 @Composable

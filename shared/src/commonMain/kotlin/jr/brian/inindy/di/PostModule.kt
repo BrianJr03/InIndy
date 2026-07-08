@@ -32,7 +32,7 @@ val postModule = module {
         )
     }
     viewModel { CreateGroupViewModel(get(), get()) }
-    viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get()) }
+    viewModel { (groupId: String) -> GroupManagementViewModel(groupId, get(), get(), get(), get()) }
     viewModel { GroupInviteViewModel(get()) }
     viewModel { PostDetailViewModel(get(), get(), get(), get()) }
     viewModel { ProfileEditViewModel(get(), get()) }

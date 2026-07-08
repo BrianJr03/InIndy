@@ -31,5 +31,7 @@ val appModules: List<Module> = listOf(
     rsvpModule,
     postModule,
     exploreModule,
+    notificationModule,
+    chatModule,
     appViewModelModule
 )

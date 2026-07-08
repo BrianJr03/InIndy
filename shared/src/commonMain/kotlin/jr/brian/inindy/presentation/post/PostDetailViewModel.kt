@@ -8,6 +8,7 @@ import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.ExploreRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,23 +24,68 @@ class PostDetailViewModel(
     private val _uiState = MutableStateFlow<PostDetailUiState>(PostDetailUiState.Loading)
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
 
+    private var observeJob: Job? = null
+    private var observedPostId: String? = null
+
     fun load(postId: String) {
-        viewModelScope.launch {
-            _uiState.value = PostDetailUiState.Loading
-            val post = postRepository.getPostById(postId).getOrNull()
-                ?: findInExplore(postId)
-            if (post == null) {
-                _uiState.value = PostDetailUiState.Unavailable
-                return@launch
+        if (observedPostId == postId && observeJob?.isActive == true) return
+
+        observeJob?.cancel()
+        observedPostId = postId
+        _uiState.value = PostDetailUiState.Loading
+
+        observeJob = viewModelScope.launch {
+            var hasLoaded = false
+            postRepository.observePost(postId).collect { result ->
+                result.fold(
+                    onSuccess = { post ->
+                        val currentUserId = currentUserProvider.get().userId
+                        val previous = _uiState.value as? PostDetailUiState.Success
+                        _uiState.value = if (previous != null) {
+                            previous.copy(
+                                post = post,
+                                isHost = post.userId == currentUserId,
+                                isRsvpd = rsvpPost.isRsvpd(post.id)
+                            )
+                        } else {
+                            PostDetailUiState.Success(
+                                post = post,
+                                isHost = post.userId == currentUserId,
+                                isRsvpd = rsvpPost.isRsvpd(post.id),
+                                attendeesLoading = true
+                            )
+                        }
+                        if (!hasLoaded) {
+                            hasLoaded = true
+                            loadAttendees()
+                        }
+                    },
+                    onFailure = {
+                        val current = _uiState.value as? PostDetailUiState.Success
+                        // Preserve user-initiated delete flow — the screen pops via
+                        // `deleted = true`, don't overwrite with Unavailable.
+                        if (current?.isDeleting == true || current?.deleted == true) return@fold
+                        if (hasLoaded) {
+                            _uiState.value = PostDetailUiState.Unavailable
+                            return@fold
+                        }
+                        val fallback = findInExplore(postId)
+                        if (fallback == null) {
+                            _uiState.value = PostDetailUiState.Unavailable
+                            return@fold
+                        }
+                        val currentUserId = currentUserProvider.get().userId
+                        _uiState.value = PostDetailUiState.Success(
+                            post = fallback,
+                            isHost = fallback.userId == currentUserId,
+                            isRsvpd = rsvpPost.isRsvpd(fallback.id),
+                            attendeesLoading = true
+                        )
+                        hasLoaded = true
+                        loadAttendees()
+                    }
+                )
             }
-            val currentUserId = currentUserProvider.get().userId
-            _uiState.value = PostDetailUiState.Success(
-                post = post,
-                isHost = post.userId == currentUserId,
-                isRsvpd = rsvpPost.isRsvpd(post.id),
-                attendeesLoading = true
-            )
-            loadAttendees()
         }
     }
 
@@ -88,10 +134,16 @@ class PostDetailViewModel(
             _uiState.value = current.copy(isDeleting = true)
             postRepository.deletePost(current.post.id)
                 .onSuccess {
-                    _uiState.value = current.copy(isDeleting = false, deleted = true)
+                    // Cancel realtime observation so the Delete event that fires
+                    // as a result of our own deletePost can't race and overwrite
+                    // deleted = true with Unavailable.
+                    observeJob?.cancel()
+                    val latest = _uiState.value as? PostDetailUiState.Success ?: return@onSuccess
+                    _uiState.value = latest.copy(isDeleting = false, deleted = true)
                 }
                 .onFailure {
-                    _uiState.value = current.copy(isDeleting = false)
+                    val latest = _uiState.value as? PostDetailUiState.Success ?: return@onFailure
+                    _uiState.value = latest.copy(isDeleting = false)
                 }
         }
     }
@@ -106,6 +158,11 @@ class PostDetailViewModel(
             val latest = _uiState.value as? PostDetailUiState.Success ?: return@launch
             _uiState.value = latest.copy(attendees = result, attendeesLoading = false)
         }
+    }
+
+    override fun onCleared() {
+        observeJob?.cancel()
+        super.onCleared()
     }
 
     private suspend fun findInExplore(postId: String): Post? {

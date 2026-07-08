@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.navigation.RootRoutes
 import jr.brian.inindy.presentation.explore.ExploreViewModel
+import jr.brian.inindy.presentation.notifications.NotificationsViewModel
 import jr.brian.inindy.ui.explore.ExploreScreen
 import jr.brian.inindy.ui.me.MeScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -27,6 +28,7 @@ fun MainScreen(
     modifier: Modifier = Modifier,
     tabNavController: NavHostController = rememberNavController(),
     exploreViewModel: ExploreViewModel = koinViewModel(),
+    notificationsViewModel: NotificationsViewModel = koinViewModel(),
     exploreRefreshTrigger: Int = 0,
     meRefreshTrigger: Int = 0
 ) {
@@ -37,6 +39,8 @@ fun MainScreen(
         ROUTE_TAB_ME -> 1
         else -> 1
     }
+
+    val exploreState by exploreViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -56,6 +60,10 @@ fun MainScreen(
                         launchSingleTop = true
                         restoreState = true
                     }
+                },
+                onCreateClick = {
+                    val groupId = (exploreState.activeFilter as? ExploreFilter.Group)?.groupId
+                    rootNavController.navigate(RootRoutes.createPost(groupId))
                 }
             )
         }
@@ -68,7 +76,7 @@ fun MainScreen(
                 .padding(padding)
         ) {
             composable(ROUTE_TAB_EXPLORE) {
-                val exploreState by exploreViewModel.uiState.collectAsStateWithLifecycle()
+                val notificationsState by notificationsViewModel.uiState.collectAsStateWithLifecycle()
                 val listState = rememberLazyListState()
                 ExploreScreen(
                     uiState = exploreState,
@@ -80,10 +88,10 @@ fun MainScreen(
                     isRsvpd = exploreViewModel::isRsvpd,
                     isOwnPost = exploreViewModel::isOwnPost,
                     onSettingsClick = { rootNavController.navigate(RootRoutes.SETTINGS) },
-                    onCreatePost = { filter ->
-                        val groupId = (filter as? ExploreFilter.Group)?.groupId
-                        rootNavController.navigate(RootRoutes.createPost(groupId))
+                    onNotificationsClick = {
+                        rootNavController.navigate(RootRoutes.NOTIFICATIONS)
                     },
+                    unreadNotificationCount = notificationsState.unreadCount,
                     listState = listState,
                     refreshTrigger = exploreRefreshTrigger
                 )

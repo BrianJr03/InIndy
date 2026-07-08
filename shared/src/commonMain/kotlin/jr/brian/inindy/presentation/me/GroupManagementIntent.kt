@@ -9,4 +9,5 @@ sealed class GroupManagementIntent {
     data object DismissDeleteConfirmation : GroupManagementIntent()
     data object ConfirmDeleteGroup : GroupManagementIntent()
     data class NavigateToPost(val postId: String) : GroupManagementIntent()
+    data class SetNotificationsMuted(val muted: Boolean) : GroupManagementIntent()
 }

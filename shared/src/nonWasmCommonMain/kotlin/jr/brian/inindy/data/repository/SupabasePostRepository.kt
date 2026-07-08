@@ -20,6 +20,7 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.CreatePostRequest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.repository.PostDeletedException
 import jr.brian.inindy.domain.repository.PostRepository
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -326,6 +327,50 @@ class SupabasePostRepository(
                 }
             }
         }
+
+    override fun observePost(postId: String): Flow<Result<Post>> = channelFlow {
+        println("[InIndy] observePost — subscribing for postId: $postId")
+
+        suspend fun emitLatest() {
+            send(getPostById(postId))
+        }
+
+        emitLatest()
+
+        val channel = supabase.channel("posts-detail-$postId-${Uuid.random()}")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = POSTS_TABLE
+            filter("id", FilterOperator.EQ, postId)
+        }
+        launch {
+            changes.collect { action ->
+                when (action) {
+                    is PostgresAction.Insert -> {
+                        println("[InIndy] observePost — INSERT, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Update -> {
+                        println("[InIndy] observePost — UPDATE, re-fetching")
+                        emitLatest()
+                    }
+                    is PostgresAction.Delete -> {
+                        println("[InIndy] observePost — DELETE, emitting failure")
+                        send(Result.failure(PostDeletedException()))
+                    }
+                    else -> {}
+                }
+            }
+        }
+        channel.subscribe()
+
+        try {
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                supabase.realtime.removeChannel(channel)
+            }
+        }
+    }
 
     override fun observeGroupFeed(groupId: String): Flow<Result<List<Post>>> = channelFlow {
         println("[InIndy] observeGroupFeed — subscribing for groupId: $groupId")
