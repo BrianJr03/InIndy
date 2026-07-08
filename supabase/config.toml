@@ -389,6 +389,14 @@ deno_version = 2
 [functions.moderate-post]
 verify_jwt = false
 
+# Called by a database webhook on the `users` table, not by end users.
+[functions.moderate-user]
+verify_jwt = false
+
+# Called by a database webhook on the `groups` table, not by end users.
+[functions.moderate-group]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
