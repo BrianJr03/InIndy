@@ -307,26 +307,26 @@ private fun MeHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
-                    Text(
-                        text = " · ",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Icon(
-                        imageVector = StarIcon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(
-                            Res.string.me_attendance_rate,
-                            (attendanceRate * 100).roundToInt()
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+//                    Text(
+//                        text = " · ",
+//                        color = MaterialTheme.colorScheme.onSurfaceVariant
+//                    )
+//                    Icon(
+//                        imageVector = StarIcon,
+//                        contentDescription = null,
+//                        tint = MaterialTheme.colorScheme.primary,
+//                        modifier = Modifier.size(14.dp)
+//                    )
+//                    Spacer(Modifier.width(4.dp))
+//                    Text(
+//                        text = stringResource(
+//                            Res.string.me_attendance_rate,
+//                            (attendanceRate * 100).roundToInt()
+//                        ),
+//                        style = MaterialTheme.typography.labelLarge,
+//                        color = MaterialTheme.colorScheme.primary,
+//                        fontWeight = FontWeight.SemiBold
+//                    )
                 }
             }
         }

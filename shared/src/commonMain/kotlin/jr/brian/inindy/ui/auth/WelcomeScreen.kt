@@ -134,40 +134,40 @@ fun WelcomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     HorizontalDivider(modifier = Modifier.weight(1f))
-                    Text(
-                        text = stringResource(Res.string.welcome_or),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                    HorizontalDivider(modifier = Modifier.weight(1f))
+//                    Text(
+//                        text = stringResource(Res.string.welcome_or),
+//                        style = MaterialTheme.typography.labelMedium,
+//                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                        modifier = Modifier.padding(horizontal = 12.dp)
+//                    )
+//                    HorizontalDivider(modifier = Modifier.weight(1f))
                 }
 
-                SocialButton(
-                    label = stringResource(Res.string.welcome_continue_with_google),
-                    iconContent = {
-                        Icon(
-                            imageVector = GoogleIcon,
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    onClick = onGoogle
-                )
-
-                SocialButton(
-                    label = stringResource(Res.string.welcome_continue_with_apple),
-                    iconContent = {
-                        Icon(
-                            imageVector = AppleIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    onClick = onApple
-                )
+//                SocialButton(
+//                    label = stringResource(Res.string.welcome_continue_with_google),
+//                    iconContent = {
+//                        Icon(
+//                            imageVector = GoogleIcon,
+//                            contentDescription = null,
+//                            tint = Color.Unspecified,
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//                    },
+//                    onClick = onGoogle
+//                )
+//
+//                SocialButton(
+//                    label = stringResource(Res.string.welcome_continue_with_apple),
+//                    iconContent = {
+//                        Icon(
+//                            imageVector = AppleIcon,
+//                            contentDescription = null,
+//                            tint = MaterialTheme.colorScheme.onSurface,
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//                    },
+//                    onClick = onApple
+//                )
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(

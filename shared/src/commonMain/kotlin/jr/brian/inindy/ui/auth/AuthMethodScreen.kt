@@ -69,12 +69,12 @@ fun AuthMethodScreen(
                     )
                 )
                 Spacer(modifier = Modifier.height(32.dp))
-                MethodOption(
-                    label = stringResource(Res.string.signup_with_phone),
-                    description = "We'll text you a 6-digit code",
-                    onClick = onPhone
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+//                MethodOption(
+//                    label = stringResource(Res.string.signup_with_phone),
+//                    description = "We'll text you a 6-digit code",
+//                    onClick = onPhone
+//                )
+//                Spacer(modifier = Modifier.height(12.dp))
                 MethodOption(
                     label = stringResource(Res.string.signup_with_email),
                     description = "We'll email you a magic link",

@@ -41,7 +41,7 @@
     <string name="explore_filter_group_search_empty">No groups match that search</string>
     <string name="explore_filter_check_cd">Active filter</string>
     <string name="explore_filter_recent_group_icon_cd">Recent group</string>
-    <string name="explore_feed_empty_all">Nothing happening nearby yet — be the first to post!</string>
+    <string name="explore_feed_empty_all">Nothing happening nearby yet... be the first to post!</string>
     <string name="explore_feed_empty_neighborhood">No posts in your neighborhood yet</string>
     <string name="explore_feed_empty_group">No posts in this group yet</string>
 

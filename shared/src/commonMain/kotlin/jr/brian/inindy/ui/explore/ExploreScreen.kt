@@ -64,6 +64,9 @@ fun ExploreScreen(
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
+    LaunchedEffect(Unit) {
+        onIntent(ExploreIntent.Refresh)
+    }
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > 0) {
             onIntent(ExploreIntent.Refresh)

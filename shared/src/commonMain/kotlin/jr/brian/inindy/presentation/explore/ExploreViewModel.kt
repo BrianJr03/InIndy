@@ -7,6 +7,7 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.domain.model.Group
 import jr.brian.inindy.domain.model.GroupRole
+import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.model.toBrandMarkText
@@ -22,7 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,9 +50,15 @@ class ExploreViewModel(
     private var refreshStartMs: Long? = null
     private var neighborhoodId: String = DEFAULT_NEIGHBORHOOD_ID
     private var currentUserId: String? = null
+    // Latest known viewer interests, kept in sync via observeUserInterests().
+    // Read by the feed emission handler to rank neighborhood/explore posts;
+    // empty until the first UserPreferences emission arrives (early emissions
+    // sort as recency-only, which is safe and matches the no-interests case).
+    private var currentInterests: Set<Interest> = emptySet()
 
     init {
         observeSearchQuery()
+        observeUserInterests()
         loadUserGroups()
         bootstrap()
     }
@@ -57,7 +66,6 @@ class ExploreViewModel(
     fun onIntent(intent: ExploreIntent) {
         when (intent) {
             ExploreIntent.Refresh -> {
-                println("[InIndy] ExploreViewModel — Refresh intent received")
                 refreshClearJob?.cancel()
                 refreshStartMs = currentTimeMillis()
                 _uiState.update { it.copy(isRefreshing = true) }
@@ -236,7 +244,17 @@ class ExploreViewModel(
                 _uiState.update { current ->
                     if (current.activeFilter != filter) return@update current
                     val nextFeed = result.fold(
-                        onSuccess = { ExploreUiState.FeedState.Success(it) },
+                        onSuccess = { posts ->
+                            // Rank the neighborhood/Explore feed by tag-overlap with the
+                            // viewer's interests; leave group feeds strictly recency-ordered.
+                            val ordered = when (filter) {
+                                is ExploreFilter.All,
+                                is ExploreFilter.Neighborhood ->
+                                    rankPostsByInterests(posts, currentInterests)
+                                is ExploreFilter.Group -> posts
+                            }
+                            ExploreUiState.FeedState.Success(ordered)
+                        },
                         onFailure = { e ->
                             if (e is CancellationException) return@update current
                             ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
@@ -247,6 +265,29 @@ class ExploreViewModel(
                 maybeScheduleRefreshClear()
             }
         }
+    }
+
+    // Stable sort: posts with more matching tags come first; ties keep incoming
+    // order, which the repository has already ordered by created_at DESC. An
+    // empty `interests` set makes every match count zero, so the stable sort is
+    // a no-op and recency wins — no special case needed.
+    private fun rankPostsByInterests(
+        posts: List<Post>,
+        interests: Set<Interest>
+    ): List<Post> = posts.sortedByDescending { post ->
+        post.tags.count { it in interests }
+    }
+
+    private fun observeUserInterests() {
+        userPreferencesStore.preferences
+            .map { prefs ->
+                prefs.interests
+                    .mapNotNull { name -> runCatching { Interest.valueOf(name) }.getOrNull() }
+                    .toSet()
+            }
+            .distinctUntilChanged()
+            .onEach { interests -> currentInterests = interests }
+            .launchIn(viewModelScope)
     }
 
     private fun maybeScheduleRefreshClear() {
