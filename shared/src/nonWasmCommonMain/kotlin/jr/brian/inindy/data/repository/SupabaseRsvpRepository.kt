@@ -17,7 +17,6 @@ class SupabaseRsvpRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
 ) : RsvpRepository {
-
     private val cache = mutableSetOf<String>()
     private val cacheMutex = Mutex()
 

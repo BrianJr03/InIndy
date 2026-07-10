@@ -76,6 +76,7 @@ fun ExploreScreen(
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > 0) {
             onIntent(ExploreIntent.Refresh)
+            listState.animateScrollToItem(0)
         }
     }
     Box(modifier = modifier.fillMaxSize()) {
