@@ -15,6 +15,7 @@ import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.AuthSessionState
 import jr.brian.inindy.domain.repository.RsvpRepository
+import jr.brian.inindy.util.appLog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -43,6 +44,8 @@ class SupabaseAuthRepository(
     private val rsvpRepository: RsvpRepository
 ) : AuthRepository {
 
+    private val log = appLog("SupabaseAuthRepository")
+
     override val sessionState: Flow<AuthSessionState> =
         supabase.auth.sessionStatus
             .map { status ->
@@ -70,10 +73,10 @@ class SupabaseAuthRepository(
 
     private suspend fun syncUserProfile(userId: String?) {
         if (userId == null) {
-            println("[InIndy] syncUserProfile — skipped, userId is null")
+            log.d { "syncUserProfile — skipped, userId is null" }
             return
         }
-        println("[InIndy] syncUserProfile — syncing for userId: $userId")
+        log.d { "syncUserProfile — syncing for userId: $userId" }
         try {
             // 1. Fetch user row from public.users
             val userRow = supabase.from("users")
@@ -83,7 +86,7 @@ class SupabaseAuthRepository(
                 .decodeSingleOrNull<UserRow>()
 
             if (userRow == null) {
-                println("[InIndy] syncUserProfile — no public.users row found for $userId")
+                log.w { "syncUserProfile — no public.users row found for $userId" }
                 // User exists in auth.users but not public.users yet
                 // The trigger should have created it — may be a timing issue
                 userPreferencesStore.saveUserId(userId)
@@ -91,7 +94,7 @@ class SupabaseAuthRepository(
                 return
             }
 
-            println("[InIndy] syncUserProfile — found user: ${userRow.fullName}, neighborhood: ${userRow.neighborhoodId}")
+            log.d { "syncUserProfile — found user: ${userRow.fullName}, neighborhood: ${userRow.neighborhoodId}" }
 
             // 2. Fetch interests
             val interests = supabase.from("user_interests")
@@ -103,7 +106,7 @@ class SupabaseAuthRepository(
                     runCatching { Interest.valueOf(row.interest) }.getOrNull()
                 }
 
-            println("[InIndy] syncUserProfile — interests: ${interests.map { it.name }}")
+            log.d { "syncUserProfile — interests: ${interests.map { it.name }}" }
 
             // 3. Fetch neighborhood name if neighborhoodId is set
             val neighborhoodName = userRow.neighborhoodId?.let { nid ->
@@ -146,11 +149,10 @@ class SupabaseAuthRepository(
             // the correct toggle state immediately on first feed render.
             rsvpRepository.getRsvpdPostIds(userId)
 
-            println("[InIndy] syncUserProfile complete — onboardingComplete: $isComplete")
+            log.i { "syncUserProfile complete — onboardingComplete: $isComplete" }
 
         } catch (e: Exception) {
-            println("[InIndy] syncUserProfile FAILED: ${e::class.simpleName}: ${e.message}")
-            e.printStackTrace()
+            log.e(e) { "syncUserProfile FAILED" }
             // Don't crash — fall back to whatever is already in UserPreferencesStore
         }
     }

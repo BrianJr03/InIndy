@@ -14,6 +14,7 @@ import jr.brian.inindy.domain.model.toBrandMarkText
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
+import jr.brian.inindy.util.appLog
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -38,6 +39,8 @@ class ExploreViewModel(
     private val currentUserProvider: CurrentUserProvider,
     private val userPreferencesStore: UserPreferencesStore
 ) : ViewModel() {
+    private val log = appLog("ExploreViewModel")
+
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
@@ -120,7 +123,7 @@ class ExploreViewModel(
             rsvpPost(postId).onSuccess {
                 mutateFeedRsvp(postId, delta = 1, me = currentUserAsAttendee())
             }.onFailure { e ->
-                println("[InIndy] ExploreViewModel rsvp FAILED — postId: $postId, error: ${e.message}")
+                log.e(e) { "rsvp FAILED — postId: $postId" }
             }
         }
     }
@@ -131,7 +134,7 @@ class ExploreViewModel(
             rsvpPost.unRsvp(postId).onSuccess {
                 mutateFeedRsvp(postId, delta = -1, me = currentUserAsAttendee())
             }.onFailure { e ->
-                println("[InIndy] ExploreViewModel unRsvp FAILED — postId: $postId, error: ${e.message}")
+                log.e(e) { "unRsvp FAILED — postId: $postId" }
             }
         }
     }
@@ -172,7 +175,7 @@ class ExploreViewModel(
             neighborhoodId = prefs.neighborhoodId ?: DEFAULT_NEIGHBORHOOD_ID
             currentUserId = prefs.userId
             val neighborhoodName = prefs.neighborhoodName ?: DEFAULT_NEIGHBORHOOD_NAME
-            println("[InIndy] ExploreViewModel bootstrap — neighborhoodId: $neighborhoodId, neighborhoodName: $neighborhoodName, loadFeed: $loadFeed")
+            log.d { "bootstrap — neighborhoodId: $neighborhoodId, neighborhoodName: $neighborhoodName, loadFeed: $loadFeed" }
             _uiState.update {
                 it.copy(
                     neighborhoodName = neighborhoodName,
@@ -205,7 +208,7 @@ class ExploreViewModel(
     }
 
     private fun applyFilter(filter: ExploreFilter) {
-        println("[InIndy] ExploreViewModel applyFilter — filter: $filter")
+        log.d { "applyFilter — filter: $filter" }
         // A filter switch supersedes any in-flight refresh; make sure the spinner doesn't linger.
         refreshClearJob?.cancel()
         refreshStartMs = null
@@ -228,7 +231,7 @@ class ExploreViewModel(
     private fun loadFeed() {
         feedJob?.cancel()
         val filter = _uiState.value.activeFilter
-        println("[InIndy] ExploreViewModel loadFeed — filter: $filter, neighborhoodId: $neighborhoodId")
+        log.d { "loadFeed — filter: $filter, neighborhoodId: $neighborhoodId" }
         val feedFlow = when (filter) {
             is ExploreFilter.All,
             is ExploreFilter.Neighborhood -> postRepository.observeNeighborhoodOnlyFeed(neighborhoodId)
@@ -238,11 +241,11 @@ class ExploreViewModel(
             feedFlow.collect { result ->
                 result
                     .onSuccess { posts ->
-                        println("[InIndy] ExploreViewModel feed emission — ${posts.size} posts for filter: $filter")
+                        log.d { "feed emission — ${posts.size} posts for filter: $filter" }
                     }
                     .onFailure { e ->
                         if (e is CancellationException) return@collect
-                        println("[InIndy] ExploreViewModel feed emission FAILED — filter: $filter, error: ${e::class.simpleName}: ${e.message}")
+                        log.e(e) { "feed emission FAILED — filter: $filter" }
                     }
                 _uiState.update { current ->
                     if (current.activeFilter != filter) return@update current
@@ -373,11 +376,11 @@ class ExploreViewModel(
     private fun runSearch(query: String) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            println("[InIndy] ExploreViewModel runSearch — query: $query")
+            log.d { "runSearch — query: $query" }
             val result = groupRepository.searchGroups(query)
             result
-                .onSuccess { groups -> println("[InIndy] ExploreViewModel runSearch SUCCESS — ${groups.size} groups for query: $query") }
-                .onFailure { e -> println("[InIndy] ExploreViewModel runSearch FAILED — ${e.message}") }
+                .onSuccess { groups -> log.i { "runSearch SUCCESS — ${groups.size} groups for query: $query" } }
+                .onFailure { e -> log.e(e) { "runSearch FAILED" } }
             _uiState.update { current ->
                 if (current.groupSearchQuery != query) return@update current
                 current.copy(
@@ -390,11 +393,11 @@ class ExploreViewModel(
 
     private fun loadUserGroups() {
         viewModelScope.launch {
-            println("[InIndy] ExploreViewModel loadUserGroups — loading")
+            log.d { "loadUserGroups — loading" }
             val result = groupRepository.getUserGroups()
             result
-                .onSuccess { groups -> println("[InIndy] ExploreViewModel loadUserGroups SUCCESS — ${groups.size} groups") }
-                .onFailure { e -> println("[InIndy] ExploreViewModel loadUserGroups FAILED — ${e.message}") }
+                .onSuccess { groups -> log.i { "loadUserGroups SUCCESS — ${groups.size} groups" } }
+                .onFailure { e -> log.e(e) { "loadUserGroups FAILED" } }
             _uiState.update { it.copy(userGroups = result.getOrDefault(emptyList())) }
         }
     }

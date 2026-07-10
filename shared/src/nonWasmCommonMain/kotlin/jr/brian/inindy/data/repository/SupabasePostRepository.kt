@@ -22,6 +22,7 @@ import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.PostDeletedException
 import jr.brian.inindy.domain.repository.PostRepository
+import jr.brian.inindy.util.appLog
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,7 @@ class SupabasePostRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
 ) : PostRepository {
+    private val log = appLog("SupabasePostRepository")
 
     private val sharedScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val sharedFlows = mutableMapOf<String, SharedFlow<List<Post>>>()
@@ -55,7 +57,7 @@ class SupabasePostRepository(
     override fun observeUserPosts(): Flow<List<Post>> = flow {
         val userId = currentUserProvider.get().userId
             ?: run {
-                println("[InIndy] observeUserPosts — no signed-in user, emitting empty list")
+                log.d { "observeUserPosts — no signed-in user, emitting empty list" }
                 emit(emptyList())
                 return@flow
             }
@@ -77,11 +79,11 @@ class SupabasePostRepository(
     // Database → Replication → enable posts
     // Without this the flow never updates and the UI only refreshes on app restart
     private fun buildUserPostsFlow(userId: String): Flow<List<Post>> = channelFlow {
-        println("[InIndy] observeUserPosts — subscribing for userId: $userId")
+        log.d { "observeUserPosts — subscribing for userId: $userId" }
 
         suspend fun emitLatest() {
             val result = fetchUserPosts(userId)
-            println("[InIndy] observeUserPosts — emitting ${result.getOrElse { emptyList() }.size} posts")
+            log.d { "observeUserPosts — emitting ${result.getOrElse { emptyList() }.size} posts" }
             send(result.getOrElse { emptyList() })
         }
 
@@ -96,15 +98,15 @@ class SupabasePostRepository(
             changes.collect { action ->
                 when (action) {
                     is PostgresAction.Insert -> {
-                        println("[InIndy] observeUserPosts — INSERT, re-fetching")
+                        log.d { "observeUserPosts — INSERT, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Update -> {
-                        println("[InIndy] observeUserPosts — UPDATE, re-fetching")
+                        log.d { "observeUserPosts — UPDATE, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Delete -> {
-                        println("[InIndy] observeUserPosts — DELETE, re-fetching")
+                        log.d { "observeUserPosts — DELETE, re-fetching" }
                         emitLatest()
                     }
                     else -> {}
@@ -125,20 +127,20 @@ class SupabasePostRepository(
     override suspend fun getUserPosts(): Result<List<Post>> = runCatching {
         val userId = currentUserProvider.get().userId
             ?: error("No signed-in user")
-        println("[InIndy] getUserPosts — fetching for userId: $userId")
+        log.d { "getUserPosts — fetching for userId: $userId" }
         val posts = fetchUserPosts(userId).getOrThrow()
-        println("[InIndy] getUserPosts — fetched ${posts.size} posts")
+        log.d { "getUserPosts — fetched ${posts.size} posts" }
         posts
     }
 
     override suspend fun getPostById(postId: String): Result<Post> = runCatching {
-        println("[InIndy] getPostById — postId: $postId")
+        log.d { "getPostById — postId: $postId" }
         val post = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("id", postId) }
             order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
             limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeSingle<PostDto>().toDomain()
-        println("[InIndy] getPostById — found post: ${post.id} with ${post.images.size} images")
+        log.d { "getPostById — found post: ${post.id} with ${post.images.size} images" }
         post
     }
 
@@ -147,32 +149,32 @@ class SupabasePostRepository(
         val userId = prefs.userId ?: error("No signed-in user")
         val neighborhoodId = prefs.neighborhoodId ?: error("No neighborhood selected")
 
-        println("[InIndy] createPost START — userId: $userId, neighborhoodId: $neighborhoodId")
-        println("[InIndy] createPost — description: ${request.description.take(50)}")
-        println("[InIndy] createPost — images: ${request.imageUris.size}, tags: ${request.tags.size}")
+        log.i { "createPost START — userId: $userId, neighborhoodId: $neighborhoodId" }
+        log.d { "createPost — description: ${request.description.take(50)}" }
+        log.d { "createPost — images: ${request.imageUris.size}, tags: ${request.tags.size}" }
 
         val cdnUrls = request.imageUris
 
         // ── Insert post ──────────────────────────────────────────────────
         val dto = request.toDto(userId = userId, neighborhoodId = neighborhoodId)
-        println("[InIndy] createPost — inserting post row into Supabase")
+        log.d { "createPost — inserting post row into Supabase" }
 
         val inserted = supabase.from(POSTS_TABLE)
             .insert(dto) { select(Columns.list("id")) }
             .decodeSingle<InsertedPostId>()
 
-        println("[InIndy] createPost — post inserted with id: ${inserted.id}")
+        log.i { "createPost — post inserted with id: ${inserted.id}" }
 
         // ── Insert post_images ───────────────────────────────────────────
         if (cdnUrls.isNotEmpty()) {
             val imageRows = cdnUrls.mapIndexed { index, url ->
                 PostImageDto(postId = inserted.id, storageUrl = url, sortOrder = index)
             }
-            println("[InIndy] createPost — inserting ${imageRows.size} post_images rows")
+            log.d { "createPost — inserting ${imageRows.size} post_images rows" }
             supabase.from(POST_IMAGES_TABLE).insert(imageRows)
-            println("[InIndy] createPost — post_images inserted for post ${inserted.id}")
+            log.d { "createPost — post_images inserted for post ${inserted.id}" }
         } else {
-            println("[InIndy] createPost — no images to insert")
+            log.d { "createPost — no images to insert" }
         }
 
         // ── Insert post_tags ─────────────────────────────────────────────
@@ -180,52 +182,51 @@ class SupabasePostRepository(
             val tagRows = request.tags.map { interest ->
                 PostTagDto(postId = inserted.id, tag = interest.name)
             }
-            println("[InIndy] createPost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}")
+            log.d { "createPost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}" }
             supabase.from(POST_TAGS_TABLE).insert(tagRows)
-            println("[InIndy] createPost — post_tags inserted for post ${inserted.id}")
+            log.d { "createPost — post_tags inserted for post ${inserted.id}" }
         } else {
-            println("[InIndy] createPost — no tags to insert")
+            log.d { "createPost — no tags to insert" }
         }
 
         // ── Re-fetch with joins ──────────────────────────────────────────
-        println("[InIndy] createPost — re-fetching post with joins")
+        log.d { "createPost — re-fetching post with joins" }
         val finalPost = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("id", inserted.id) }
             order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
             limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeSingle<PostDto>().toDomain()
 
-        println("[InIndy] createPost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}")
+        log.i { "createPost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}" }
         finalPost
     }.onFailure { e ->
-        println("[InIndy] createPost FAILED: ${e::class.simpleName}: ${e.message}")
-        e.printStackTrace()
+        log.e(e) { "createPost FAILED" }
     }
 
     override suspend fun updatePost(
         postId: String,
         request: CreatePostRequest
     ): Result<Post> = runCatching {
-        println("[InIndy] updatePost START — postId: $postId")
-        println("[InIndy] updatePost — description: ${request.description.take(50)}")
-        println("[InIndy] updatePost — images: ${request.imageUris.size}, tags: ${request.tags.size}")
+        log.i { "updatePost START — postId: $postId" }
+        log.d { "updatePost — description: ${request.description.take(50)}" }
+        log.d { "updatePost — images: ${request.imageUris.size}, tags: ${request.tags.size}" }
 
         val cdnUrls = request.imageUris
 
         // ── Update posts row ────────────────────────────────────────────
         val updateDto = request.toUpdateDto()
-        println("[InIndy] updatePost — updating posts row")
+        log.d { "updatePost — updating posts row" }
         supabase.from(POSTS_TABLE).update(updateDto) {
             filter { eq("id", postId) }
         }
-        println("[InIndy] updatePost — posts row updated")
+        log.d { "updatePost — posts row updated" }
 
         // ── Reconcile post_images: delete-then-insert ───────────────────
         // Max 3 images per post, so wiping and re-inserting is simpler and
         // correct compared to diffing. Fails here bubble up via runCatching;
         // if RLS blocks the DELETE the error will name post_images and the
         // ViewModel surfaces submitError to the user.
-        println("[InIndy] updatePost — clearing existing post_images")
+        log.d { "updatePost — clearing existing post_images" }
         supabase.from(POST_IMAGES_TABLE).delete {
             filter { eq("post_id", postId) }
         }
@@ -233,12 +234,12 @@ class SupabasePostRepository(
             val imageRows = cdnUrls.mapIndexed { index, url ->
                 PostImageDto(postId = postId, storageUrl = url, sortOrder = index)
             }
-            println("[InIndy] updatePost — inserting ${imageRows.size} post_images rows")
+            log.d { "updatePost — inserting ${imageRows.size} post_images rows" }
             supabase.from(POST_IMAGES_TABLE).insert(imageRows)
         }
 
         // ── Reconcile post_tags: delete-then-insert ─────────────────────
-        println("[InIndy] updatePost — clearing existing post_tags")
+        log.d { "updatePost — clearing existing post_tags" }
         supabase.from(POST_TAGS_TABLE).delete {
             filter { eq("post_id", postId) }
         }
@@ -246,31 +247,30 @@ class SupabasePostRepository(
             val tagRows = request.tags.map { interest ->
                 PostTagDto(postId = postId, tag = interest.name)
             }
-            println("[InIndy] updatePost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}")
+            log.d { "updatePost — inserting ${tagRows.size} post_tags rows: ${request.tags.map { it.name }}" }
             supabase.from(POST_TAGS_TABLE).insert(tagRows)
         }
 
         // ── Re-fetch with joins ─────────────────────────────────────────
-        println("[InIndy] updatePost — re-fetching post with joins")
+        log.d { "updatePost — re-fetching post with joins" }
         val finalPost = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("id", postId) }
             order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
             limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeSingle<PostDto>().toDomain()
 
-        println("[InIndy] updatePost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}")
+        log.i { "updatePost COMPLETE — id: ${finalPost.id}, images: ${finalPost.images.size}, tags: ${finalPost.tags.size}" }
         finalPost
     }.onFailure { e ->
-        println("[InIndy] updatePost FAILED: ${e::class.simpleName}: ${e.message}")
-        e.printStackTrace()
+        log.e(e) { "updatePost FAILED" }
     }
 
     override suspend fun deletePost(postId: String): Result<Unit> = runCatching {
-        println("[InIndy] deletePost — postId: $postId")
+        log.d { "deletePost — postId: $postId" }
         supabase.from(POSTS_TABLE).delete {
             filter { eq("id", postId) }
         }
-        println("[InIndy] deletePost — success for postId: $postId")
+        log.i { "deletePost — success for postId: $postId" }
     }
 
     // ── Realtime feed observers ──────────────────────────────────────────────
@@ -285,7 +285,7 @@ class SupabasePostRepository(
 
     override fun observeNeighborhoodOnlyFeed(neighborhoodId: String): Flow<Result<List<Post>>> =
         channelFlow {
-            println("[InIndy] observeNeighborhoodOnlyFeed — subscribing for neighborhoodId: $neighborhoodId")
+            log.d { "observeNeighborhoodOnlyFeed — subscribing for neighborhoodId: $neighborhoodId" }
 
             suspend fun emitLatest() {
                 send(getNeighborhoodOnlyFeed(neighborhoodId))
@@ -302,15 +302,15 @@ class SupabasePostRepository(
                 changes.collect { action ->
                     when (action) {
                         is PostgresAction.Insert -> {
-                            println("[InIndy] observeNeighborhoodOnlyFeed — INSERT, re-fetching")
+                            log.d { "observeNeighborhoodOnlyFeed — INSERT, re-fetching" }
                             emitLatest()
                         }
                         is PostgresAction.Update -> {
-                            println("[InIndy] observeNeighborhoodOnlyFeed — UPDATE, re-fetching")
+                            log.d { "observeNeighborhoodOnlyFeed — UPDATE, re-fetching" }
                             emitLatest()
                         }
                         is PostgresAction.Delete -> {
-                            println("[InIndy] observeNeighborhoodOnlyFeed — DELETE, re-fetching")
+                            log.d { "observeNeighborhoodOnlyFeed — DELETE, re-fetching" }
                             emitLatest()
                         }
                         else -> {}
@@ -329,7 +329,7 @@ class SupabasePostRepository(
         }
 
     override fun observePost(postId: String): Flow<Result<Post>> = channelFlow {
-        println("[InIndy] observePost — subscribing for postId: $postId")
+        log.d { "observePost — subscribing for postId: $postId" }
 
         suspend fun emitLatest() {
             send(getPostById(postId))
@@ -346,15 +346,15 @@ class SupabasePostRepository(
             changes.collect { action ->
                 when (action) {
                     is PostgresAction.Insert -> {
-                        println("[InIndy] observePost — INSERT, re-fetching")
+                        log.d { "observePost — INSERT, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Update -> {
-                        println("[InIndy] observePost — UPDATE, re-fetching")
+                        log.d { "observePost — UPDATE, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Delete -> {
-                        println("[InIndy] observePost — DELETE, emitting failure")
+                        log.d { "observePost — DELETE, emitting failure" }
                         send(Result.failure(PostDeletedException()))
                     }
                     else -> {}
@@ -373,7 +373,7 @@ class SupabasePostRepository(
     }
 
     override fun observeGroupFeed(groupId: String): Flow<Result<List<Post>>> = channelFlow {
-        println("[InIndy] observeGroupFeed — subscribing for groupId: $groupId")
+        log.d { "observeGroupFeed — subscribing for groupId: $groupId" }
 
         suspend fun emitLatest() {
             send(getGroupFeed(groupId))
@@ -390,15 +390,15 @@ class SupabasePostRepository(
             changes.collect { action ->
                 when (action) {
                     is PostgresAction.Insert -> {
-                        println("[InIndy] observeGroupFeed — INSERT, re-fetching")
+                        log.d { "observeGroupFeed — INSERT, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Update -> {
-                        println("[InIndy] observeGroupFeed — UPDATE, re-fetching")
+                        log.d { "observeGroupFeed — UPDATE, re-fetching" }
                         emitLatest()
                     }
                     is PostgresAction.Delete -> {
-                        println("[InIndy] observeGroupFeed — DELETE, re-fetching")
+                        log.d { "observeGroupFeed — DELETE, re-fetching" }
                         emitLatest()
                     }
                     else -> {}
@@ -418,7 +418,7 @@ class SupabasePostRepository(
 
     override suspend fun getNeighborhoodFeed(neighborhoodId: String): Result<List<Post>> =
         runCatching {
-            println("[InIndy] getNeighborhoodFeed — neighborhoodId: $neighborhoodId")
+            log.d { "getNeighborhoodFeed — neighborhoodId: $neighborhoodId" }
             val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
                 filter { eq("neighborhood_id", neighborhoodId) }
                 order("created_at", order = Order.DESCENDING)
@@ -426,13 +426,13 @@ class SupabasePostRepository(
                 order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
                 limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
             }.decodeList<PostDto>().map { it.toDomain() }
-            println("[InIndy] getNeighborhoodFeed — loaded ${posts.size} posts")
+            log.d { "getNeighborhoodFeed — loaded ${posts.size} posts" }
             posts
         }
 
     override suspend fun getNeighborhoodOnlyFeed(neighborhoodId: String): Result<List<Post>> =
         runCatching {
-            println("[InIndy] getNeighborhoodOnlyFeed — neighborhoodId: $neighborhoodId")
+            log.d { "getNeighborhoodOnlyFeed — neighborhoodId: $neighborhoodId" }
             val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
                 filter {
                     eq("neighborhood_id", neighborhoodId)
@@ -443,24 +443,24 @@ class SupabasePostRepository(
                 order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
                 limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
             }.decodeList<PostDto>().map { it.toDomain() }
-            println("[InIndy] getNeighborhoodOnlyFeed — loaded ${posts.size} posts")
+            log.d { "getNeighborhoodOnlyFeed — loaded ${posts.size} posts" }
             posts
         }
 
     override suspend fun getGroupFeed(groupId: String): Result<List<Post>> = runCatching {
-        println("[InIndy] getGroupFeed — groupId: $groupId")
+        log.d { "getGroupFeed — groupId: $groupId" }
         val posts = supabase.from(POSTS_TABLE).select(JOINED_COLUMNS) {
             filter { eq("group_id", groupId) }
             order("created_at", order = Order.DESCENDING)
             order("created_at", order = Order.ASCENDING, referencedTable = RSVPS_TABLE)
             limit(count = ATTENDEE_PREVIEW_LIMIT, referencedTable = RSVPS_TABLE)
         }.decodeList<PostDto>().map { it.toDomain() }
-        println("[InIndy] getGroupFeed — loaded ${posts.size} posts")
+        log.d { "getGroupFeed — loaded ${posts.size} posts" }
         posts
     }
 
     override suspend fun getPostAttendees(postId: String): Result<List<User>> = runCatching {
-        println("[InIndy] getPostAttendees — postId: $postId")
+        log.d { "getPostAttendees — postId: $postId" }
         val attendees = supabase.from(RSVPS_TABLE)
             .select(ATTENDEES_COLUMNS) {
                 filter {
@@ -471,10 +471,10 @@ class SupabasePostRepository(
             }
             .decodeList<RsvpWithUserDto>()
             .map { it.user.toDomain() }
-        println("[InIndy] getPostAttendees — loaded ${attendees.size} attendees")
+        log.d { "getPostAttendees — loaded ${attendees.size} attendees" }
         attendees
     }.onFailure { e ->
-        println("[InIndy] getPostAttendees FAILED — postId: $postId, error: ${e::class.simpleName}: ${e.message}")
+        log.e(e) { "getPostAttendees FAILED — postId: $postId" }
     }
 
     private suspend fun fetchUserPosts(userId: String): Result<List<Post>> = runCatching {

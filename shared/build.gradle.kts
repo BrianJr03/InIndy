@@ -154,6 +154,9 @@ kotlin {
             // Image loading
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)
+            // Logging — Kermit is imported only by jr.brian.inindy.util.AppLog;
+            // the rest of the codebase logs via the facade in that file.
+            implementation(libs.kermit)
             // Coroutines & Serialization
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)

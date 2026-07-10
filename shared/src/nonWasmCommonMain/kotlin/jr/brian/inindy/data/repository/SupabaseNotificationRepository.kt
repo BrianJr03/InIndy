@@ -15,6 +15,7 @@ import jr.brian.inindy.data.remote.notification.toDomain
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.Notification
 import jr.brian.inindy.domain.repository.NotificationRepository
+import jr.brian.inindy.util.appLog
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.NonCancellable
@@ -34,10 +35,12 @@ class SupabaseNotificationRepository(
     private val currentUserProvider: CurrentUserProvider
 ) : NotificationRepository {
 
+    private val log = appLog("SupabaseNotificationRepository")
+
     override fun observeNotifications(): Flow<Result<List<Notification>>> = channelFlow {
         val userId = currentUserProvider.get().userId
         if (userId == null) {
-            println("[InIndy] observeNotifications — no signed-in user, emitting empty")
+            log.d { "observeNotifications — no signed-in user, emitting empty" }
             send(Result.success(emptyList()))
             return@channelFlow
         }

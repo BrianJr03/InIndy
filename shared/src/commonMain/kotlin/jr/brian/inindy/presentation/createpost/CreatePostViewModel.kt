@@ -15,6 +15,7 @@ import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_IMAGES
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_TAGS
+import jr.brian.inindy.util.appLog
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -37,6 +38,8 @@ class CreatePostViewModel(
     private val userPreferencesStore: UserPreferencesStore,
     private val postId: String? = null
 ) : ViewModel() {
+
+    private val log = appLog("CreatePostViewModel")
 
     private val _uiState = MutableStateFlow(
         CreatePostUiState(
@@ -71,7 +74,7 @@ class CreatePostViewModel(
                     }
                 }
                 .onFailure { e ->
-                    println("[InIndy] CreatePostViewModel getUserGroups FAILED — ${e.message}")
+                    log.e(e) { "getUserGroups FAILED" }
                 }
         }
         userPreferencesStore.preferences
@@ -133,7 +136,7 @@ class CreatePostViewModel(
                     )
                 }
                 .onFailure { e ->
-                    println("[InIndy] CreatePostViewModel loadForEdit FAILED — postId: $postId, error: ${e.message}")
+                    log.e(e) { "loadForEdit FAILED — postId: $postId" }
                     _uiState.value = _uiState.value.copy(
                         isEditPrefillLoading = false,
                         submitError = "Couldn't load post to edit — try again"
@@ -149,13 +152,13 @@ class CreatePostViewModel(
     }
 
     fun addImage(uri: String) {
-        println("[InIndy] addImage called with: ${uri.take(80)}")
+        log.d { "addImage called with: ${uri.take(80)}" }
         val current = _uiState.value
         if (current.images.size >= MAX_IMAGES) return
         if (uri in current.images) return
         // Reject CDN URLs — only local device URIs allowed
         if (uri.startsWith("http")) {
-            println("[InIndy] addImage rejected non-local URI: $uri")
+            log.w { "addImage rejected non-local URI: $uri" }
             return
         }
         _uiState.value = current.copy(

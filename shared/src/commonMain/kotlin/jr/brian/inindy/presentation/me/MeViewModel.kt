@@ -8,6 +8,7 @@ import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.AttendanceRepository
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
+import jr.brian.inindy.util.appLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,8 @@ class MeViewModel(
     private val attendanceRepository: AttendanceRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
+    private val log = appLog("MeViewModel")
+
     private val _uiState = MutableStateFlow(MeUiState())
     val uiState: StateFlow<MeUiState> = _uiState.asStateFlow()
 
@@ -121,7 +124,7 @@ class MeViewModel(
                     }
                 }
                 .onFailure { e ->
-                    println("[InIndy] MeViewModel deletePost FAILED — postId: $postId, error: ${e.message}")
+                    log.e(e) { "deletePost FAILED — postId: $postId" }
                 }
         }
     }

@@ -37,6 +37,11 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    buildFeatures {
+        // Needed so BuildConfig.DEBUG is generated for InIndyApplication to
+        // forward into the shared logger's isDebugBuild.
+        buildConfig = true
+    }
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false

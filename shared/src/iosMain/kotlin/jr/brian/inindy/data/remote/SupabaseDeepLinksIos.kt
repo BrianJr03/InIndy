@@ -1,7 +1,9 @@
 package jr.brian.inindy.data.remote
 
 import io.github.jan.supabase.auth.auth
+import jr.brian.inindy.util.appLog
 
+private val log = appLog("SupabaseDeepLinksIos")
 private var lastHandledUrl: String? = null
 
 /**
@@ -13,14 +15,13 @@ private var lastHandledUrl: String? = null
  */
 suspend fun handleSupabaseDeepLink(url: String) {
     if (url == lastHandledUrl) {
-        println("[InIndy] Deep link ignored (duplicate): $url")
+        log.d { "Deep link ignored (duplicate): $url" }
         return
     }
     lastHandledUrl = url
     runCatching { SupabaseClientProvider.client.auth.exchangeCodeForSession(url) }
-        .onSuccess { println("[InIndy] Deep link exchanged successfully: $url") }
+        .onSuccess { log.i { "Deep link exchanged successfully: $url" } }
         .onFailure { e ->
-            println("[InIndy] Deep link failed: ${e.message}")
-            println("[InIndy] URL: $url")
+            log.e(e) { "Deep link failed — url: $url" }
         }
 }

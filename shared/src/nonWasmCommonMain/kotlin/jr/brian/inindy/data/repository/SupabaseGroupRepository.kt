@@ -22,6 +22,7 @@ import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.MediaRepository
 import jr.brian.inindy.domain.repository.PostRepository
+import jr.brian.inindy.util.appLog
 import jr.brian.inindy.util.currentTimeMillis
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -53,6 +54,7 @@ class SupabaseGroupRepository(
     private val postRepository: PostRepository,
     private val mediaRepository: MediaRepository
 ) : GroupRepository {
+    private val log = appLog("SupabaseGroupRepository")
     private val sharedScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val sharedFlows = mutableMapOf<String, SharedFlow<List<Group>>>()
     private val sharedFlowsMutex = Mutex()
@@ -225,7 +227,7 @@ class SupabaseGroupRepository(
             .decodeList<GroupInviteDto>()
             .map { dto ->
                 val parsedExpiresAt = parseIso8601UtcSafe(dto.expiresAt)
-                println("[InIndy] getPendingInvites — raw expiresAt: ${dto.expiresAt}, parsed: $parsedExpiresAt, now: $now")
+                log.d { "getPendingInvites — raw expiresAt: ${dto.expiresAt}, parsed: $parsedExpiresAt, now: $now" }
                 GroupInvite(
                     id = dto.id,
                     groupId = dto.groupId,
@@ -301,7 +303,7 @@ class SupabaseGroupRepository(
             }
             .decodeSingleOrNull<RoleRow>() != null
 
-        println("[InIndy] joinGroupByToken — alreadyMember: $alreadyMember, userId: $userId, groupId: ${invite.groupId}")
+        log.d { "joinGroupByToken — alreadyMember: $alreadyMember, userId: $userId, groupId: ${invite.groupId}" }
 
         if (!alreadyMember) {
             supabase.from(GROUP_MEMBERS_TABLE).upsert(
@@ -330,21 +332,21 @@ class SupabaseGroupRepository(
 
     private suspend fun fetchValidInvite(token: String): GroupInviteDto {
         val currentUser = supabase.auth.currentUserOrNull()
-        println("[InIndy] fetchValidInvite — current user: ${currentUser?.id}")
-        println("[InIndy] fetchValidInvite — token: $token")
+        log.d { "fetchValidInvite — current user: ${currentUser?.id}" }
+        log.d { "fetchValidInvite — token: $token" }
 
         val response = supabase.from(GROUP_INVITES_TABLE)
             .select { filter { eq("token", token) } }
 
-        println("[InIndy] fetchValidInvite — raw response: ${response.data}")
+        log.d { "fetchValidInvite — raw response: ${response.data}" }
 
         val invite = response.decodeSingleOrNull<GroupInviteDto>()
-        println("[InIndy] fetchValidInvite — decoded invite: $invite")
+        log.d { "fetchValidInvite — decoded invite: $invite" }
 
         if (invite == null) throw IllegalStateException("Invite not found")
         val expiresAtMs = parseIso8601UtcSafe(invite.expiresAt)
         val nowMs = currentTimeMillis()
-        println("[InIndy] fetchValidInvite — expiresAt ms: $expiresAtMs, now ms: $nowMs, expired: ${expiresAtMs <= nowMs}")
+        log.d { "fetchValidInvite — expiresAt ms: $expiresAtMs, now ms: $nowMs, expired: ${expiresAtMs <= nowMs}" }
         if (expiresAtMs <= nowMs) throw IllegalStateException("Invite expired")
         return invite
     }

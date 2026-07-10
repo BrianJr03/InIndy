@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.net.toUri
+import jr.brian.inindy.util.appLog
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -13,6 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 actual class ImageCompressor(private val context: Context) {
+
+    private val log = appLog("ImageCompressor")
 
     actual suspend fun compressToFile(uri: String): String = withContext(Dispatchers.IO) {
         val parsed = uri.toUri()
@@ -32,8 +35,8 @@ actual class ImageCompressor(private val context: Context) {
             "${context.packageName}.fileprovider",
             outputFile
         ).toString()
-        println("[InIndy] compressToFile input: $uri")
-        println("[InIndy] compressToFile output: $result")
+        log.d { "compressToFile input: $uri" }
+        log.d { "compressToFile output: $result" }
         result
     }
 

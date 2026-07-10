@@ -6,6 +6,7 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.repository.RsvpRepository
+import jr.brian.inindy.util.appLog
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -17,11 +18,12 @@ class SupabaseRsvpRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
 ) : RsvpRepository {
+    private val log = appLog("SupabaseRsvpRepository")
     private val cache = mutableSetOf<String>()
     private val cacheMutex = Mutex()
 
     override suspend fun getRsvpdPostIds(userId: String): Result<Set<String>> = runCatching {
-        println("[InIndy] getRsvpdPostIds — userId: $userId")
+        log.d { "getRsvpdPostIds — userId: $userId" }
         val rows = supabase.from(RSVPS_TABLE)
             .select(Columns.list("post_id")) {
                 filter {
@@ -35,20 +37,20 @@ class SupabaseRsvpRepository(
             cache.clear()
             cache.addAll(ids)
         }
-        println("[InIndy] getRsvpdPostIds — cached ${ids.size} ids")
+        log.d { "getRsvpdPostIds — cached ${ids.size} ids" }
         ids
     }.onFailure { e ->
-        println("[InIndy] getRsvpdPostIds FAILED: ${e::class.simpleName}: ${e.message}")
+        log.e(e) { "getRsvpdPostIds FAILED" }
     }
 
     override suspend fun rsvp(postId: String): Result<Unit> {
         if (isRsvpd(postId)) {
-            println("[InIndy] rsvp — already RSVP'd for $postId, skipping")
+            log.d { "rsvp — already RSVP'd for $postId, skipping" }
             return Result.success(Unit)
         }
         return runCatching {
             val userId = currentUserProvider.get().userId ?: error("No signed-in user")
-            println("[InIndy] rsvp — postId: $postId, userId: $userId")
+            log.d { "rsvp — postId: $postId, userId: $userId" }
 
             // Cache-first guard above keeps the common case from racing the
             // posts.rsvp_count update. A unique violation from a stale-cache
@@ -64,20 +66,20 @@ class SupabaseRsvpRepository(
             )
 
             cacheMutex.withLock { cache.add(postId) }
-            println("[InIndy] rsvp — success for $postId")
+            log.i { "rsvp — success for $postId" }
         }.onFailure { e ->
-            println("[InIndy] rsvp FAILED — postId: $postId, error: ${e::class.simpleName}: ${e.message}")
+            log.e(e) { "rsvp FAILED — postId: $postId" }
         }
     }
 
     override suspend fun unRsvp(postId: String): Result<Unit> {
         if (!isRsvpd(postId)) {
-            println("[InIndy] unRsvp — not RSVP'd for $postId, skipping")
+            log.d { "unRsvp — not RSVP'd for $postId, skipping" }
             return Result.success(Unit)
         }
         return runCatching {
             val userId = currentUserProvider.get().userId ?: error("No signed-in user")
-            println("[InIndy] unRsvp — postId: $postId, userId: $userId")
+            log.d { "unRsvp — postId: $postId, userId: $userId" }
 
             supabase.from(RSVPS_TABLE).delete {
                 filter {
@@ -92,9 +94,9 @@ class SupabaseRsvpRepository(
             )
 
             cacheMutex.withLock { cache.remove(postId) }
-            println("[InIndy] unRsvp — success for $postId")
+            log.i { "unRsvp — success for $postId" }
         }.onFailure { e ->
-            println("[InIndy] unRsvp FAILED — postId: $postId, error: ${e::class.simpleName}: ${e.message}")
+            log.e(e) { "unRsvp FAILED — postId: $postId" }
         }
     }
 
