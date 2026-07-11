@@ -97,14 +97,14 @@ class SupabaseAuthRepository(
             log.d { "syncUserProfile — found user: ${userRow.fullName}, neighborhood: ${userRow.neighborhoodId}" }
 
             // 2. Fetch interests
-            val interests = supabase.from("user_interests")
-                .select {
-                    filter { eq("user_id", userId) }
-                }
-                .decodeList<UserInterestRow>()
-                .mapNotNull { row ->
-                    runCatching { Interest.valueOf(row.interest) }.getOrNull()
-                }
+            val interests = Interest.fromStorageNames(
+                supabase.from("user_interests")
+                    .select {
+                        filter { eq("user_id", userId) }
+                    }
+                    .decodeList<UserInterestRow>()
+                    .map { it.interest }
+            )
 
             log.d { "syncUserProfile — interests: ${interests.map { it.name }}" }
 
@@ -223,9 +223,7 @@ class SupabaseAuthRepository(
             avatarUrl = prefs.avatarUrl,
             phoneVerified = supabaseUser.phone != null,
             neighborhoodId = prefs.neighborhoodId,
-            interests = prefs.interests.mapNotNull { name ->
-                runCatching { Interest.valueOf(name) }.getOrNull()
-            }
+            interests = Interest.fromStorageNames(prefs.interests)
         )
     }
 

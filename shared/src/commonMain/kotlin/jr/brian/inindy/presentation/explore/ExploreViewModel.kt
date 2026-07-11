@@ -10,7 +10,11 @@ import jr.brian.inindy.domain.model.GroupRole
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.model.applyRsvpDelta
+import jr.brian.inindy.domain.model.isOwnedBy
+import jr.brian.inindy.domain.model.orderPostsFor
 import jr.brian.inindy.domain.model.toBrandMarkText
+import jr.brian.inindy.domain.model.withRsvpCountDelta
 import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
@@ -115,7 +119,7 @@ class ExploreViewModel(
 
     fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
 
-    fun isOwnPost(post: Post): Boolean = post.userId == currentUserId
+    fun isOwnPost(post: Post): Boolean = post.isOwnedBy(currentUserId)
 
     fun rsvp(postId: String) {
         if (rsvpPost.isRsvpd(postId)) return
@@ -144,22 +148,12 @@ class ExploreViewModel(
             val feed = current.feed as? ExploreUiState.FeedState.Success ?: return@update current
             val updated = feed.posts.map { post ->
                 if (post.id == postId) {
-                    post.copy(
-                        rsvpCount = (post.rsvpCount + delta).coerceAtLeast(0),
-                        previewAttendees = updatedAttendees(post.previewAttendees, me, delta)
+                    post.withRsvpCountDelta(delta).copy(
+                        previewAttendees = post.previewAttendees.applyRsvpDelta(delta, me)
                     )
                 } else post
             }
             current.copy(feed = ExploreUiState.FeedState.Success(updated))
-        }
-    }
-
-    private fun updatedAttendees(current: List<User>, me: User?, delta: Int): List<User> {
-        if (me == null) return current
-        return when {
-            delta > 0 && current.none { it.id == me.id } -> current + me
-            delta < 0 -> current.filterNot { it.id == me.id }
-            else -> current
         }
     }
 
@@ -251,7 +245,14 @@ class ExploreViewModel(
                     if (current.activeFilter != filter) return@update current
                     val nextFeed = result.fold(
                         onSuccess = { posts ->
-                            ExploreUiState.FeedState.Success(orderPostsFor(filter, posts))
+                            ExploreUiState.FeedState.Success(
+                                orderPostsFor(
+                                    filter = filter,
+                                    posts = posts,
+                                    interests = currentInterests,
+                                    interestOrderingEnabled = feedInterestOrderingEnabled
+                                )
+                            )
                         },
                         onFailure = { e ->
                             if (e is CancellationException) return@update current
@@ -265,39 +266,10 @@ class ExploreViewModel(
         }
     }
 
-    // Stable sort: posts with more matching tags come first; ties keep incoming
-    // order, which the repository has already ordered by created_at DESC. An
-    // empty `interests` set makes every match count zero, so the stable sort is
-    // a no-op and recency wins — no special case needed.
-    private fun rankPostsByInterests(
-        posts: List<Post>,
-        interests: Set<Interest>
-    ): List<Post> = posts.sortedByDescending { post ->
-        post.tags.count { it in interests }
-    }
-
-    // Single point that resolves "what order should this feed be in right now?"
-    // — the toggle gate + the "group feeds are recency-only" rule both live
-    // here so loadFeed's emission handler and the reactive re-order below stay
-    // in sync.
-    private fun orderPostsFor(filter: ExploreFilter, posts: List<Post>): List<Post> =
-        when (filter) {
-            is ExploreFilter.All,
-            is ExploreFilter.Neighborhood ->
-                if (feedInterestOrderingEnabled) {
-                    rankPostsByInterests(posts, currentInterests)
-                } else {
-                    posts
-                }
-            is ExploreFilter.Group -> posts
-        }
-
     private fun observeFeedOrderingPreferences() {
         userPreferencesStore.preferences
             .map { prefs ->
-                val interests = prefs.interests
-                    .mapNotNull { name -> runCatching { Interest.valueOf(name) }.getOrNull() }
-                    .toSet()
+                val interests = Interest.fromStorageNames(prefs.interests).toSet()
                 interests to prefs.feedInterestOrderingEnabled
             }
             .distinctUntilChanged()
@@ -310,7 +282,12 @@ class ExploreViewModel(
                 _uiState.update { current ->
                     val success = current.feed as? ExploreUiState.FeedState.Success
                         ?: return@update current
-                    val ordered = orderPostsFor(current.activeFilter, success.posts)
+                    val ordered = orderPostsFor(
+                        filter = current.activeFilter,
+                        posts = success.posts,
+                        interests = currentInterests,
+                        interestOrderingEnabled = feedInterestOrderingEnabled
+                    )
                     if (ordered === success.posts) current
                     else current.copy(feed = ExploreUiState.FeedState.Success(ordered))
                 }

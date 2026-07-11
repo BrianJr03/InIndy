@@ -3,21 +3,20 @@ package jr.brian.inindy.presentation.post
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.domain.CurrentUserProvider
-import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
-import jr.brian.inindy.domain.repository.ExploreRepository
+import jr.brian.inindy.domain.model.applyRsvpDelta
+import jr.brian.inindy.domain.model.isOwnedBy
+import jr.brian.inindy.domain.model.withRsvpCountDelta
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.domain.usecase.RsvpPostUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class PostDetailViewModel(
     private val postRepository: PostRepository,
-    private val exploreRepository: ExploreRepository,
     private val rsvpPost: RsvpPostUseCase,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
@@ -44,13 +43,13 @@ class PostDetailViewModel(
                         _uiState.value = if (previous != null) {
                             previous.copy(
                                 post = post,
-                                isHost = post.userId == currentUserId,
+                                isHost = post.isOwnedBy(currentUserId),
                                 isRsvpd = rsvpPost.isRsvpd(post.id)
                             )
                         } else {
                             PostDetailUiState.Success(
                                 post = post,
-                                isHost = post.userId == currentUserId,
+                                isHost = post.isOwnedBy(currentUserId),
                                 isRsvpd = rsvpPost.isRsvpd(post.id),
                                 attendeesLoading = true
                             )
@@ -69,7 +68,7 @@ class PostDetailViewModel(
                             _uiState.value = PostDetailUiState.Unavailable
                             return@fold
                         }
-                        val fallback = findInExplore(postId)
+                        val fallback = postRepository.getPostById(postId).getOrNull()
                         if (fallback == null) {
                             _uiState.value = PostDetailUiState.Unavailable
                             return@fold
@@ -77,7 +76,7 @@ class PostDetailViewModel(
                         val currentUserId = currentUserProvider.get().userId
                         _uiState.value = PostDetailUiState.Success(
                             post = fallback,
-                            isHost = fallback.userId == currentUserId,
+                            isHost = fallback.isOwnedBy(currentUserId),
                             isRsvpd = rsvpPost.isRsvpd(fallback.id),
                             attendeesLoading = true
                         )
@@ -97,10 +96,9 @@ class PostDetailViewModel(
                 val me = currentUserAsAttendee() ?: return@onSuccess
                 val latest = _uiState.value as? PostDetailUiState.Success ?: return@onSuccess
                 _uiState.value = latest.copy(
-                    post = latest.post.copy(rsvpCount = latest.post.rsvpCount + 1),
+                    post = latest.post.withRsvpCountDelta(1),
                     isRsvpd = true,
-                    attendees = if (latest.attendees.any { it.id == me.id }) latest.attendees
-                    else latest.attendees + me
+                    attendees = latest.attendees.applyRsvpDelta(1, me)
                 )
             }
         }
@@ -111,12 +109,12 @@ class PostDetailViewModel(
         if (!current.isRsvpd) return
         viewModelScope.launch {
             rsvpPost.unRsvp(current.post.id).onSuccess {
-                val meId = currentUserProvider.get().userId
+                val me = currentUserAsAttendee()
                 val latest = _uiState.value as? PostDetailUiState.Success ?: return@onSuccess
                 _uiState.value = latest.copy(
-                    post = latest.post.copy(rsvpCount = (latest.post.rsvpCount - 1).coerceAtLeast(0)),
+                    post = latest.post.withRsvpCountDelta(-1),
                     isRsvpd = false,
-                    attendees = latest.attendees.filterNot { it.id == meId }
+                    attendees = latest.attendees.applyRsvpDelta(-1, me)
                 )
             }
         }
@@ -163,10 +161,5 @@ class PostDetailViewModel(
     override fun onCleared() {
         observeJob?.cancel()
         super.onCleared()
-    }
-
-    private suspend fun findInExplore(postId: String): Post? {
-        val snapshot = exploreRepository.getPosts().first()
-        return snapshot.getOrNull()?.firstOrNull { it.id == postId }
     }
 }

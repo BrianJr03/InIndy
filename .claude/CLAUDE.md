@@ -110,6 +110,14 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Every public composable takes a `modifier: Modifier = Modifier` parameter
 - Every composable has a `@Preview` for both light and dark theme
 
+## Logging
+- All diagnostic logging goes through the `AppLog` facade in `@shared/src/commonMain/kotlin/jr/brian/inindy/util/AppLog.kt`
+- Get a tagged logger with `private val log = appLog("ClassName")` and call `log.v/d/i/w/e { "..." }` — messages are lambda-typed so filtered levels build no string
+- For failure sites, thread the caught `Throwable` in: `log.e(e) { "syncUserProfile FAILED" }` — never stringify `${e.message}` and drop the stack trace
+- Never call `println`, `print`, or `Throwable.printStackTrace()` for diagnostics — they can't be stripped from release builds and have no severity
+- Only `AppLog.kt` may import `co.touchlab.kermit`. Route everything else through the facade so the sink stays swappable
+- Severity levels are configured once at startup (`initAppLogging()` in `KoinInit`) — Verbose in debug, Warn in release. Do not scatter Kermit config
+
 ## Agent behavior
 - Never run build, compile, lint, or test commands automatically
 - Never verify work by building — the developer handles all builds
@@ -150,6 +158,8 @@ All business logic, networking, and state lives in `shared/commonMain`. Never pu
 - Don't hardcode user-facing strings — use `stringResource(Res.string.x)` always
 - Don't hardcode colors, typography, or shapes — use `InIndyTheme` tokens always
 - Don't expose group posts to non-members — enforce at RLS level, not just app level
+- Don't use `println`, `print`, or `printStackTrace()` for logging — always route through `AppLog` (see Logging section)
+- Don't import `co.touchlab.kermit` outside of `AppLog.kt` — call the facade instead
 
 ## Key files to read first
 - `@shared/commonMain/data/remote/SupabaseClient.kt` — Ktor client setup

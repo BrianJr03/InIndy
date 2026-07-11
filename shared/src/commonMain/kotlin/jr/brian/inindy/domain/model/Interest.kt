@@ -36,5 +36,18 @@ enum class Interest(val displayName: String) {
 
     // Pets
     DOG_WALKS("Dog Walks"),
-    PET_FRIENDLY("Pet Friendly"),
+    PET_FRIENDLY("Pet Friendly");
+
+    companion object {
+        /**
+         * Parses stored enum names (from the DB, DataStore prefs, or a network
+         * DTO) into domain values, silently dropping any names that no longer
+         * map to an [Interest]. This tolerates renames and removals — a stale
+         * name won't crash the app on read.
+         *
+         * Returns a [List]; call sites that need a `Set` can add `.toSet()`.
+         */
+        fun fromStorageNames(names: Iterable<String>): List<Interest> =
+            names.mapNotNull { name -> runCatching { valueOf(name) }.getOrNull() }
+    }
 }

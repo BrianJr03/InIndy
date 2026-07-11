@@ -53,9 +53,7 @@ class ProfileEditViewModel(
             val prefs = currentUserProvider.get()
             val neighborhoods = profileEditRepository.getNeighborhoods()
                 .getOrDefault(emptyList())
-            val interests = prefs.interests
-                .mapNotNull { runCatching { Interest.valueOf(it) }.getOrNull() }
-                .toSet()
+            val interests = Interest.fromStorageNames(prefs.interests).toSet()
             val fullName = prefs.fullName ?: ""
             val neighborhoodId = prefs.neighborhoodId ?: ""
             _uiState.update {

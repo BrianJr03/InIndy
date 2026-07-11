@@ -75,9 +75,7 @@ class MeViewModel(
                     avatarUrl = prefs.avatarUrl,
                     phoneVerified = true,
                     neighborhoodId = prefs.neighborhoodId,
-                    interests = prefs.interests.mapNotNull { name ->
-                        runCatching { Interest.valueOf(name) }.getOrNull()
-                    }
+                    interests = Interest.fromStorageNames(prefs.interests)
                 )
                 _uiState.value = _uiState.value.copy(
                     user = user,
@@ -97,9 +95,7 @@ class MeViewModel(
                 avatarUrl = prefs.avatarUrl,
                 phoneVerified = true,
                 neighborhoodId = prefs.neighborhoodId,
-                interests = prefs.interests.mapNotNull { name ->
-                    runCatching { Interest.valueOf(name) }.getOrNull()
-                }
+                interests = Interest.fromStorageNames(prefs.interests)
             )
             val attendance = attendanceRepository.getAttendanceHistory().getOrDefault(emptyList())
             val rate = attendanceRepository.getAttendanceRate().getOrDefault(0f)

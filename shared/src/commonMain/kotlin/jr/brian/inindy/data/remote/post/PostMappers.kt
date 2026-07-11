@@ -25,7 +25,7 @@ fun PostDto.toDomain(): Post {
         startsAt = startsAt.toEpochMillis(),
         endsAt = endsAt?.toEpochMillis(),
         createdAt = createdAt.toEpochMillis(),
-        tags = tags.mapNotNull { runCatching { Interest.valueOf(it.tag) }.getOrNull() },
+        tags = Interest.fromStorageNames(tags.map { it.tag }),
         images = images.sortedBy { it.sortOrder }.map { it.storageUrl },
         videos = emptyList(),
         rsvpCount = rsvpCount,
