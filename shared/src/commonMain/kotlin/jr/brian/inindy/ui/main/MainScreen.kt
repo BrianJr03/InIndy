@@ -20,6 +20,8 @@ import jr.brian.inindy.presentation.explore.ExploreViewModel
 import jr.brian.inindy.presentation.notifications.NotificationsViewModel
 import jr.brian.inindy.ui.explore.ExploreScreen
 import jr.brian.inindy.ui.me.MeScreen
+import jr.brian.inindy.ui.motion.LocalReducedMotion
+import jr.brian.inindy.ui.motion.Motion
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -41,6 +43,7 @@ fun MainScreen(
     }
 
     val exploreState by exploreViewModel.uiState.collectAsStateWithLifecycle()
+    val reducedMotion = LocalReducedMotion.current
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -68,12 +71,18 @@ fun MainScreen(
             )
         }
     ) { padding ->
+        // Tabs cross-fade — Explore ↔ Me have no spatial relationship, so a
+        // directional slide would imply an ordering that isn't real.
         NavHost(
             navController = tabNavController,
             startDestination = ROUTE_TAB_EXPLORE,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
+            enterTransition = { Motion.fadeEnter(reducedMotion) },
+            exitTransition = { Motion.fadeExit(reducedMotion) },
+            popEnterTransition = { Motion.fadeEnter(reducedMotion) },
+            popExitTransition = { Motion.fadeExit(reducedMotion) }
         ) {
             composable(ROUTE_TAB_EXPLORE) {
                 val notificationsState by notificationsViewModel.uiState.collectAsStateWithLifecycle()

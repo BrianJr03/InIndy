@@ -1,6 +1,7 @@
 package jr.brian.inindy.ui.onboarding
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.onboarding_step_label
+import jr.brian.inindy.ui.motion.Motion
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -28,6 +30,7 @@ fun OnboardingStepIndicator(
 ) {
     val progress by animateFloatAsState(
         targetValue = step.toFloat() / totalSteps,
+        animationSpec = tween(Motion.Duration.Emphasized, easing = Motion.EmphasizedDecelerate),
         label = "onboarding-progress"
     )
     Column(modifier = modifier.fillMaxWidth()) {

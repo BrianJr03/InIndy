@@ -1,11 +1,14 @@
 package jr.brian.inindy.ui.explore
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +59,7 @@ import jr.brian.inindy.resources.notifications_bell_cd
 import jr.brian.inindy.resources.notifications_bell_unread_cd
 import jr.brian.inindy.ui.icons.NotificationsIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
+import jr.brian.inindy.ui.motion.Motion
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -96,8 +100,8 @@ fun ExploreScreen(
                 AnimatedContent(
                     targetState = FeedContentKey(uiState.feed, uiState.activeFilter),
                     transitionSpec = {
-                        fadeIn(tween(durationMillis = 200)) togetherWith
-                            fadeOut(tween(durationMillis = 150))
+                        fadeIn(tween(Motion.Duration.Medium, easing = Motion.Standard)) togetherWith
+                            fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                     },
                     label = "feedTransition",
                     modifier = Modifier.fillMaxSize()
@@ -176,9 +180,9 @@ private fun ExplorePostFeedList(
                 onRsvpClick = onRsvpClick,
                 isOwnPost = isOwnPost(post),
                 modifier = Modifier.animateItem(
-                    fadeInSpec = tween(durationMillis = 250),
+                    fadeInSpec = tween(Motion.Duration.Medium, easing = Motion.Standard),
                     placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    fadeOutSpec = tween(durationMillis = 250)
+                    fadeOutSpec = tween(Motion.Duration.Medium, easing = Motion.Standard)
                 )
             )
         }
@@ -230,8 +234,8 @@ private fun ExploreHeader(
             AnimatedContent(
                 targetState = uiState.brandMarkText,
                 transitionSpec = {
-                    fadeIn(tween(durationMillis = 150)) togetherWith
-                        fadeOut(tween(durationMillis = 150))
+                    fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) togetherWith
+                        fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                 },
                 label = "brandMarkText",
                 modifier = Modifier.widthIn(max = 280.dp)
@@ -296,14 +300,30 @@ private fun NotificationsBell(
     ) {
         BadgedBox(
             badge = {
-                if (unreadCount > 0) {
+                // Badge fades + scales in/out so first-unread arrival reads as
+                // an event, not a silent flip. AnimatedContent on the count
+                // text animates value changes (5 → 6) with a matched fade.
+                AnimatedVisibility(
+                    visible = unreadCount > 0,
+                    enter = fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) +
+                        scaleIn(tween(Motion.Duration.Medium, easing = Motion.EmphasizedDecelerate)),
+                    exit = fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard)) +
+                        scaleOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                ) {
                     Badge(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
-                        Text(
-                            text = if (unreadCount > 99) "99+" else unreadCount.toString()
-                        )
+                        AnimatedContent(
+                            targetState = unreadCount,
+                            transitionSpec = {
+                                fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) togetherWith
+                                    fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                            },
+                            label = "notifications-badge-count"
+                        ) { count ->
+                            Text(text = if (count > 99) "99+" else count.toString())
+                        }
                     }
                 }
             }

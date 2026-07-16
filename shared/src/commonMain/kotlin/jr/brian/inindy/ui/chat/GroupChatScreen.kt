@@ -79,8 +79,10 @@ import jr.brian.inindy.ui.icons.ArrowBackIcon
 import jr.brian.inindy.ui.icons.SendIcon
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -576,7 +578,7 @@ private fun dayLabel(createdAtMs: Long): String {
     return when (diffDays) {
         0L -> stringResource(Res.string.group_chat_time_today)
         1L -> stringResource(Res.string.group_chat_time_yesterday)
-        else -> "${date.year}-${date.monthNumber.pad2()}-${date.dayOfMonth.pad2()}"
+        else -> "${date.month.number.pad2()}-${date.day.pad2()}-${date.year}"
     }
 }
 

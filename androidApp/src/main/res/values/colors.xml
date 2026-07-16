@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Brand color used by the OS launch splash. Must match MaterialTheme's
+      colorScheme.primary so the pre-Compose window and the Compose splash
+      look identical during handoff — no color flicker on cold start.
+      When the brand theme is finalised (CLAUDE.md), update this hex plus
+      the -night variant and iosApp/BrandLaunch.colorset in lockstep.
+    -->
+    <color name="brand_launch">#FF6750A4</color>
+</resources>

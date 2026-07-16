@@ -14,6 +14,11 @@
 	<string>https://vuiqstveijdeikghwuix.supabase.co</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>sb_publishable_GgK0kv2LlQzTzpzo6RPlBQ_7deWztCC</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>BrandLaunch</string>
+	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

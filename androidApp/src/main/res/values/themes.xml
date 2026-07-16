@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Launch theme applied via AndroidManifest so the very first pre-Compose
+      window is already the brand colour — kills the default white flash
+      that shows before Compose's first frame. installSplashScreen() in
+      MainActivity swaps to postSplashScreenTheme once Compose starts drawing.
+    -->
+    <style name="Theme.InIndy.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_launch</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+    </style>
+</resources>

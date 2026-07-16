@@ -31,6 +31,7 @@ import jr.brian.inindy.domain.model.ExploreFilter
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.explore_filter_arrow_cd
 import jr.brian.inindy.ui.icons.KeyboardArrowDownIcon
+import jr.brian.inindy.ui.motion.Motion
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -45,7 +46,7 @@ fun FilterableBrandMark(
 ) {
     val arrowRotation by animateFloatAsState(
         targetValue = if (isDropdownOpen) 180f else 0f,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = Motion.Duration.Fast, easing = Motion.Standard),
         label = "filterArrowRotation"
     )
 

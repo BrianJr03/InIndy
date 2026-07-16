@@ -1,6 +1,7 @@
 package jr.brian.inindy.ui.explore
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -122,6 +123,7 @@ import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.ui.icons.MoreVertIcon
 import jr.brian.inindy.ui.icons.PersonIcon
 import jr.brian.inindy.ui.icons.PlayArrowIcon
+import jr.brian.inindy.ui.motion.Motion
 import jr.brian.inindy.ui.video.VideoPlayer
 import jr.brian.inindy.util.DateUtil
 import org.jetbrains.compose.resources.stringResource
@@ -164,23 +166,37 @@ fun PostDetailScreen(
             .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
-        when (val s = state) {
-            is PostDetailUiState.Loading -> DetailLoadingState()
-            is PostDetailUiState.Unavailable -> DetailUnavailableState(onBack = onBack)
-            is PostDetailUiState.Success -> PostDetailContent(
-                post = s.post,
-                isHost = s.isHost && allowHostActions,
-                isOwnPost = s.isHost,
-                isRsvpd = s.isRsvpd,
-                attendees = s.attendees,
-                attendeesLoading = s.attendeesLoading,
-                onBack = onBack,
-                onEdit = { onEdit(s.post.id) },
-                onDelete = viewModel::delete,
-                onConfirmRsvp = viewModel::rsvp,
-                onUnRsvp = viewModel::cancelRsvp,
-                onLoadAttendees = viewModel::loadAttendees
-            )
+        // Cross-fade loading → success/unavailable so the spinner dissolves
+        // into content instead of popping. contentKey uses the state variant
+        // so PostDetailContent doesn't re-enter its transition on every
+        // attendees-loading tick or RSVP toggle within the Success state.
+        AnimatedContent(
+            targetState = state,
+            transitionSpec = {
+                fadeIn(tween(Motion.Duration.Medium, easing = Motion.Standard)) togetherWith
+                    fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+            },
+            contentKey = { it::class.simpleName ?: it.toString() },
+            label = "post-detail-state"
+        ) { s ->
+            when (s) {
+                is PostDetailUiState.Loading -> DetailLoadingState()
+                is PostDetailUiState.Unavailable -> DetailUnavailableState(onBack = onBack)
+                is PostDetailUiState.Success -> PostDetailContent(
+                    post = s.post,
+                    isHost = s.isHost && allowHostActions,
+                    isOwnPost = s.isHost,
+                    isRsvpd = s.isRsvpd,
+                    attendees = s.attendees,
+                    attendeesLoading = s.attendeesLoading,
+                    onBack = onBack,
+                    onEdit = { onEdit(s.post.id) },
+                    onDelete = viewModel::delete,
+                    onConfirmRsvp = viewModel::rsvp,
+                    onUnRsvp = viewModel::cancelRsvp,
+                    onLoadAttendees = viewModel::loadAttendees
+                )
+            }
         }
     }
 }

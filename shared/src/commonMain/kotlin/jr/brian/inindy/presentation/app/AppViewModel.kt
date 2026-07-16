@@ -38,16 +38,22 @@ class AppViewModel(
             authRepository.sessionState.collect { status ->
                 when (status) {
                     AuthSessionState.Initializing -> {
-                        _state.update { it.copy(isLoading = true) }
+                        // Cold-bootstrap case: hasResolved is already false —
+                        // RootNavGraph shows the brand splash while we wait.
+                        // Resume-refresh case: repository re-emits Initializing
+                        // after the app returns to the foreground. We must NOT
+                        // flip hasResolved back to false, or the entire NavHost
+                        // gets torn down and the user's current screen is
+                        // replaced by the splash mid-session.
                     }
                     AuthSessionState.SignedIn -> {
                         val prefs = userPreferencesStore.preferences.first()
                         val destination = if (prefs.onboardingComplete) AppDestination.Main
                         else AppDestination.Onboarding
-                        _state.update { it.copy(isLoading = false, destination = destination) }
+                        _state.update { it.copy(hasResolved = true, destination = destination) }
                     }
                     AuthSessionState.SignedOut -> {
-                        _state.update { it.copy(isLoading = false, destination = AppDestination.Auth) }
+                        _state.update { it.copy(hasResolved = true, destination = AppDestination.Auth) }
                     }
                 }
             }

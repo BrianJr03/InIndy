@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode counterpart to values/colors.xml. Matches Material 3 default darkColorScheme().primary. -->
+    <color name="brand_launch">#FFD0BCFF</color>
+</resources>
