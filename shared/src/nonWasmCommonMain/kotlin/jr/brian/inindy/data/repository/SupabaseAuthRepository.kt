@@ -12,6 +12,7 @@ import jr.brian.inindy.data.local.TokenStorage
 import jr.brian.inindy.data.local.UserPreferencesStore
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.User
+import jr.brian.inindy.domain.push.PushRegistrar
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.AuthSessionState
 import jr.brian.inindy.domain.repository.RsvpRepository
@@ -41,7 +42,8 @@ class SupabaseAuthRepository(
     private val supabase: SupabaseClient,
     private val tokenStorage: TokenStorage,
     private val userPreferencesStore: UserPreferencesStore,
-    private val rsvpRepository: RsvpRepository
+    private val rsvpRepository: RsvpRepository,
+    private val pushRegistrar: PushRegistrar
 ) : AuthRepository {
 
     private val log = appLog("SupabaseAuthRepository")
@@ -193,6 +195,10 @@ class SupabaseAuthRepository(
     // ── Session ─────────────────────────────────────────────────────────────
 
     override suspend fun signOut(): Result<Unit> = runCatching {
+        // Must run BEFORE the session clears — unregisterCurrentToken deletes
+        // via RLS-authenticated Postgrest, which needs the JWT still in place.
+        runCatching { pushRegistrar.unregisterCurrentToken() }
+            .onFailure { log.w(it) { "unregisterCurrentToken failed during signOut — continuing" } }
         supabase.auth.signOut()
         tokenStorage.clearToken()
         userPreferencesStore.clear()
@@ -207,7 +213,11 @@ class SupabaseAuthRepository(
             error("delete-account edge function failed with status ${response.status.value}")
         }
         // Server-side deletion succeeded — tear down the local session so the
-        // session flow emits SignedOut and RootNavGraph redirects to auth.
+        // session flow emits SignedOut and RootNavGraph redirects to auth. Push
+        // token was cascade-deleted by the users FK, but call unregister anyway
+        // so PushRegistrar's local view stays consistent.
+        runCatching { pushRegistrar.unregisterCurrentToken() }
+            .onFailure { log.w(it) { "unregisterCurrentToken failed during deleteAccount — continuing" } }
         supabase.auth.signOut()
         tokenStorage.clearToken()
         userPreferencesStore.clear()

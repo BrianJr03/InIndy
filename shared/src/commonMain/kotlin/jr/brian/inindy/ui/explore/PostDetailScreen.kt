@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +78,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import jr.brian.inindy.data.calendar.openCalendarEvent
+import jr.brian.inindy.data.map.openMap
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.domain.model.Post
 import jr.brian.inindy.domain.model.User
@@ -806,12 +809,22 @@ private fun WhenWhereBlock(
         MetaRow(
             icon = LocationOnIcon,
             primary = post.address,
-            secondary = "Indianapolis, IN"
+            secondary = "Indianapolis, IN",
+            onClick = { openMap(post.address) }
         )
         MetaRow(
             icon = DateRangeIcon,
             primary = DateUtil.formatEventDate(post.startsAt),
-            secondary = endsText
+            secondary = endsText,
+            onClick = {
+                openCalendarEvent(
+                    title = post.title,
+                    description = post.description,
+                    location = post.address,
+                    startMs = post.startsAt,
+                    endMs = post.endsAt
+                )
+            }
         )
     }
 }
@@ -821,10 +834,22 @@ private fun MetaRow(
     icon: ImageVector,
     primary: String,
     secondary: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
+    val rowModifier = if (onClick != null) {
+        modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    } else {
+        modifier.fillMaxWidth()
+    }
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = rowModifier,
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -868,7 +893,13 @@ private fun MapPreviewCard(
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { openMap(address) }
+            ),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.elevatedCardColors(

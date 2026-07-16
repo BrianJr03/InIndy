@@ -92,6 +92,7 @@ fun RootNavGraph(
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
     val pendingInviteToken by appViewModel.pendingInviteToken.collectAsStateWithLifecycle()
+    val pendingPostId by appViewModel.pendingPostId.collectAsStateWithLifecycle()
     var exploreRefreshTrigger by remember { mutableIntStateOf(0) }
     var meRefreshTrigger by remember { mutableIntStateOf(0) }
     // Bumped when returning from EDIT_POST so PostDetailScreen re-fetches the
@@ -357,6 +358,17 @@ fun RootNavGraph(
                 navController.navigate(RootRoutes.groupManagement(group.id))
             }
         )
+    }
+
+    // Push-notification tap opens the target post. Queued on the bus until the
+    // app finishes routing to Main (cold-start-from-push case: the session is
+    // still Initializing when the tap-launched intent lands).
+    LaunchedEffect(pendingPostId, state.destination) {
+        val postId = pendingPostId
+        if (postId != null && state.destination == AppDestination.Main) {
+            appViewModel.consumePostId()
+            navController.navigate(RootRoutes.postDetail(postId))
+        }
     }
 }
 

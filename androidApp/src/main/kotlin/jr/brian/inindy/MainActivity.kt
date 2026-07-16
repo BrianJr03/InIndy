@@ -21,6 +21,7 @@ import jr.brian.inindy.data.remote.handleSupabaseDeepLink
 import jr.brian.inindy.navigation.DeepLinkBus
 import jr.brian.inindy.navigation.DeepLinkResult
 import jr.brian.inindy.navigation.parseDeepLink
+import jr.brian.inindy.push.InIndyMessagingService
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -72,9 +73,21 @@ class MainActivity : ComponentActivity() {
 
     private fun routeDeepLink(intent: Intent?) {
         intent ?: return
+        // FCM-auto-rendered notifications (background/killed app) land here with
+        // the data payload as intent extras, no URI. Check that first so the
+        // launcher intent can still route to the target post.
+        val postIdExtra = intent.getStringExtra(InIndyMessagingService.EXTRA_POST_ID)
+        if (postIdExtra != null) {
+            deepLinkBus.postPostId(postIdExtra)
+            // Consume so a config change or a re-entry into routeDeepLink from
+            // the same Intent doesn't re-post the same post_id.
+            intent.removeExtra(InIndyMessagingService.EXTRA_POST_ID)
+            return
+        }
         val url = intent.data?.toString()
         when (val result = url?.let(::parseDeepLink)) {
             is DeepLinkResult.GroupInvite -> deepLinkBus.postInviteToken(result.token)
+            is DeepLinkResult.Post -> deepLinkBus.postPostId(result.postId)
             DeepLinkResult.Auth,
             DeepLinkResult.Unknown,
             null -> handleSupabaseDeepLink(intent)

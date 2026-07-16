@@ -83,6 +83,16 @@ class SupabaseNotificationRepository(
         }
     }.map { }
 
+    override suspend fun delete(id: String): Result<Unit> = runCatching {
+        val userId = currentUserProvider.get().userId ?: error("No signed-in user")
+        supabase.from(NOTIFICATIONS_TABLE).delete {
+            filter {
+                eq("id", id)
+                eq("user_id", userId)
+            }
+        }
+    }.map { }
+
     override suspend fun markAllRead(): Result<Unit> = runCatching {
         val userId = currentUserProvider.get().userId ?: error("No signed-in user")
         supabase.from(NOTIFICATIONS_TABLE).update({ set("read", true) }) {

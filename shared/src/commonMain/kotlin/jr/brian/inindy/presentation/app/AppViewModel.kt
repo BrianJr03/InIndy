@@ -24,6 +24,7 @@ class AppViewModel(
     val state: StateFlow<AppUiState> = _state.asStateFlow()
 
     val pendingInviteToken: StateFlow<String?> = deepLinkBus.pendingInviteToken
+    val pendingPostId: StateFlow<String?> = deepLinkBus.pendingPostId
 
     init {
         observeSession()
@@ -33,6 +34,12 @@ class AppViewModel(
         val token = deepLinkBus.pendingInviteToken.value
         deepLinkBus.clearInviteToken()
         return token
+    }
+
+    fun consumePostId(): String? {
+        val postId = deepLinkBus.pendingPostId.value
+        deepLinkBus.clearPostId()
+        return postId
     }
 
     private fun observeSession() {

@@ -382,6 +382,7 @@
     <string name="notifications_time_minutes">%1$dm ago</string>
     <string name="notifications_time_hours">%1$dh ago</string>
     <string name="notifications_time_days">%1$dd ago</string>
+    <string name="notifications_delete_cd">Delete notification</string>
 
     <!-- Group notifications mute -->
     <string name="group_mute_title">Mute notifications</string>

@@ -2,6 +2,7 @@ package jr.brian.inindy.di
 
 import jr.brian.inindy.data.local.TokenStorage
 import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.domain.push.PushRegistrar
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.RsvpRepository
 
@@ -13,5 +14,6 @@ import jr.brian.inindy.domain.repository.RsvpRepository
 expect fun provideAuthRepository(
     tokenStorage: TokenStorage,
     userPreferencesStore: UserPreferencesStore,
-    rsvpRepository: RsvpRepository
+    rsvpRepository: RsvpRepository,
+    pushRegistrar: PushRegistrar
 ): AuthRepository

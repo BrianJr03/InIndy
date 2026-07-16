@@ -56,6 +56,15 @@ class NotificationsViewModel(
         viewModelScope.launch { notificationRepository.markAsRead(id) }
     }
 
+    fun delete(id: String) {
+        val current = _uiState.value.notifications
+        if (current.none { it.id == id }) return
+        _uiState.value = _uiState.value.copy(
+            notifications = current.filterNot { it.id == id }
+        )
+        viewModelScope.launch { notificationRepository.delete(id) }
+    }
+
     fun markAllRead() {
         val current = _uiState.value.notifications
         if (current.none { !it.read }) return

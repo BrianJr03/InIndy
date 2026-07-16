@@ -23,8 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,6 +43,7 @@ import jr.brian.inindy.domain.model.Notification
 import jr.brian.inindy.presentation.notifications.NotificationsViewModel
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.notifications_back_cd
+import jr.brian.inindy.resources.notifications_delete_cd
 import jr.brian.inindy.resources.notifications_empty
 import jr.brian.inindy.resources.notifications_error_title
 import jr.brian.inindy.resources.notifications_group_post
@@ -52,6 +56,7 @@ import jr.brian.inindy.resources.notifications_time_just_now
 import jr.brian.inindy.resources.notifications_time_minutes
 import jr.brian.inindy.resources.notifications_title
 import jr.brian.inindy.ui.icons.ArrowBackIcon
+import jr.brian.inindy.ui.icons.DeleteIcon
 import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -89,13 +94,17 @@ fun NotificationsScreen(
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(state.notifications, key = { it.id }) { notification ->
-                            NotificationRow(
-                                notification = notification,
-                                onClick = {
-                                    viewModel.markAsRead(notification.id)
-                                    onNotificationClick(notification)
-                                }
-                            )
+                            SwipeToDeleteRow(
+                                onDelete = { viewModel.delete(notification.id) }
+                            ) {
+                                NotificationRow(
+                                    notification = notification,
+                                    onClick = {
+                                        viewModel.markAsRead(notification.id)
+                                        onNotificationClick(notification)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -144,6 +153,47 @@ private fun NotificationsTopBar(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SwipeToDeleteRow(
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier.fillMaxWidth(),
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Icon(
+                    imageVector = DeleteIcon,
+                    contentDescription = stringResource(Res.string.notifications_delete_cd),
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+    ) {
+        content()
     }
 }
 
