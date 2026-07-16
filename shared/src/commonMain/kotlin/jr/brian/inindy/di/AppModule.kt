@@ -28,5 +28,6 @@ val appModules: List<Module> = listOf(
     exploreModule,
     notificationModule,
     chatModule,
+    pushModule,
     appViewModelModule
 )

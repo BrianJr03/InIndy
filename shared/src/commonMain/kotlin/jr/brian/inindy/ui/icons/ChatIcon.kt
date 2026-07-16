@@ -29,7 +29,7 @@ val ChatIcon: ImageVector
                 strokeLineCap = StrokeCap.Butt,
                 strokeLineJoin = StrokeJoin.Bevel,
                 strokeLineMiter = 1f,
-                pathFillType = PathFillType.Companion.NonZero,
+                pathFillType = PathFillType.NonZero,
             ) {
                 moveTo(2f, 22f)
                 verticalLineTo(4f)

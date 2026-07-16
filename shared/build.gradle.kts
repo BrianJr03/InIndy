@@ -129,6 +129,8 @@ kotlin {
                 implementation(libs.koin.androidx.compose)
                 implementation(libs.androidx.security.crypto)
                 implementation(libs.datastore.preferences.core)
+                implementation(project.dependencies.platform(libs.firebase.bom))
+                implementation(libs.firebase.messaging)
             }
         }
         commonMain.dependencies {

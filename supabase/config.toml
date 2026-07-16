@@ -401,6 +401,10 @@ verify_jwt = false
 [functions.moderate-message]
 verify_jwt = false
 
+# Called by a database webhook on the `notifications` table (INSERT), not by end users.
+[functions.send-push]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -7,5 +7,5 @@ import org.koin.dsl.module
 
 val appViewModelModule = module {
     single { DeepLinkBus() }
-    viewModel { AppViewModel(get(), get(), get()) }
+    viewModel { AppViewModel(get(), get(), get(), get()) }
 }

@@ -3,6 +3,7 @@ package jr.brian.inindy.presentation.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.domain.push.PushRegistrar
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.AuthSessionState
 import jr.brian.inindy.navigation.DeepLinkBus
@@ -16,7 +17,8 @@ import kotlinx.coroutines.launch
 class AppViewModel(
     private val authRepository: AuthRepository,
     private val userPreferencesStore: UserPreferencesStore,
-    private val deepLinkBus: DeepLinkBus
+    private val deepLinkBus: DeepLinkBus,
+    private val pushRegistrar: PushRegistrar
 ) : ViewModel() {
     private val _state = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = _state.asStateFlow()
@@ -51,6 +53,7 @@ class AppViewModel(
                         val destination = if (prefs.onboardingComplete) AppDestination.Main
                         else AppDestination.Onboarding
                         _state.update { it.copy(hasResolved = true, destination = destination) }
+                        viewModelScope.launch { pushRegistrar.registerCurrentToken() }
                     }
                     AuthSessionState.SignedOut -> {
                         _state.update { it.copy(hasResolved = true, destination = AppDestination.Auth) }

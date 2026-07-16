@@ -14,6 +14,8 @@ androidx-testExt = "1.3.0"
 coil = "3.4.0"
 composeMultiplatform = "1.11.0"
 datastore = "1.1.1"
+firebaseBom = "34.15.0"
+googleServices = "4.5.0"
 junit = "4.13.2"
 kermit = "2.0.6"
 koin = "4.2.1"
@@ -84,6 +86,10 @@ coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.re
 # Logging
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 
+# Firebase — BOM aligns messaging/analytics/etc.; individual artifacts inherit
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+
 # Coroutines & Serialization
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
@@ -112,3 +118,4 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }

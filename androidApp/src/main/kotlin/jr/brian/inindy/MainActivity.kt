@@ -1,10 +1,13 @@
 package jr.brian.inindy
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,6 +30,12 @@ class MainActivity : ComponentActivity() {
     private val cameraCapture: CameraCapture by inject()
     private val imagePicker: ImagePicker by inject()
 
+    // Android 13+ needs an explicit grant to post notifications. A denied
+    // permission still lets us register the FCM token — the user just won't
+    // see anything until they enable notifications in settings.
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // installSplashScreen must run BEFORE super.onCreate so the SplashScreen
         // library can hook into the theme swap for the initial draw. Combined
@@ -46,6 +55,9 @@ class MainActivity : ComponentActivity() {
         activityProvider.attach(this)
         cameraCapture.bindToActivity(this)
         imagePicker.bindToActivity(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         routeDeepLink(intent)
 
         setContent {
