@@ -1,6 +1,21 @@
 package jr.brian.inindy.util
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+
 expect fun currentTimeMillis(): Long
+
+// Post start/end times are stored as "local wall-clock encoded as UTC millis" so
+// UTC arithmetic on epoch millis matches what the user picked on the clock.
+// currentTimeMillis() returns REAL UTC — comparing the two shifts by the local
+// tz offset. Use this when validating a picked local time against "now".
+fun localNowMillis(): Long {
+    val now = Clock.System.now()
+    val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
+    return local.toInstant(TimeZone.UTC).toEpochMilliseconds()
+}
 
 object DateUtil {
     private val months = listOf(

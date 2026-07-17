@@ -22,6 +22,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import jr.brian.inindy.domain.model.RsvpReminderPref
 import jr.brian.inindy.presentation.settings.DeleteAccountState
 import jr.brian.inindy.presentation.settings.SettingsViewModel
 import jr.brian.inindy.resources.Res
@@ -52,7 +56,13 @@ import jr.brian.inindy.resources.settings_dark_mode_description
 import jr.brian.inindy.resources.settings_dark_mode_title
 import jr.brian.inindy.resources.settings_feed_interest_ordering_description
 import jr.brian.inindy.resources.settings_feed_interest_ordering_title
+import jr.brian.inindy.resources.settings_rsvp_reminder_day_of
+import jr.brian.inindy.resources.settings_rsvp_reminder_description
+import jr.brian.inindy.resources.settings_rsvp_reminder_hour_before
+import jr.brian.inindy.resources.settings_rsvp_reminder_off
+import jr.brian.inindy.resources.settings_rsvp_reminder_title
 import jr.brian.inindy.resources.settings_section_feed
+import jr.brian.inindy.resources.settings_section_notifications
 import jr.brian.inindy.resources.settings_delete_account_confirm_word
 import jr.brian.inindy.resources.settings_delete_account_description
 import jr.brian.inindy.resources.settings_delete_account_dialog_body
@@ -85,6 +95,8 @@ fun SettingsScreen(
         deleteState = uiState.deleteAccount,
         feedInterestOrderingEnabled = uiState.feedInterestOrderingEnabled,
         onSetFeedInterestOrdering = viewModel::setInterestOrdering,
+        rsvpReminder = uiState.rsvpReminder,
+        onSetRsvpReminder = viewModel::setRsvpReminder,
         onDeleteAccountConfirmed = viewModel::deleteAccount,
         onDismissDeleteError = viewModel::dismissError,
         modifier = modifier
@@ -100,6 +112,8 @@ private fun SettingsContent(
     deleteState: DeleteAccountState,
     feedInterestOrderingEnabled: Boolean,
     onSetFeedInterestOrdering: (Boolean) -> Unit,
+    rsvpReminder: RsvpReminderPref,
+    onSetRsvpReminder: (RsvpReminderPref) -> Unit,
     onDeleteAccountConfirmed: () -> Unit,
     onDismissDeleteError: () -> Unit,
     modifier: Modifier = Modifier
@@ -157,6 +171,13 @@ private fun SettingsContent(
                 description = stringResource(Res.string.settings_feed_interest_ordering_description),
                 checked = feedInterestOrderingEnabled,
                 onCheckedChange = onSetFeedInterestOrdering
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionLabel(text = stringResource(Res.string.settings_section_notifications))
+            RsvpReminderRow(
+                selected = rsvpReminder,
+                onSelect = onSetRsvpReminder
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -334,6 +355,48 @@ private fun SectionLabel(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RsvpReminderRow(
+    selected: RsvpReminderPref,
+    onSelect: (RsvpReminderPref) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(
+        RsvpReminderPref.NONE to stringResource(Res.string.settings_rsvp_reminder_off),
+        RsvpReminderPref.DAY_OF to stringResource(Res.string.settings_rsvp_reminder_day_of),
+        RsvpReminderPref.HOUR_BEFORE to stringResource(Res.string.settings_rsvp_reminder_hour_before)
+    )
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(Res.string.settings_rsvp_reminder_title),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = stringResource(Res.string.settings_rsvp_reminder_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, (pref, label) ->
+                SegmentedButton(
+                    selected = pref == selected,
+                    onClick = { onSelect(pref) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                ) {
+                    Text(text = label)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SettingToggleRow(
     title: String,
@@ -384,6 +447,8 @@ private fun SettingsScreenLightPreview() {
             deleteState = DeleteAccountState.Idle,
             feedInterestOrderingEnabled = false,
             onSetFeedInterestOrdering = {},
+            rsvpReminder = RsvpReminderPref.DAY_OF,
+            onSetRsvpReminder = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )
@@ -401,6 +466,8 @@ private fun SettingsScreenDarkPreview() {
             deleteState = DeleteAccountState.Idle,
             feedInterestOrderingEnabled = true,
             onSetFeedInterestOrdering = {},
+            rsvpReminder = RsvpReminderPref.HOUR_BEFORE,
+            onSetRsvpReminder = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )

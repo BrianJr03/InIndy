@@ -39,6 +39,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -77,8 +81,19 @@ fun ExploreScreen(
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
+    // refreshTrigger is a monotonically-increasing counter bumped by
+    // CreatePost/EditPost submissions in RootNavGraph. Because ExploreScreen is
+    // disposed whenever the user visits any other root destination (PostDetail,
+    // Settings, Notifications, …), a naïve `LaunchedEffect(refreshTrigger)` re-
+    // launches with the current (already-past) value on every return trip and
+    // spuriously refreshes the feed. rememberSaveable persists the
+    // last-handled value across those disposals (scoped to this NavBackStackEntry's
+    // saved state), so only a genuine bump — i.e. `refreshTrigger` moved past
+    // what we last acted on — triggers Refresh + scroll-to-top.
+    var lastHandledTrigger by rememberSaveable { mutableIntStateOf(refreshTrigger) }
     LaunchedEffect(refreshTrigger) {
-        if (refreshTrigger > 0) {
+        if (refreshTrigger > lastHandledTrigger) {
+            lastHandledTrigger = refreshTrigger
             onIntent(ExploreIntent.Refresh)
             listState.animateScrollToItem(0)
         }
@@ -103,6 +118,15 @@ fun ExploreScreen(
                         fadeIn(tween(Motion.Duration.Medium, easing = Motion.Standard)) togetherWith
                             fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                     },
+                    // Only crossfade when the feed's "shape" or filter changes
+                    // (Loading ↔ Success ↔ Error, empty ↔ non-empty, filter swap).
+                    // A cross-device RSVP re-fetch produces a new posts list but
+                    // the same shape — with the default identity contentKey, that
+                    // triggers a spurious fadeOut/fadeIn of the whole feed.
+                    // LazyColumn already animates individual row changes via
+                    // Modifier.animateItem, so keeping the container stable makes
+                    // realtime updates land in place.
+                    contentKey = { it.identity() },
                     label = "feedTransition",
                     modifier = Modifier.fillMaxSize()
                 ) { key ->
@@ -154,7 +178,19 @@ fun ExploreScreen(
 private data class FeedContentKey(
     val feed: ExploreUiState.FeedState,
     val filter: ExploreFilter
-)
+) {
+    // Stable identifier for AnimatedContent's contentKey — collapses every
+    // list-content change within FeedState.Success to a single "content" bucket
+    // so realtime post updates don't crossfade the whole feed.
+    fun identity(): Any = when (val f = feed) {
+        ExploreUiState.FeedState.Loading -> "loading" to filter
+        is ExploreUiState.FeedState.Success -> {
+            val shape = if (f.posts.isEmpty()) "empty" else "content"
+            shape to filter
+        }
+        is ExploreUiState.FeedState.Error -> "error" to filter
+    }
+}
 
 @Composable
 private fun ExplorePostFeedList(

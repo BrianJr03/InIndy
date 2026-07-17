@@ -79,6 +79,12 @@
     <string name="settings_section_feed">Feed</string>
     <string name="settings_feed_interest_ordering_title">Sort feed by my interests</string>
     <string name="settings_feed_interest_ordering_description">Rank posts tagged with your interests above others</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_rsvp_reminder_title">Event reminders</string>
+    <string name="settings_rsvp_reminder_description">Get a nudge before an event you RSVP'd to</string>
+    <string name="settings_rsvp_reminder_off">Off</string>
+    <string name="settings_rsvp_reminder_day_of">Day of</string>
+    <string name="settings_rsvp_reminder_hour_before">Hour before</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_delete_account_title">Delete account</string>
     <string name="settings_delete_account_description">Permanently remove your account and all your data</string>
@@ -378,6 +384,9 @@
     <string name="notifications_group_post">%1$s posted in %2$s</string>
     <string name="notifications_group_post_unknown_actor">Someone</string>
     <string name="notifications_group_post_unknown_group">a group</string>
+    <string name="notifications_rsvp_reminder_title">Event reminder</string>
+    <string name="notifications_rsvp_reminder_body">%1$s is coming up</string>
+    <string name="notifications_rsvp_reminder_body_unknown">An event you RSVP'd to is coming up</string>
     <string name="notifications_time_just_now">just now</string>
     <string name="notifications_time_minutes">%1$dm ago</string>
     <string name="notifications_time_hours">%1$dh ago</string>

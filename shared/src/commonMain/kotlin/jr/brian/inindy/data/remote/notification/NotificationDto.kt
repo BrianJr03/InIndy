@@ -14,7 +14,8 @@ data class NotificationDto(
     @SerialName("read") val read: Boolean = false,
     @SerialName("created_at") val createdAt: String,
     @SerialName("actor") val actor: NotificationActorDto? = null,
-    @SerialName("group") val group: NotificationGroupDto? = null
+    @SerialName("group") val group: NotificationGroupDto? = null,
+    @SerialName("post") val post: NotificationPostDto? = null
 )
 
 @Serializable
@@ -28,4 +29,10 @@ data class NotificationActorDto(
 data class NotificationGroupDto(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String
+)
+
+@Serializable
+data class NotificationPostDto(
+    @SerialName("id") val id: String,
+    @SerialName("title") val title: String? = null
 )

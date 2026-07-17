@@ -116,6 +116,13 @@ async function buildMessage(
         body: `${actorName ?? "Someone"} shared a new post`,
       };
     }
+    case "rsvp_reminder": {
+      const post = n.post_id ? await fetchPostBrief(admin, n.post_id) : null;
+      return {
+        title: post?.title ?? "Upcoming event",
+        body: "Your RSVP'd event is coming up",
+      };
+    }
     default:
       return { title: "InIndy", body: "You have a new notification" };
   }
@@ -135,6 +142,18 @@ async function fetchActorName(
 ): Promise<string | null> {
   const { data } = await admin.from("users").select("full_name").eq("id", actorId).maybeSingle();
   return (data as { full_name?: string } | null)?.full_name ?? null;
+}
+
+async function fetchPostBrief(
+  admin: ReturnType<typeof createClient>,
+  postId: string,
+): Promise<{ title: string; starts_at: string } | null> {
+  const { data } = await admin
+    .from("posts")
+    .select("title, starts_at")
+    .eq("id", postId)
+    .maybeSingle();
+  return (data as { title: string; starts_at: string } | null) ?? null;
 }
 
 function json(body: unknown, status: number): Response {

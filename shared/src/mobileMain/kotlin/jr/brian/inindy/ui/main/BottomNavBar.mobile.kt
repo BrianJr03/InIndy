@@ -29,16 +29,16 @@ actual fun BottomNavBar(
             label = { Text(stringResource(Res.string.nav_explore)) }
         )
         NavigationBarItem(
-            selected = selectedIndex == 1,
-            onClick = { onItemSelected(1) },
-            icon = { Icon(painter = painterResource(Res.drawable.ic_person), contentDescription = null) },
-            label = { Text(stringResource(Res.string.nav_me)) }
-        )
-        NavigationBarItem(
             selected = false,
             onClick = onCreateClick,
             icon = { Icon(imageVector = AddIcon, contentDescription = null) },
             label = { Text(stringResource(Res.string.nav_create)) }
+        )
+        NavigationBarItem(
+            selected = selectedIndex == 1,
+            onClick = { onItemSelected(1) },
+            icon = { Icon(painter = painterResource(Res.drawable.ic_person), contentDescription = null) },
+            label = { Text(stringResource(Res.string.nav_me)) }
         )
     }
 }

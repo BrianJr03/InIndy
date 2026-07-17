@@ -150,7 +150,7 @@ class SupabaseNotificationRepository(
         // hint to pick the actor FK. `users!actor_id` disambiguates by the local
         // FK column name.
         val JOINED_COLUMNS = Columns.raw(
-            "*, actor:users!actor_id(id, full_name, avatar_url), group:groups(id, name)"
+            "*, actor:users!actor_id(id, full_name, avatar_url), group:groups(id, name), post:posts(id, title)"
         )
     }
 }

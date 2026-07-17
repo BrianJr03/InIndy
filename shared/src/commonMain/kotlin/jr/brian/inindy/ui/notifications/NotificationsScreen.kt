@@ -39,7 +39,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import androidx.compose.ui.graphics.vector.ImageVector
 import jr.brian.inindy.domain.model.Notification
+import jr.brian.inindy.domain.model.NotificationType
 import jr.brian.inindy.presentation.notifications.NotificationsViewModel
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.notifications_back_cd
@@ -50,12 +52,15 @@ import jr.brian.inindy.resources.notifications_group_post
 import jr.brian.inindy.resources.notifications_group_post_unknown_actor
 import jr.brian.inindy.resources.notifications_group_post_unknown_group
 import jr.brian.inindy.resources.notifications_mark_all_read
+import jr.brian.inindy.resources.notifications_rsvp_reminder_body
+import jr.brian.inindy.resources.notifications_rsvp_reminder_body_unknown
 import jr.brian.inindy.resources.notifications_time_days
 import jr.brian.inindy.resources.notifications_time_hours
 import jr.brian.inindy.resources.notifications_time_just_now
 import jr.brian.inindy.resources.notifications_time_minutes
 import jr.brian.inindy.resources.notifications_title
 import jr.brian.inindy.ui.icons.ArrowBackIcon
+import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.DeleteIcon
 import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
@@ -203,11 +208,33 @@ private fun NotificationRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val actorName = notification.actorName?.takeIf { it.isNotBlank() }
-        ?: stringResource(Res.string.notifications_group_post_unknown_actor)
-    val groupName = notification.groupName?.takeIf { it.isNotBlank() }
-        ?: stringResource(Res.string.notifications_group_post_unknown_group)
-    val messageText = stringResource(Res.string.notifications_group_post, actorName, groupName)
+    val messageText: String
+    val leading: @Composable () -> Unit
+    when (notification.type) {
+        NotificationType.RSVP_REMINDER -> {
+            val postTitle = notification.postTitle?.takeIf { it.isNotBlank() }
+            messageText = if (postTitle != null) {
+                stringResource(Res.string.notifications_rsvp_reminder_body, postTitle)
+            } else {
+                stringResource(Res.string.notifications_rsvp_reminder_body_unknown)
+            }
+            leading = { NotificationIconAvatar(icon = DateRangeIcon) }
+        }
+        NotificationType.GROUP_POST,
+        NotificationType.UNKNOWN -> {
+            val actorName = notification.actorName?.takeIf { it.isNotBlank() }
+                ?: stringResource(Res.string.notifications_group_post_unknown_actor)
+            val groupName = notification.groupName?.takeIf { it.isNotBlank() }
+                ?: stringResource(Res.string.notifications_group_post_unknown_group)
+            messageText = stringResource(Res.string.notifications_group_post, actorName, groupName)
+            leading = {
+                NotificationAvatar(
+                    url = notification.actorAvatarUrl,
+                    fallbackName = actorName
+                )
+            }
+        }
+    }
     val timeText = relativeTimeLabel(notification.createdAt)
 
     val background = if (notification.read) {
@@ -228,7 +255,7 @@ private fun NotificationRow(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NotificationAvatar(url = notification.actorAvatarUrl, fallbackName = actorName)
+            leading()
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
@@ -259,6 +286,23 @@ private fun NotificationRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun NotificationIconAvatar(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer
+        )
     }
 }
 

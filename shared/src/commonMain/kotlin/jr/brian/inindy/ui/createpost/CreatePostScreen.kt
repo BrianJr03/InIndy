@@ -137,7 +137,7 @@ import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.util.DateUtil
-import jr.brian.inindy.util.currentTimeMillis
+import jr.brian.inindy.util.localNowMillis
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -358,7 +358,7 @@ fun CreatePostScreen(
             val dateOnly = state.startsAt?.let { it - (it % 86_400_000L) } ?: 0L
             val timeMs = hour * 3_600_000L + minute * 60_000L
             val newStartsAt = dateOnly + timeMs
-            if (newStartsAt <= currentTimeMillis()) {
+            if (newStartsAt <= localNowMillis()) {
                 dateTimeError = startInFutureMsg
             } else {
                 dateTimeError = null
@@ -804,7 +804,7 @@ private fun StartDatePickerDialog(
     onDateSelected: (Long) -> Unit
 ) {
     if (!visible) return
-    val now = currentTimeMillis()
+    val now = localNowMillis()
     val todayStart = now - (now % 86_400_000L)
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = startsAt ?: now,
@@ -869,7 +869,7 @@ private fun EndDatePickerDialog(
     onDateSelected: (Long) -> Unit
 ) {
     if (!visible) return
-    val now = currentTimeMillis()
+    val now = localNowMillis()
     val floor = (startsAt ?: now).let { it - (it % 86_400_000L) }
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = endsAt ?: startsAt ?: now,

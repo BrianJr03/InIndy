@@ -16,7 +16,7 @@ import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_IMAGES
 import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_TAGS
 import jr.brian.inindy.util.appLog
-import jr.brian.inindy.util.currentTimeMillis
+import jr.brian.inindy.util.localNowMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -387,7 +387,7 @@ class CreatePostViewModel(
         val starts = startsAt
         val startsError = when {
             starts == null -> "Please set a start date and time"
-            starts <= currentTimeMillis() -> "Start time must be in the future"
+            starts <= localNowMillis() -> "Start time must be in the future"
             else -> null
         }
         val endsError = when {

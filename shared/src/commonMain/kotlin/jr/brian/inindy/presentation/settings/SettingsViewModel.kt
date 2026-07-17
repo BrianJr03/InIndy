@@ -3,7 +3,9 @@ package jr.brian.inindy.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.domain.model.RsvpReminderPref
 import jr.brian.inindy.domain.repository.AuthRepository
+import jr.brian.inindy.domain.repository.NotificationSettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,12 +24,16 @@ sealed class DeleteAccountState {
 data class SettingsUiState(
     val deleteAccount: DeleteAccountState = DeleteAccountState.Idle,
     // Mirrors UserPreferences.feedInterestOrderingEnabled — same default (off).
-    val feedInterestOrderingEnabled: Boolean = false
+    val feedInterestOrderingEnabled: Boolean = false,
+    // Mirrors the SQL default of notification_settings.rsvp_reminder — flip
+    // both together if that default changes.
+    val rsvpReminder: RsvpReminderPref = RsvpReminderPref.DAY_OF
 )
 
 class SettingsViewModel(
     private val authRepository: AuthRepository,
-    private val userPreferencesStore: UserPreferencesStore
+    private val userPreferencesStore: UserPreferencesStore,
+    private val notificationSettingsRepository: NotificationSettingsRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -40,6 +46,17 @@ class SettingsViewModel(
                 _uiState.value = _uiState.value.copy(feedInterestOrderingEnabled = enabled)
             }
             .launchIn(viewModelScope)
+
+        // One-shot load of the RSVP reminder pref. Subsequent changes come from
+        // this device via setRsvpReminder — the flow doesn't re-emit, but the
+        // optimistic update below keeps the UI current.
+        notificationSettingsRepository.observeRsvpReminder()
+            .onEach { result ->
+                result.getOrNull()?.let { pref ->
+                    _uiState.value = _uiState.value.copy(rsvpReminder = pref)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setInterestOrdering(enabled: Boolean) {
@@ -49,6 +66,15 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(feedInterestOrderingEnabled = enabled)
         viewModelScope.launch {
             userPreferencesStore.setFeedInterestOrdering(enabled)
+        }
+    }
+
+    fun setRsvpReminder(pref: RsvpReminderPref) {
+        // Optimistic — mirrors setInterestOrdering. If the upsert fails, the
+        // local state stays put; a cold restart reconciles from the DB.
+        _uiState.value = _uiState.value.copy(rsvpReminder = pref)
+        viewModelScope.launch {
+            notificationSettingsRepository.setRsvpReminder(pref)
         }
     }
 

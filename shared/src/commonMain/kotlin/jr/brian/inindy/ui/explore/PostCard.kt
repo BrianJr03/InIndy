@@ -63,6 +63,7 @@ import jr.brian.inindy.resources.post_in_count_label_single
 import jr.brian.inindy.resources.post_interested_button
 import jr.brian.inindy.resources.post_moderation_pending
 import jr.brian.inindy.resources.post_moderation_rejected
+import jr.brian.inindy.ui.components.AdaptiveMediaFrame
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
 import jr.brian.inindy.ui.icons.PlayArrowIcon
@@ -340,10 +341,9 @@ private fun PostHero(
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 when (val item = media[page]) {
-                    is HeroMedia.Image -> AsyncImage(
-                        model = item.url,
+                    is HeroMedia.Image -> AdaptiveMediaFrame(
+                        imageUrl = item.url,
                         contentDescription = contentDescription,
-                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
 

@@ -93,7 +93,7 @@ import jr.brian.inindy.ui.icons.SettingsIcon
 import jr.brian.inindy.ui.icons.StarIcon
 import jr.brian.inindy.ui.profile.ProfileEditSheet
 import jr.brian.inindy.util.DateUtil
-import jr.brian.inindy.util.currentTimeMillis
+import jr.brian.inindy.util.localNowMillis
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.roundToInt
@@ -139,7 +139,7 @@ private fun MeScreenContent(
     var postPendingDeletion by remember { mutableStateOf<String?>(null) }
     var deletingPostIds by remember { mutableStateOf(setOf<String>()) }
     var showProfileEditSheet by remember { mutableStateOf(false) }
-    val now = currentTimeMillis()
+    val now = localNowMillis()
 
     Box(
         modifier = modifier

@@ -12,7 +12,8 @@ fun NotificationDto.toDomain(): Notification = Notification(
     actorAvatarUrl = actor?.avatarUrl,
     groupId = group?.id ?: groupId,
     groupName = group?.name,
-    postId = postId,
+    postId = post?.id ?: postId,
+    postTitle = post?.title,
     read = read,
     createdAt = createdAt.toEpochMillis()
 )

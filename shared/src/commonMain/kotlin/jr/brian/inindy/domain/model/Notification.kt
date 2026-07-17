@@ -9,17 +9,20 @@ data class Notification(
     val groupId: String?,
     val groupName: String?,
     val postId: String?,
+    val postTitle: String?,
     val read: Boolean,
     val createdAt: Long
 )
 
 enum class NotificationType {
     GROUP_POST,
+    RSVP_REMINDER,
     UNKNOWN;
 
     companion object {
         fun fromServer(value: String?): NotificationType = when (value) {
             "group_post" -> GROUP_POST
+            "rsvp_reminder" -> RSVP_REMINDER
             else -> UNKNOWN
         }
     }

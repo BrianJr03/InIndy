@@ -9,6 +9,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,17 +45,21 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,14 +73,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -119,6 +130,7 @@ import jr.brian.inindy.resources.post_detail_menu_cd
 import jr.brian.inindy.resources.post_detail_unavailable
 import jr.brian.inindy.resources.post_in_count_label
 import jr.brian.inindy.resources.post_in_count_label_single
+import jr.brian.inindy.ui.components.AdaptiveMediaFrame
 import jr.brian.inindy.ui.components.FloatingBackButton
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
@@ -268,6 +280,7 @@ private fun PostDetailContent(
     val scrollState = rememberScrollState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAttendeesDialog by remember { mutableStateOf(false) }
+    var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = modifier
@@ -284,7 +297,8 @@ private fun PostDetailContent(
                 images = post.images,
                 videos = post.videos,
                 primaryTag = post.tags.firstOrNull() ?: Interest.EXPLORING,
-                contentDescription = post.title
+                contentDescription = post.title,
+                onImageTap = { url -> fullscreenImageUrl = url }
             )
 
             Column(
@@ -406,6 +420,13 @@ private fun PostDetailContent(
             onDismiss = { showAttendeesDialog = false }
         )
     }
+
+    fullscreenImageUrl?.let { url ->
+        FullscreenImageSheet(
+            imageUrl = url,
+            onDismiss = { fullscreenImageUrl = null }
+        )
+    }
 }
 
 @Composable
@@ -514,7 +535,8 @@ private fun DetailHero(
     videos: List<VideoMedia>,
     primaryTag: Interest,
     contentDescription: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onImageTap: (String) -> Unit = {}
 ) {
     val media = images.map { DetailMedia.Image(it) } +
             videos.map { DetailMedia.Video(it.url, it.thumbnailUrl) }
@@ -542,11 +564,16 @@ private fun DetailHero(
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 when (val item = media[page]) {
-                    is DetailMedia.Image -> AsyncImage(
-                        model = item.url,
+                    is DetailMedia.Image -> AdaptiveMediaFrame(
+                        imageUrl = item.url,
                         contentDescription = contentDescription,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onImageTap(item.url) }
+                            )
                     )
 
                     is DetailMedia.Video -> DetailVideoPage(
@@ -1434,6 +1461,132 @@ private fun AttendeeAvatar(
         }
     }
 }
+
+// Full-screen photo viewer, opened by tapping the hero image. Uses the M3
+// ModalBottomSheet with skipPartiallyExpanded so it snaps straight to fully
+// expanded, dragHandle = null so nothing sits between the image and the top
+// edge. Delegates to ZoomableAdaptiveMedia — portraits and landscapes both
+// show fully with a blurred backdrop, and the user can pinch, pan, or
+// double-tap to zoom.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullscreenImageSheet(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        containerColor = Color.Black
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            ZoomableAdaptiveMedia(
+                imageUrl = imageUrl,
+                modifier = Modifier.fillMaxSize()
+            )
+            // Close button lives on the outer Box, OUTSIDE the transformed
+            // layer, so it stays put when the image is zoomed/panned and
+            // continues to receive clicks regardless of the transform state.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = CloseIcon,
+                    contentDescription = stringResource(Res.string.detail_back_content_description),
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+// Pinch-to-zoom + pan-when-zoomed + double-tap toggle over an AdaptiveMediaFrame.
+// - Pinch: two-finger scale between MIN_ZOOM and MAX_ZOOM.
+// - Pan: single-finger drag while zoomed (>1x). Clamped to container bounds so
+//   the image can't be dragged completely off-screen.
+// - Double-tap: toggles between 1x (reset) and 2x centered on the tap point.
+// Uses graphicsLayer for the transform — it's a draw-time effect, so pointer
+// input still lands on the original untransformed layout and the transformable
+// gesture keeps consuming events correctly.
+@Composable
+private fun ZoomableAdaptiveMedia(
+    imageUrl: String,
+    modifier: Modifier = Modifier
+) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+        val newScale = (scale * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
+        scale = newScale
+        offset = if (newScale > 1f) {
+            val maxX = containerSize.width * (newScale - 1f) / 2f
+            val maxY = containerSize.height * (newScale - 1f) / 2f
+            Offset(
+                (offset.x + panChange.x).coerceIn(-maxX, maxX),
+                (offset.y + panChange.y).coerceIn(-maxY, maxY)
+            )
+        } else {
+            Offset.Zero
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .onSizeChanged { containerSize = it }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { tapPos ->
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = DOUBLE_TAP_ZOOM
+                            // Center the 2x zoom on the tap position. With the
+                            // default transformOrigin (layer center), a point at
+                            // (px,py) lands at ((px-w/2)*scale + w/2 + tx, …),
+                            // so keeping the tap point put requires
+                            // tx = w/2 - px, ty = h/2 - py — then clamped.
+                            val rawX = containerSize.width / 2f - tapPos.x
+                            val rawY = containerSize.height / 2f - tapPos.y
+                            val maxX = containerSize.width * (DOUBLE_TAP_ZOOM - 1f) / 2f
+                            val maxY = containerSize.height * (DOUBLE_TAP_ZOOM - 1f) / 2f
+                            offset = Offset(
+                                rawX.coerceIn(-maxX, maxX),
+                                rawY.coerceIn(-maxY, maxY)
+                            )
+                        }
+                    }
+                )
+            }
+            .transformable(state = transformState)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+            }
+    ) {
+        AdaptiveMediaFrame(
+            imageUrl = imageUrl,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+private const val MIN_ZOOM = 1f
+private const val MAX_ZOOM = 5f
+private const val DOUBLE_TAP_ZOOM = 2f
 
 @Preview
 @Composable
