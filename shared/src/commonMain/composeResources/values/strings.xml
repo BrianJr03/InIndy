@@ -86,7 +86,9 @@
     <string name="settings_rsvp_reminder_day_of">Day of</string>
     <string name="settings_rsvp_reminder_hour_before">Hour before</string>
     <string name="settings_section_account">Account</string>
-    <string name="settings_delete_account_title">Delete account</string>
+    <string name="settings_sign_out_title">Log out</string>
+    <string name="settings_sign_out_description">Sign out of your account on this device</string>
+    <string name="settings_delete_account_title">Delete Account</string>
     <string name="settings_delete_account_description">Permanently remove your account and all your data</string>
     <string name="settings_delete_account_dialog_title">Delete your account?</string>
     <string name="settings_delete_account_dialog_body">This permanently deletes your profile, posts, RSVPs, and any groups you founded that have no other admin. This cannot be undone.</string>
@@ -419,6 +421,8 @@
     <string name="group_chat_error_title">Couldn't load chat</string>
     <string name="group_chat_time_today">Today</string>
     <string name="group_chat_time_yesterday">Yesterday</string>
+    <string name="group_chat_new_messages_pill">%1$d new messages</string>
+    <string name="group_chat_new_messages_pill_single">New message</string>
 
     <!-- Create post — date &amp; time pickers -->
     <string name="create_post_start_label">Start date &amp; time *</string>

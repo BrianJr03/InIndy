@@ -12,8 +12,11 @@ import jr.brian.inindy.domain.repository.GroupRepository
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -29,6 +32,16 @@ class GroupChatViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState: StateFlow<GroupChatUiState> = _uiState.asStateFlow()
+
+    // One-shot event fired after the user's own send succeeds. The screen
+    // collects it to force-scroll to the newest message even when the user is
+    // reading history — sending your own message is a "come back to the
+    // conversation" signal that should always follow the sent message,
+    // bypassing the near-bottom guard used for other people's messages.
+    // extraBufferCapacity = 1 so tryEmit never drops the event if the
+    // collector hasn't attached yet (chat just opened).
+    private val _justSentByMe = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val justSentByMe: SharedFlow<Unit> = _justSentByMe.asSharedFlow()
 
     // Cached member sender info (senderId → member), used to enrich messages
     // that come in via realtime UPDATE where the join wasn't refetched.
@@ -143,6 +156,7 @@ class GroupChatViewModel(
             chatRepository.sendMessage(groupId, body)
                 .onSuccess {
                     _uiState.update { it.copy(draft = "", isSending = false) }
+                    _justSentByMe.tryEmit(Unit)
                 }
                 .onFailure { e ->
                     _uiState.update {

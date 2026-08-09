@@ -21,12 +21,16 @@ sealed class DeleteAccountState {
     data class Error(val message: String) : DeleteAccountState()
 }
 
+sealed class SignOutState {
+    data object Idle : SignOutState()
+    data object SigningOut : SignOutState()
+    data class Error(val message: String) : SignOutState()
+}
+
 data class SettingsUiState(
     val deleteAccount: DeleteAccountState = DeleteAccountState.Idle,
-    // Mirrors UserPreferences.feedInterestOrderingEnabled — same default (off).
+    val signOut: SignOutState = SignOutState.Idle,
     val feedInterestOrderingEnabled: Boolean = false,
-    // Mirrors the SQL default of notification_settings.rsvp_reminder — flip
-    // both together if that default changes.
     val rsvpReminder: RsvpReminderPref = RsvpReminderPref.DAY_OF
 )
 
@@ -70,11 +74,24 @@ class SettingsViewModel(
     }
 
     fun setRsvpReminder(pref: RsvpReminderPref) {
-        // Optimistic — mirrors setInterestOrdering. If the upsert fails, the
-        // local state stays put; a cold restart reconciles from the DB.
         _uiState.value = _uiState.value.copy(rsvpReminder = pref)
         viewModelScope.launch {
             notificationSettingsRepository.setRsvpReminder(pref)
+        }
+    }
+
+    fun signOut() {
+        if (_uiState.value.signOut is SignOutState.SigningOut) return
+        _uiState.value = _uiState.value.copy(signOut = SignOutState.SigningOut)
+        viewModelScope.launch {
+            authRepository.signOut()
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        signOut = SignOutState.Error(
+                            e.message ?: "Failed to sign out"
+                        )
+                    )
+                }
         }
     }
 
@@ -100,8 +117,15 @@ class SettingsViewModel(
     }
 
     fun dismissError() {
-        if (_uiState.value.deleteAccount is DeleteAccountState.Error) {
-            _uiState.value = _uiState.value.copy(deleteAccount = DeleteAccountState.Idle)
+        val current = _uiState.value
+        val nextDelete = if (current.deleteAccount is DeleteAccountState.Error) {
+            DeleteAccountState.Idle
+        } else current.deleteAccount
+        val nextSignOut = if (current.signOut is SignOutState.Error) {
+            SignOutState.Idle
+        } else current.signOut
+        if (nextDelete !== current.deleteAccount || nextSignOut !== current.signOut) {
+            _uiState.value = current.copy(deleteAccount = nextDelete, signOut = nextSignOut)
         }
     }
 }

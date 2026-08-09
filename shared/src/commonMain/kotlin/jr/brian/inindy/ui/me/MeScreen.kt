@@ -1,5 +1,10 @@
 package jr.brian.inindy.ui.me
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -30,11 +34,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,7 +62,6 @@ import jr.brian.inindy.presentation.me.MeUiState
 import jr.brian.inindy.presentation.me.MeViewModel
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.explore_settings_content_description
-import jr.brian.inindy.resources.me_attendance_rate
 import jr.brian.inindy.resources.me_create_group_cta
 import jr.brian.inindy.resources.me_create_post_cta
 import jr.brian.inindy.resources.me_delete_post_confirm
@@ -90,13 +88,11 @@ import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.DeleteIcon
 import jr.brian.inindy.ui.icons.GroupIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
-import jr.brian.inindy.ui.icons.StarIcon
 import jr.brian.inindy.ui.profile.ProfileEditSheet
 import jr.brian.inindy.util.DateUtil
-import jr.brian.inindy.util.localNowMillis
+import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.roundToInt
 
 @Composable
 fun MeScreen(
@@ -139,7 +135,7 @@ private fun MeScreenContent(
     var postPendingDeletion by remember { mutableStateOf<String?>(null) }
     var deletingPostIds by remember { mutableStateOf(setOf<String>()) }
     var showProfileEditSheet by remember { mutableStateOf(false) }
-    val now = localNowMillis()
+    val now = currentTimeMillis()
 
     Box(
         modifier = modifier
@@ -307,26 +303,16 @@ private fun MeHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
-//                    Text(
-//                        text = " · ",
-//                        color = MaterialTheme.colorScheme.onSurfaceVariant
-//                    )
-//                    Icon(
-//                        imageVector = StarIcon,
-//                        contentDescription = null,
-//                        tint = MaterialTheme.colorScheme.primary,
-//                        modifier = Modifier.size(14.dp)
-//                    )
-//                    Spacer(Modifier.width(4.dp))
-//                    Text(
-//                        text = stringResource(
-//                            Res.string.me_attendance_rate,
-//                            (attendanceRate * 100).roundToInt()
-//                        ),
-//                        style = MaterialTheme.typography.labelLarge,
-//                        color = MaterialTheme.colorScheme.primary,
-//                        fontWeight = FontWeight.SemiBold
-//                    )
+                }
+                if (!user?.email.isNullOrBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = user.email,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

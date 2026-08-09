@@ -23,6 +23,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
     )
 
     private val userIdKey = stringPreferencesKey(UserPreferencesKeys.USER_ID)
+    private val emailKey = stringPreferencesKey(UserPreferencesKeys.EMAIL)
     private val fullNameKey = stringPreferencesKey(UserPreferencesKeys.FULL_NAME)
     private val avatarUrlKey = stringPreferencesKey(UserPreferencesKeys.AVATAR_URL)
     private val neighborhoodIdKey = stringPreferencesKey(UserPreferencesKeys.NEIGHBORHOOD_ID)
@@ -37,6 +38,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
     override val preferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
         UserPreferences(
             userId = prefs[userIdKey],
+            email = prefs[emailKey],
             fullName = prefs[fullNameKey],
             avatarUrl = prefs[avatarUrlKey],
             neighborhoodId = prefs[neighborhoodIdKey],
@@ -56,6 +58,12 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
 
     override suspend fun saveUserId(id: String) {
         dataStore.edit { it[userIdKey] = id }
+    }
+
+    override suspend fun saveEmail(email: String?) {
+        dataStore.edit {
+            if (email != null) it[emailKey] = email else it.remove(emailKey)
+        }
     }
 
     override suspend fun saveProfile(fullName: String, avatarUrl: String?) {

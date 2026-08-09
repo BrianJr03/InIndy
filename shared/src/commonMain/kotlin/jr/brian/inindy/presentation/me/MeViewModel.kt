@@ -73,6 +73,7 @@ class MeViewModel(
                     id = prefs.userId ?: "me",
                     fullName = prefs.fullName,
                     avatarUrl = prefs.avatarUrl,
+                    email = prefs.email,
                     phoneVerified = true,
                     neighborhoodId = prefs.neighborhoodId,
                     interests = Interest.fromStorageNames(prefs.interests)

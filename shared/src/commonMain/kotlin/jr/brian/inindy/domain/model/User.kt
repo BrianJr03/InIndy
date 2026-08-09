@@ -4,6 +4,7 @@ data class User(
     val id: String,
     val fullName: String?,
     val avatarUrl: String?,
+    val email: String? = null,
     val phoneVerified: Boolean = false,
     val neighborhoodId: String? = null,
     val interests: List<Interest> = emptyList()

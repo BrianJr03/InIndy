@@ -119,7 +119,7 @@ async function buildMessage(
     case "rsvp_reminder": {
       const post = n.post_id ? await fetchPostBrief(admin, n.post_id) : null;
       return {
-        title: post?.title ?? "Upcoming event",
+        title: post?.title ?? "Upcoming Event",
         body: "Your RSVP'd event is coming up",
       };
     }

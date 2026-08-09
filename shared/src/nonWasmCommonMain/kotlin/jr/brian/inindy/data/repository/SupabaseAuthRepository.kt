@@ -80,6 +80,9 @@ class SupabaseAuthRepository(
         }
         log.d { "syncUserProfile — syncing for userId: $userId" }
         try {
+            // Mirror auth email into prefs so MeScreen can display it without
+            // another round-trip to supabase.auth on every read.
+            userPreferencesStore.saveEmail(supabase.auth.currentUserOrNull()?.email)
             // 1. Fetch user row from public.users
             val userRow = supabase.from("users")
                 .select {
@@ -231,6 +234,7 @@ class SupabaseAuthRepository(
             id = supabaseUser.id,
             fullName = prefs.fullName,
             avatarUrl = prefs.avatarUrl,
+            email = supabaseUser.email ?: prefs.email,
             phoneVerified = supabaseUser.phone != null,
             neighborhoodId = prefs.neighborhoodId,
             interests = Interest.fromStorageNames(prefs.interests)

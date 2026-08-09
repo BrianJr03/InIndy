@@ -16,6 +16,15 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
         refresh()
     }
 
+    override suspend fun saveEmail(email: String?) {
+        if (email != null) {
+            localStorage.setItem(UserPreferencesKeys.EMAIL, email)
+        } else {
+            localStorage.removeItem(UserPreferencesKeys.EMAIL)
+        }
+        refresh()
+    }
+
     override suspend fun saveProfile(fullName: String, avatarUrl: String?) {
         localStorage.setItem(UserPreferencesKeys.FULL_NAME, fullName)
         if (avatarUrl != null) {
@@ -70,6 +79,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
     override suspend fun clear() {
         listOf(
             UserPreferencesKeys.USER_ID,
+            UserPreferencesKeys.EMAIL,
             UserPreferencesKeys.FULL_NAME,
             UserPreferencesKeys.AVATAR_URL,
             UserPreferencesKeys.NEIGHBORHOOD_ID,
@@ -90,6 +100,7 @@ class UserPreferencesStoreImpl : UserPreferencesStore {
 
     private fun loadFromStorage(): UserPreferences = UserPreferences(
         userId = localStorage.getItem(UserPreferencesKeys.USER_ID),
+        email = localStorage.getItem(UserPreferencesKeys.EMAIL),
         fullName = localStorage.getItem(UserPreferencesKeys.FULL_NAME),
         avatarUrl = localStorage.getItem(UserPreferencesKeys.AVATAR_URL),
         neighborhoodId = localStorage.getItem(UserPreferencesKeys.NEIGHBORHOOD_ID),

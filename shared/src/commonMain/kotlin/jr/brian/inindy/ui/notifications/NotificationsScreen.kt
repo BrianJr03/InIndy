@@ -1,5 +1,8 @@
 package jr.brian.inindy.ui.notifications
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,6 +66,7 @@ import jr.brian.inindy.resources.notifications_title
 import jr.brian.inindy.ui.icons.ArrowBackIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.DeleteIcon
+import jr.brian.inindy.ui.motion.Motion
 import jr.brian.inindy.util.currentTimeMillis
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -100,7 +105,12 @@ fun NotificationsScreen(
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(state.notifications, key = { it.id }) { notification ->
                             SwipeToDeleteRow(
-                                onDelete = { viewModel.delete(notification.id) }
+                                onDelete = { viewModel.delete(notification.id) },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(Motion.Duration.Medium, easing = Motion.Standard),
+                                    placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                    fadeOutSpec = tween(Motion.Duration.Medium, easing = Motion.Standard)
+                                )
                             ) {
                                 NotificationRow(
                                     notification = notification,
@@ -237,10 +247,16 @@ private fun NotificationRow(
     }
     val timeText = relativeTimeLabel(notification.createdAt)
 
+    // Row must be OPAQUE for both states so the SwipeToDismissBox's red
+    // errorContainer backdrop can't bleed through. compositeOver lays the 8%
+    // primary tint over the surface color — visually identical to the raw
+    // alpha value against a light/dark theme surface, but fully opaque so the
+    // swipe-to-delete backdrop only appears when the user actually swipes.
     val background = if (notification.read) {
         MaterialTheme.colorScheme.surface
     } else {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            .compositeOver(MaterialTheme.colorScheme.surface)
     }
 
     Surface(

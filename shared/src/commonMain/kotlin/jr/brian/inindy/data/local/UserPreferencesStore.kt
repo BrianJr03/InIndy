@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 data class UserPreferences(
     val userId: String? = null,
+    val email: String? = null,
     val fullName: String? = null,
     val avatarUrl: String? = null,
     val neighborhoodId: String? = null,
@@ -22,6 +23,7 @@ data class UserPreferences(
 interface UserPreferencesStore {
     val preferences: Flow<UserPreferences>
     suspend fun saveUserId(id: String)
+    suspend fun saveEmail(email: String?)
     suspend fun saveProfile(fullName: String, avatarUrl: String?)
     suspend fun saveNeighborhood(id: String, name: String)
     suspend fun saveInterests(interests: List<Interest>)
@@ -35,6 +37,7 @@ interface UserPreferencesStore {
 
 internal object UserPreferencesKeys {
     const val USER_ID = "user_id"
+    const val EMAIL = "email"
     const val FULL_NAME = "full_name"
     const val AVATAR_URL = "avatar_url"
     const val NEIGHBORHOOD_ID = "neighborhood_id"

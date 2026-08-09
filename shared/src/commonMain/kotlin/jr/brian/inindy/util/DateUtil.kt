@@ -1,21 +1,9 @@
 package jr.brian.inindy.util
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
+import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 
 expect fun currentTimeMillis(): Long
-
-// Post start/end times are stored as "local wall-clock encoded as UTC millis" so
-// UTC arithmetic on epoch millis matches what the user picked on the clock.
-// currentTimeMillis() returns REAL UTC — comparing the two shifts by the local
-// tz offset. Use this when validating a picked local time against "now".
-fun localNowMillis(): Long {
-    val now = Clock.System.now()
-    val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-    return local.toInstant(TimeZone.UTC).toEpochMilliseconds()
-}
 
 object DateUtil {
     private val months = listOf(
@@ -23,19 +11,20 @@ object DateUtil {
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     )
 
+    // startsAt / endsAt are real UTC epoch millis. Convert to the app's fixed
+    // Indianapolis zone before extracting calendar components so the label
+    // matches what the poster meant, not what the viewer's device thinks.
     fun formatEventDate(epochMs: Long): String {
-        val totalDays = epochMs / 86_400_000L
-        val (_, m, d) = epochDaysToYmd(totalDays)
-        val hour = ((epochMs % 86_400_000L) / 3_600_000L).toInt()
-        val minute = ((epochMs % 3_600_000L) / 60_000L).toInt()
+        val local = Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(AppTimeZone)
+        val hour = local.hour
         val amPm = if (hour < 12) "AM" else "PM"
         val displayHour = when {
             hour == 0 -> 12
             hour > 12 -> hour - 12
             else -> hour
         }
-        val monthName = months[(m - 1).coerceIn(0, 11)]
-        return "$monthName $d at $displayHour:${minute.toString().padStart(2, '0')} $amPm"
+        val monthName = months[(local.monthNumber - 1).coerceIn(0, 11)]
+        return "$monthName ${local.dayOfMonth} at $displayHour:${local.minute.toString().padStart(2, '0')} $amPm"
     }
 
     fun formatRelativeDate(epochMs: Long, nowMs: Long): String {
@@ -49,24 +38,9 @@ object DateUtil {
             diffHours < 24 -> "${diffHours}h ago"
             diffDays < 7 -> "${diffDays}d ago"
             else -> {
-                val (_, m, d) = epochDaysToYmd(epochMs / 86_400_000L)
-                "${months[(m - 1).coerceIn(0, 11)]} $d"
+                val local = Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(AppTimeZone)
+                "${months[(local.monthNumber - 1).coerceIn(0, 11)]} ${local.dayOfMonth}"
             }
         }
-    }
-
-    // Howard Hinnant's civil calendar algorithm — epoch days to (year, month, day)
-    private fun epochDaysToYmd(days: Long): Triple<Int, Int, Int> {
-        val z = days + 719468L
-        val era = if (z >= 0) z / 146097L else (z - 146096L) / 146097L
-        val doe = (z - era * 146097L).toInt()
-        val yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
-        val y = (yoe + era * 400L).toInt()
-        val doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
-        val mp = (5 * doy + 2) / 153
-        val d = doy - (153 * mp + 2) / 5 + 1
-        val m = if (mp < 10) mp + 3 else mp - 9
-        val year = if (m <= 2) y + 1 else y
-        return Triple(year, m, d)
     }
 }

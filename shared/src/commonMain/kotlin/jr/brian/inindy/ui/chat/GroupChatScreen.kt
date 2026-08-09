@@ -1,7 +1,13 @@
 package jr.brian.inindy.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,8 +45,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -65,6 +73,8 @@ import jr.brian.inindy.resources.group_chat_delete_dismiss
 import jr.brian.inindy.resources.group_chat_empty
 import jr.brian.inindy.resources.group_chat_error_title
 import jr.brian.inindy.resources.group_chat_input_placeholder
+import jr.brian.inindy.resources.group_chat_new_messages_pill
+import jr.brian.inindy.resources.group_chat_new_messages_pill_single
 import jr.brian.inindy.resources.group_chat_profanity_blocked
 import jr.brian.inindy.resources.group_chat_profanity_dismiss
 import jr.brian.inindy.resources.group_chat_removed
@@ -76,9 +86,11 @@ import jr.brian.inindy.resources.group_chat_typing_multiple
 import jr.brian.inindy.resources.group_chat_typing_single
 import jr.brian.inindy.resources.group_chat_typing_unknown
 import jr.brian.inindy.ui.icons.ArrowBackIcon
+import jr.brian.inindy.ui.icons.KeyboardArrowDownIcon
 import jr.brian.inindy.ui.icons.SendIcon
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -103,6 +115,12 @@ fun GroupChatScreen(
     LaunchedEffect(viewModel) { viewModel.onIntent(GroupChatIntent.ChatOpened) }
 
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Counts messages that arrived while the user was scrolled up reading
+    // history. Drives the pill overlay. Reset to 0 whenever the user is at
+    // (or scrolls back to) the newest end of the list.
+    var newMessageCount by remember { mutableIntStateOf(0) }
 
     // Reverse-layout means "top of list" (oldest) = last index. Trigger loadOlder
     // when the user has scrolled up to within a few items of that boundary.
@@ -122,10 +140,42 @@ fun GroupChatScreen(
             }
     }
 
-    // Auto-scroll to newest on each new message. reverseLayout=true means index 0
-    // is the bottom (newest); scrolling to 0 keeps the view stuck to the latest.
-    LaunchedEffect(state.messages.firstOrNull()?.id) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(0)
+    // Smart auto-scroll: only follow the newest message if the user is
+    // currently near the bottom. If they're reading history further up, don't
+    // interrupt them — bump the pill counter instead. state.messages is
+    // oldest-first, so lastOrNull()?.id is the newest message id and changes
+    // on every arrival.
+    LaunchedEffect(state.messages.lastOrNull()?.id) {
+        if (state.messages.isEmpty()) return@LaunchedEffect
+        if (listState.firstVisibleItemIndex <= NEAR_BOTTOM_THRESHOLD) {
+            listState.animateScrollToItem(0)
+        } else {
+            newMessageCount++
+        }
+    }
+
+    // Clear the pill when the user scrolls back to the newest end — either
+    // by tapping the pill (which animates to index 0) or by manually
+    // scrolling down. distinctUntilChanged avoids resetting on every scroll
+    // frame while already at the bottom.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex <= NEAR_BOTTOM_THRESHOLD }
+            .distinctUntilChanged()
+            .collect { nearBottom ->
+                if (nearBottom) newMessageCount = 0
+            }
+    }
+
+    // Bypass the near-bottom guard for the user's own sends: if they hit send
+    // while scrolled up, always follow the message. The scroll lands at
+    // whatever's at index 0 at that moment — either the sent message (if it
+    // has already arrived via realtime/optimistic update) or the previous
+    // newest; the message-arrival LaunchedEffect above then follows the send
+    // to its final position, since firstVisibleItemIndex is now 0.
+    LaunchedEffect(viewModel) {
+        viewModel.justSentByMe.collect {
+            listState.animateScrollToItem(0)
+        }
     }
 
     var messagePendingDelete by remember { mutableStateOf<String?>(null) }
@@ -152,6 +202,17 @@ fun GroupChatScreen(
                         onLongPressOwnMessage = { messagePendingDelete = it }
                     )
                 }
+                NewMessagePill(
+                    count = newMessageCount,
+                    onClick = {
+                        // Snap-to-bottom on tap. The near-bottom collector
+                        // above will notice and zero out the counter.
+                        scope.launch { listState.animateScrollToItem(0) }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp)
+                )
             }
 
             TypingIndicator(
@@ -607,3 +668,54 @@ private fun kotlinx.datetime.LocalDate.toEpochDayNumber(): Long {
 private fun Int.pad2() = toString().padStart(2, '0')
 
 private const val LOAD_OLDER_TRIGGER_OFFSET = 4
+
+// firstVisibleItemIndex <= 1 counts as "near the bottom" — either looking at
+// the newest message (index 0) or the one right above it. Wider thresholds
+// feel too eager to yank users away from what they were reading.
+private const val NEAR_BOTTOM_THRESHOLD = 1
+
+// Floating "N new messages" pill overlaid on the message list. Only visible
+// while newMessageCount > 0 — i.e. new arrivals happened while the user was
+// scrolled up. Tapping animates back to the newest end.
+@Composable
+private fun NewMessagePill(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+        modifier = modifier
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 6.dp,
+            modifier = Modifier.clickable(onClick = onClick)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = KeyboardArrowDownIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = if (count == 1) {
+                        stringResource(Res.string.group_chat_new_messages_pill_single)
+                    } else {
+                        stringResource(Res.string.group_chat_new_messages_pill, count)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}

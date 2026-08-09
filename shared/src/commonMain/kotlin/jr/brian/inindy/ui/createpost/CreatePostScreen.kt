@@ -136,9 +136,18 @@ import jr.brian.inindy.ui.icons.AddIcon
 import jr.brian.inindy.ui.icons.CloseIcon
 import jr.brian.inindy.ui.icons.DateRangeIcon
 import jr.brian.inindy.ui.icons.LocationOnIcon
+import jr.brian.inindy.util.AppTimeZone
 import jr.brian.inindy.util.DateUtil
-import jr.brian.inindy.util.localNowMillis
+import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -343,8 +352,9 @@ fun CreatePostScreen(
         startsAt = state.startsAt,
         onDismiss = { showStartDatePicker = false },
         onDateSelected = { dateMs ->
-            val existingTimeMs = state.startsAt?.let { it % 86_400_000L } ?: 32_400_000L
-            viewModel.setStartsAt(dateMs + existingTimeMs)
+            val hour = state.startsAt?.let { localHourOf(it) } ?: 9
+            val minute = state.startsAt?.let { localMinuteOf(it) } ?: 0
+            viewModel.setStartsAt(combineLocalDateTime(dateMs, hour, minute))
             showStartDatePicker = false
             showStartTimePicker = true
         }
@@ -355,10 +365,8 @@ fun CreatePostScreen(
         startsAt = state.startsAt,
         onDismiss = { showStartTimePicker = false },
         onTimeSelected = { hour, minute ->
-            val dateOnly = state.startsAt?.let { it - (it % 86_400_000L) } ?: 0L
-            val timeMs = hour * 3_600_000L + minute * 60_000L
-            val newStartsAt = dateOnly + timeMs
-            if (newStartsAt <= localNowMillis()) {
+            val newStartsAt = rebuildAtLocalTime(state.startsAt, hour, minute)
+            if (newStartsAt <= currentTimeMillis()) {
                 dateTimeError = startInFutureMsg
             } else {
                 dateTimeError = null
@@ -378,9 +386,8 @@ fun CreatePostScreen(
         endsAt = state.endsAt,
         onDismiss = { showEndDatePicker = false },
         onDateSelected = { dateMs ->
-            val existingTimeMs = state.endsAt?.let { it % 86_400_000L }
-                ?: (state.startsAt?.let { (it % 86_400_000L) + 2 * 3_600_000L } ?: 39_600_000L)
-            viewModel.setEndsAt(dateMs + (existingTimeMs % 86_400_000L))
+            val (hour, minute) = defaultEndTimeParts(state.endsAt, state.startsAt)
+            viewModel.setEndsAt(combineLocalDateTime(dateMs, hour, minute))
             showEndDatePicker = false
             showEndTimePicker = true
         }
@@ -391,9 +398,7 @@ fun CreatePostScreen(
         endsAt = state.endsAt,
         onDismiss = { showEndTimePicker = false },
         onTimeSelected = { hour, minute ->
-            val dateOnly = state.endsAt?.let { it - (it % 86_400_000L) } ?: 0L
-            val timeMs = hour * 3_600_000L + minute * 60_000L
-            val newEndsAt = dateOnly + timeMs
+            val newEndsAt = rebuildAtLocalTime(state.endsAt, hour, minute)
             val start = state.startsAt
             if (start == null) {
                 dateTimeError = setStartFirstMsg
@@ -804,10 +809,9 @@ private fun StartDatePickerDialog(
     onDateSelected: (Long) -> Unit
 ) {
     if (!visible) return
-    val now = localNowMillis()
-    val todayStart = now - (now % 86_400_000L)
+    val todayStart = localTodayPickerFloor()
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = startsAt ?: now,
+        initialSelectedDateMillis = startsAt?.let { pickerDateFromEpoch(it) } ?: todayStart,
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean =
                 utcTimeMillis >= todayStart
@@ -838,8 +842,8 @@ private fun StartTimePickerDialog(
 ) {
     if (!visible) return
     val timePickerState = rememberTimePickerState(
-        initialHour = startsAt?.let { ((it / 3_600_000L) % 24L).toInt() } ?: 9,
-        initialMinute = startsAt?.let { ((it / 60_000L) % 60L).toInt() } ?: 0,
+        initialHour = startsAt?.let { localHourOf(it) } ?: 9,
+        initialMinute = startsAt?.let { localMinuteOf(it) } ?: 0,
         is24Hour = false
     )
     AlertDialog(
@@ -869,10 +873,9 @@ private fun EndDatePickerDialog(
     onDateSelected: (Long) -> Unit
 ) {
     if (!visible) return
-    val now = localNowMillis()
-    val floor = (startsAt ?: now).let { it - (it % 86_400_000L) }
+    val floor = startsAt?.let { pickerDateFromEpoch(it) } ?: localTodayPickerFloor()
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = endsAt ?: startsAt ?: now,
+        initialSelectedDateMillis = (endsAt ?: startsAt)?.let { pickerDateFromEpoch(it) } ?: floor,
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean =
                 utcTimeMillis >= floor
@@ -903,8 +906,8 @@ private fun EndTimePickerDialog(
 ) {
     if (!visible) return
     val timePickerState = rememberTimePickerState(
-        initialHour = endsAt?.let { ((it / 3_600_000L) % 24L).toInt() } ?: 11,
-        initialMinute = endsAt?.let { ((it / 60_000L) % 60L).toInt() } ?: 0,
+        initialHour = endsAt?.let { localHourOf(it) } ?: 11,
+        initialMinute = endsAt?.let { localMinuteOf(it) } ?: 0,
         is24Hour = false
     )
     AlertDialog(
@@ -1294,6 +1297,52 @@ private fun ActionChip(
             )
         }
     }
+}
+
+// Material3's DatePicker speaks in UTC-midnight-of-a-calendar-date. Convert
+// between that and real UTC event epochs anchored in the app's fixed zone.
+
+private fun combineLocalDateTime(pickerDateUtcMs: Long, hour: Int, minute: Int): Long {
+    val d = Instant.fromEpochMilliseconds(pickerDateUtcMs).toLocalDateTime(TimeZone.UTC).date
+    return LocalDateTime(d.year, d.monthNumber, d.dayOfMonth, hour, minute)
+        .toInstant(AppTimeZone).toEpochMilliseconds()
+}
+
+private fun rebuildAtLocalTime(existingEpoch: Long?, hour: Int, minute: Int): Long {
+    val date = existingEpoch
+        ?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(AppTimeZone).date }
+        ?: Clock.System.now().toLocalDateTime(AppTimeZone).date
+    return LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, hour, minute)
+        .toInstant(AppTimeZone).toEpochMilliseconds()
+}
+
+private fun localHourOf(epochMs: Long): Int =
+    Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(AppTimeZone).hour
+
+private fun localMinuteOf(epochMs: Long): Int =
+    Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(AppTimeZone).minute
+
+private fun pickerDateFromEpoch(epochMs: Long): Long {
+    val d = Instant.fromEpochMilliseconds(epochMs).toLocalDateTime(AppTimeZone).date
+    return LocalDate(d.year, d.monthNumber, d.dayOfMonth)
+        .atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+}
+
+private fun localTodayPickerFloor(): Long {
+    val today = Clock.System.now().toLocalDateTime(AppTimeZone).date
+    return LocalDate(today.year, today.monthNumber, today.dayOfMonth)
+        .atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+}
+
+// Preserves the old "default end = start + 2h local, wrapping in-day" behaviour,
+// just executed in Indianapolis local rather than UTC-encoded arithmetic.
+private fun defaultEndTimeParts(endsAt: Long?, startsAt: Long?): Pair<Int, Int> {
+    if (endsAt != null) return localHourOf(endsAt) to localMinuteOf(endsAt)
+    if (startsAt != null) {
+        val startLocal = Instant.fromEpochMilliseconds(startsAt).toLocalDateTime(AppTimeZone)
+        return ((startLocal.hour + 2) % 24) to startLocal.minute
+    }
+    return 11 to 0
 }
 
 @Preview

@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,6 +65,7 @@ import jr.brian.inindy.resources.notifications_bell_unread_cd
 import jr.brian.inindy.ui.icons.NotificationsIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import jr.brian.inindy.ui.motion.Motion
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -81,6 +83,7 @@ fun ExploreScreen(
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
+    val scope = rememberCoroutineScope()
     // refreshTrigger is a monotonically-increasing counter bumped by
     // CreatePost/EditPost submissions in RootNavGraph. Because ExploreScreen is
     // disposed whenever the user visits any other root destination (PostDetail,
@@ -109,14 +112,19 @@ fun ExploreScreen(
             )
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
-                onRefresh = { onIntent(ExploreIntent.Refresh) },
+                onRefresh = {
+                    onIntent(ExploreIntent.Refresh)
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                },
                 modifier = Modifier.fillMaxSize()
             ) {
                 AnimatedContent(
                     targetState = FeedContentKey(uiState.feed, uiState.activeFilter),
                     transitionSpec = {
                         fadeIn(tween(Motion.Duration.Medium, easing = Motion.Standard)) togetherWith
-                            fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                                fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                     },
                     // Only crossfade when the feed's "shape" or filter changes
                     // (Loading ↔ Success ↔ Error, empty ↔ non-empty, filter swap).
@@ -137,6 +145,7 @@ fun ExploreScreen(
                         ) {
                             CircularProgressIndicator()
                         }
+
                         is ExploreUiState.FeedState.Success -> if (feed.posts.isEmpty()) {
                             ExploreEmptyState(
                                 filter = key.filter,
@@ -151,6 +160,7 @@ fun ExploreScreen(
                                 listState = listState
                             )
                         }
+
                         is ExploreUiState.FeedState.Error -> ExploreErrorContent(
                             message = feed.message,
                             onRetry = onRefresh,
@@ -188,6 +198,7 @@ private data class FeedContentKey(
             val shape = if (f.posts.isEmpty()) "empty" else "content"
             shape to filter
         }
+
         is ExploreUiState.FeedState.Error -> "error" to filter
     }
 }
@@ -271,7 +282,7 @@ private fun ExploreHeader(
                 targetState = uiState.brandMarkText,
                 transitionSpec = {
                     fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) togetherWith
-                        fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                            fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                 },
                 label = "brandMarkText",
                 modifier = Modifier.widthIn(max = 280.dp)
@@ -342,9 +353,14 @@ private fun NotificationsBell(
                 AnimatedVisibility(
                     visible = unreadCount > 0,
                     enter = fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) +
-                        scaleIn(tween(Motion.Duration.Medium, easing = Motion.EmphasizedDecelerate)),
+                            scaleIn(
+                                tween(
+                                    Motion.Duration.Medium,
+                                    easing = Motion.EmphasizedDecelerate
+                                )
+                            ),
                     exit = fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard)) +
-                        scaleOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                            scaleOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
                 ) {
                     Badge(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -353,8 +369,18 @@ private fun NotificationsBell(
                         AnimatedContent(
                             targetState = unreadCount,
                             transitionSpec = {
-                                fadeIn(tween(Motion.Duration.Fast, easing = Motion.Standard)) togetherWith
-                                    fadeOut(tween(Motion.Duration.Fast, easing = Motion.Standard))
+                                fadeIn(
+                                    tween(
+                                        Motion.Duration.Fast,
+                                        easing = Motion.Standard
+                                    )
+                                ) togetherWith
+                                        fadeOut(
+                                            tween(
+                                                Motion.Duration.Fast,
+                                                easing = Motion.Standard
+                                            )
+                                        )
                             },
                             label = "notifications-badge-count"
                         ) { count ->

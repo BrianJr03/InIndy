@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import jr.brian.inindy.domain.model.RsvpReminderPref
 import jr.brian.inindy.presentation.settings.DeleteAccountState
 import jr.brian.inindy.presentation.settings.SettingsViewModel
+import jr.brian.inindy.presentation.settings.SignOutState
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.settings_back_content_description
 import jr.brian.inindy.resources.settings_dark_mode_description
@@ -63,6 +64,8 @@ import jr.brian.inindy.resources.settings_rsvp_reminder_off
 import jr.brian.inindy.resources.settings_rsvp_reminder_title
 import jr.brian.inindy.resources.settings_section_feed
 import jr.brian.inindy.resources.settings_section_notifications
+import jr.brian.inindy.resources.settings_sign_out_description
+import jr.brian.inindy.resources.settings_sign_out_title
 import jr.brian.inindy.resources.settings_delete_account_confirm_word
 import jr.brian.inindy.resources.settings_delete_account_description
 import jr.brian.inindy.resources.settings_delete_account_dialog_body
@@ -93,10 +96,12 @@ fun SettingsScreen(
         onToggleDarkMode = onToggleDarkMode,
         onBack = onBack,
         deleteState = uiState.deleteAccount,
+        signOutState = uiState.signOut,
         feedInterestOrderingEnabled = uiState.feedInterestOrderingEnabled,
         onSetFeedInterestOrdering = viewModel::setInterestOrdering,
         rsvpReminder = uiState.rsvpReminder,
         onSetRsvpReminder = viewModel::setRsvpReminder,
+        onSignOut = viewModel::signOut,
         onDeleteAccountConfirmed = viewModel::deleteAccount,
         onDismissDeleteError = viewModel::dismissError,
         modifier = modifier
@@ -110,10 +115,12 @@ private fun SettingsContent(
     onToggleDarkMode: (Boolean) -> Unit,
     onBack: () -> Unit,
     deleteState: DeleteAccountState,
+    signOutState: SignOutState,
     feedInterestOrderingEnabled: Boolean,
     onSetFeedInterestOrdering: (Boolean) -> Unit,
     rsvpReminder: RsvpReminderPref,
     onSetRsvpReminder: (RsvpReminderPref) -> Unit,
+    onSignOut: () -> Unit,
     onDeleteAccountConfirmed: () -> Unit,
     onDismissDeleteError: () -> Unit,
     modifier: Modifier = Modifier
@@ -185,6 +192,24 @@ private fun SettingsContent(
                 text = stringResource(Res.string.settings_section_account),
                 tint = MaterialTheme.colorScheme.error
             )
+            SignOutRow(
+                state = signOutState,
+                onClick = {
+                    if (signOutState !is SignOutState.SigningOut) {
+                        onDismissDeleteError()
+                        onSignOut()
+                    }
+                }
+            )
+            val signOutError = signOutState as? SignOutState.Error
+            if (signOutError != null) {
+                Text(
+                    text = signOutError.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             DeleteAccountRow(
                 state = deleteState,
                 onClick = {
@@ -218,6 +243,55 @@ private fun SettingsContent(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun SignOutRow(
+    state: SignOutState,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val isSigningOut = state is SignOutState.SigningOut
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .clickable(enabled = !isSigningOut, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_sign_out_title),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(Res.string.settings_sign_out_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (isSigningOut) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -445,10 +519,12 @@ private fun SettingsScreenLightPreview() {
             onToggleDarkMode = {},
             onBack = {},
             deleteState = DeleteAccountState.Idle,
+            signOutState = SignOutState.Idle,
             feedInterestOrderingEnabled = false,
             onSetFeedInterestOrdering = {},
             rsvpReminder = RsvpReminderPref.DAY_OF,
             onSetRsvpReminder = {},
+            onSignOut = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )
@@ -464,10 +540,12 @@ private fun SettingsScreenDarkPreview() {
             onToggleDarkMode = {},
             onBack = {},
             deleteState = DeleteAccountState.Idle,
+            signOutState = SignOutState.Idle,
             feedInterestOrderingEnabled = true,
             onSetFeedInterestOrdering = {},
             rsvpReminder = RsvpReminderPref.HOUR_BEFORE,
             onSetRsvpReminder = {},
+            onSignOut = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
         )
