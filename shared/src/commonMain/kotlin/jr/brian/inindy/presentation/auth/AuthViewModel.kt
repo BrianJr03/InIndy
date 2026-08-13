@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.social.SocialAuthProvider
 import jr.brian.inindy.domain.repository.AuthRepository
+import jr.brian.inindy.domain.repository.AuthSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,21 @@ class AuthViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    init {
+        // Magic-link completion arrives asynchronously via the deep-link handler,
+        // not through any onIntent call — the browser hands the code back to the
+        // OS which hands it to supabase-kt. Observing sessionState here is what
+        // flips EmailLinkSent → Authenticated so AuthNavHost can navigate out.
+        viewModelScope.launch {
+            authRepository.sessionState.collect { status ->
+                if (status == AuthSessionState.SignedIn) {
+                    val user = authRepository.getCurrentUser() ?: return@collect
+                    _uiState.value = AuthUiState.Authenticated(user)
+                }
+            }
+        }
+    }
 
     fun onIntent(intent: AuthIntent) {
         when (intent) {

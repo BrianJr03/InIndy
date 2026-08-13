@@ -12,6 +12,9 @@ suspend fun handleInIndyDeepLink(url: String) {
         is DeepLinkResult.GroupInvite -> {
             getKoin().get<DeepLinkBus>().postInviteToken(result.token)
         }
+        is DeepLinkResult.Post -> {
+            getKoin().get<DeepLinkBus>().postPostId(result.postId)
+        }
         DeepLinkResult.Auth,
         DeepLinkResult.Unknown -> handleSupabaseDeepLink(url)
     }
