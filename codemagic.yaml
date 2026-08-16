@@ -1,0 +1,110 @@
+workflows:
+  android-workflow:
+    name: Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      android_signing:
+        - inindy_keystore
+      groups:
+        - inindy_secrets       # SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_SERVICES_JSON
+        - google_play          # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      vars:
+        PACKAGE_NAME: "jr.brian.inindy"
+      java: 17
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    scripts:
+      - name: Write local.properties
+        script: |
+          cat > "$CM_BUILD_DIR/local.properties" <<EOF
+          sdk.dir=$ANDROID_SDK_ROOT
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EOF
+      - name: Write google-services.json
+        script: |
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > "$CM_BUILD_DIR/androidApp/google-services.json"
+      - name: Set build number
+        script: |
+          LATEST=$(google-play get-latest-build-number --package-name "$PACKAGE_NAME" --tracks internal || echo 0)
+          BUILD_NUMBER=$(($LATEST + 1))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+      - name: Build Android App Bundle
+        script: |
+          ./gradlew :androidApp:bundleRelease \
+            -PversionCode=$BUILD_NUMBER \
+            -PversionName=1.0.$BUILD_NUMBER
+    artifacts:
+      - androidApp/build/outputs/**/*.aab
+      - androidApp/build/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+
+  ios-workflow:
+    name: iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: inindy_asc_key   # App Store Connect API key set in Codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: jr.brian.inindy
+      groups:
+        - inindy_secrets       # SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_SERVICE_INFO_PLIST
+      vars:
+        XCODE_PROJECT: "iosApp/iosApp.xcodeproj"
+        XCODE_SCHEME: "iosApp"
+        BUNDLE_ID: "jr.brian.inindy"
+        APP_STORE_APP_ID: 0000000000   # replace after creating the app in App Store Connect
+      xcode: latest
+      java: 17
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    scripts:
+      - name: Write local.properties
+        script: |
+          cat > "$CM_BUILD_DIR/local.properties" <<EOF
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EOF
+      - name: Write GoogleService-Info.plist
+        script: |
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > "$CM_BUILD_DIR/iosApp/iosApp/GoogleService-Info.plist"
+      - name: Set build number
+        script: |
+          cd "$CM_BUILD_DIR/iosApp"
+          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APP_ID" || echo 0)
+          BUILD_NUMBER=$(($LATEST + 1))
+          agvtool new-version -all $BUILD_NUMBER
+      - name: Install code signing
+        script: |
+          xcode-project use-profiles
+      - name: Build iOS ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --config Release
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal

@@ -15,6 +15,9 @@ coil = "3.4.0"
 composeMultiplatform = "1.11.0"
 datastore = "1.1.1"
 firebaseBom = "34.15.0"
+# GitLive Firebase Kotlin SDK — KMP wrapper around native Firebase Android/iOS.
+# Bump when a newer version supports the current Kotlin/kotlinx-coroutines pins.
+gitliveFirebase = "2.1.0"
 googleServices = "4.5.0"
 junit = "4.13.2"
 kermit = "2.0.6"
@@ -89,6 +92,10 @@ kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 # Firebase — BOM aligns messaging/analytics/etc.; individual artifacts inherit
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+
+# GitLive Firebase Kotlin SDK — expect/actual bindings shared across Android + iOS
+firebaseKt-app = { module = "dev.gitlive:firebase-app", version.ref = "gitliveFirebase" }
+firebaseKt-messaging = { module = "dev.gitlive:firebase-messaging", version.ref = "gitliveFirebase" }
 
 # Coroutines & Serialization
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }

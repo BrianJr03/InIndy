@@ -4,21 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>InIndy uses the camera so you can take photos for your posts, group covers, and profile.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>InIndy uses your location to help you share where your activity is happening.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>InIndy saves photos you take to your library when you choose to do so.</string>
-	<key>SUPABASE_URL</key>
-	<string>https://vuiqstveijdeikghwuix.supabase.co</string>
-	<key>SUPABASE_ANON_KEY</key>
-	<string>sb_publishable_GgK0kv2LlQzTzpzo6RPlBQ_7deWztCC</string>
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>UIColorName</key>
-		<string>BrandLaunch</string>
-	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -30,5 +15,24 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>InIndy uses the camera so you can take photos for your posts, group covers, and profile.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>InIndy uses your location to help you share where your activity is happening.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>InIndy saves photos you take to your library when you choose to do so.</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>sb_publishable_GgK0kv2LlQzTzpzo6RPlBQ_7deWztCC</string>
+	<key>SUPABASE_URL</key>
+	<string>https://vuiqstveijdeikghwuix.supabase.co</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>BrandLaunch</string>
+	</dict>
 </dict>
 </plist>

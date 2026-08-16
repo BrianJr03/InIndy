@@ -105,6 +105,11 @@ kotlin {
 
         mobileMain.dependencies {
             implementation(libs.adaptive.nav.bar)
+            // GitLive Firebase Kotlin SDK — common bindings for Firebase Messaging
+            // token retrieval and Firebase.initialize(). Native Firebase iOS SDK must
+            // be linked to the Xcode target via SPM for the iOS klibs to resolve.
+            implementation(libs.firebaseKt.app)
+            implementation(libs.firebaseKt.messaging)
         }
 
         nonWasmCommonMain.dependencies {
