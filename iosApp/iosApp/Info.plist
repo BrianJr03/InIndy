@@ -21,10 +21,6 @@
 	<string>InIndy uses your location to help you share where your activity is happening.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>InIndy saves photos you take to your library when you choose to do so.</string>
-	<key>SUPABASE_ANON_KEY</key>
-	<string>sb_publishable_GgK0kv2LlQzTzpzo6RPlBQ_7deWztCC</string>
-	<key>SUPABASE_URL</key>
-	<string>https://vuiqstveijdeikghwuix.supabase.co</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

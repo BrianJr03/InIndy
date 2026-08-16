@@ -12,8 +12,9 @@ plugins {
 
 // Pull SUPABASE_URL and SUPABASE_ANON_KEY out of root local.properties.
 // The AGP KMP library plugin does not expose buildConfigField, so we generate
-// a small Kotlin constants file and wire it into androidMain instead. iOS
-// reads the same values from Info.plist (see SupabaseConfig.ios.kt).
+// a small Kotlin constants file and wire it into mobileMain — both Android
+// and iOS read from the same generated object, which keeps local.properties
+// as the single source of truth for Supabase config.
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -26,7 +27,7 @@ val generateSupabaseBuildConfig by tasks.registering {
     // script-level properties or the configuration cache fails to serialize it.
     val urlValue = supabaseUrl
     val keyValue = supabaseAnonKey
-    val outDir = layout.buildDirectory.dir("generated/source/supabaseConfig/androidMain")
+    val outDir = layout.buildDirectory.dir("generated/source/supabaseConfig/mobileMain")
     inputs.property("supabaseUrl", urlValue)
     inputs.property("supabaseAnonKey", keyValue)
     outputs.dir(outDir)
@@ -98,6 +99,7 @@ kotlin {
         // live here so web targets aren't asked to resolve them.
         val mobileMain by creating {
             dependsOn(nonWasmCommonMain)
+            kotlin.srcDir(generateSupabaseBuildConfig)
         }
         androidMain.get().dependsOn(mobileMain)
         iosMain.get().dependsOn(mobileMain)
@@ -125,7 +127,6 @@ kotlin {
         }
 
         androidMain {
-            kotlin.srcDir(generateSupabaseBuildConfig)
             dependencies {
                 implementation(libs.compose.uiToolingPreview)
                 implementation(libs.ktor.client.okhttp)
