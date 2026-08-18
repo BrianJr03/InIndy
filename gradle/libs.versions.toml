@@ -4,17 +4,17 @@ android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "37"
 androidx-activity = "1.13.0"
-androidx-core = "1.18.0"
-androidx-core-splashscreen = "1.0.1"
+androidx-core = "1.19.0"
+androidx-core-splashscreen = "1.2.0"
 # Pinned by Compose Multiplatform 1.11.1 — JetBrains publishes org.jetbrains.androidx.lifecycle:*
 # as KMP forks whose versions lag the Google-published androidx numbers.
 # Do NOT bump to 2.11.0 (or whatever the IDE suggests) without also bumping CMP.
 androidx-lifecycle = "2.11.0-beta01"
 androidx-securityCrypto = "1.1.0"
-coil = "3.4.0"
+coil = "3.5.0"
 composeMultiplatform = "1.11.1"
-datastore = "1.1.1"
-firebaseBom = "34.15.0"
+datastore = "1.2.1"
+firebaseBom = "34.17.0"
 # Last standalone publication of firebase-common-ktx. Firebase BOM 33+ merged
 # it into firebase-common, but dev.gitlive:firebase-app:2.1.0 still requests
 # firebase-common-ktx transitively without a version. Pin explicitly so
@@ -24,13 +24,13 @@ firebaseCommonKtx = "21.0.0"
 # Bump when a newer version supports the current Kotlin/kotlinx-coroutines pins.
 gitliveFirebase = "2.1.0"
 googleServices = "4.5.0"
-kermit = "2.0.6"
-koin = "4.2.1"
+kermit = "2.1.0"
+koin = "4.2.2"
 kotlin = "2.4.10"
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
 kotlinx-serialization = "1.11.0"
-ktor = "3.5.0"
+ktor = "3.5.2"
 # Known misalignment: Compose Multiplatform 1.11.1 pins compose-material3 to 1.11.0-alpha07.
 # Running 1.12.0-alpha01 pulls compose.foundation/compose.ui up to 1.12.0-alpha01 transitively,
 # which the CMP plugin flags at build time ("Compose Multiplatform runtime dependencies' versions
