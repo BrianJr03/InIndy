@@ -32,6 +32,16 @@ val generateSupabaseBuildConfig by tasks.registering {
     inputs.property("supabaseAnonKey", keyValue)
     outputs.dir(outDir)
     doLast {
+        // Validate at execution time — a configuration-time throw would break
+        // every Gradle invocation (including IDE sync) on machines without
+        // local.properties. Failing here still blocks any build that would
+        // actually ship a broken app, but leaves configuration cheap.
+        if (urlValue.isBlank() || keyValue.isBlank()) {
+            throw GradleException(
+                "SUPABASE_URL and SUPABASE_ANON_KEY must be set in local.properties " +
+                    "(or supplied by CI). Refusing to generate SupabaseBuildConfig with blank values."
+            )
+        }
         val pkgDir = outDir.get().asFile.resolve("jr/brian/inindy/data/remote")
         pkgDir.mkdirs()
         pkgDir.resolve("SupabaseBuildConfig.kt").writeText(
@@ -137,6 +147,7 @@ kotlin {
                 implementation(libs.datastore.preferences.core)
                 implementation(project.dependencies.platform(libs.firebase.bom))
                 implementation(libs.firebase.messaging)
+                implementation(libs.firebase.common.ktx)
             }
         }
         commonMain.dependencies {

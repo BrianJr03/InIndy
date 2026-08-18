@@ -15,6 +15,11 @@ coil = "3.4.0"
 composeMultiplatform = "1.11.0"
 datastore = "1.1.1"
 firebaseBom = "34.15.0"
+# Last standalone publication of firebase-common-ktx. Firebase BOM 33+ merged
+# it into firebase-common, but dev.gitlive:firebase-app:2.1.0 still requests
+# firebase-common-ktx transitively without a version. Pin explicitly so
+# resolution succeeds until the GitLive SDK drops the reference.
+firebaseCommonKtx = "21.0.0"
 # GitLive Firebase Kotlin SDK — KMP wrapper around native Firebase Android/iOS.
 # Bump when a newer version supports the current Kotlin/kotlinx-coroutines pins.
 gitliveFirebase = "2.1.0"
@@ -92,6 +97,7 @@ kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 # Firebase — BOM aligns messaging/analytics/etc.; individual artifacts inherit
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+firebase-common-ktx = { module = "com.google.firebase:firebase-common-ktx", version.ref = "firebaseCommonKtx" }
 
 # GitLive Firebase Kotlin SDK — expect/actual bindings shared across Android + iOS
 firebaseKt-app = { module = "dev.gitlive:firebase-app", version.ref = "gitliveFirebase" }

@@ -85,10 +85,9 @@ workflows:
           echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > "$CM_BUILD_DIR/iosApp/iosApp/GoogleService-Info.plist"
       - name: Set build number
         script: |
-          cd "$CM_BUILD_DIR/iosApp"
           LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APP_ID" || echo 0)
           BUILD_NUMBER=$(($LATEST + 1))
-          agvtool new-version -all $BUILD_NUMBER
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
       - name: Install code signing
         script: |
           xcode-project use-profiles
@@ -97,7 +96,8 @@ workflows:
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
-            --config Release
+            --config Release \
+            --archive-flags "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
