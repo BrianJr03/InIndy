@@ -140,7 +140,7 @@ import jr.brian.inindy.util.AppTimeZone
 import jr.brian.inindy.util.DateUtil
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
