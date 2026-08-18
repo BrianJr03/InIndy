@@ -195,6 +195,11 @@ kotlin {
         //     implementation(libs.wrappers.browser)
         //     implementation(libs.ktor.client.js)
         // }
+        // NOTE: When re-enabling js/wasmJs, re-add these catalog entries to
+        // gradle/libs.versions.toml — they were removed during cleanup:
+        //   [versions] kotlin-wrappers = "..."
+        //   [libraries] wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
+        //   [libraries] ktor-client-js  = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
     }
 }
 
