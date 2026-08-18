@@ -22,7 +22,7 @@ firebaseBom = "34.17.0"
 firebaseCommonKtx = "21.0.0"
 # GitLive Firebase Kotlin SDK — KMP wrapper around native Firebase Android/iOS.
 # Bump when a newer version supports the current Kotlin/kotlinx-coroutines pins.
-gitliveFirebase = "2.1.0"
+gitliveFirebase = "2.6.0"
 googleServices = "4.5.0"
 kermit = "2.1.0"
 koin = "4.2.2"
