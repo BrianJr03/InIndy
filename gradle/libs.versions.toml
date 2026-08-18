@@ -6,6 +6,9 @@ android-targetSdk = "37"
 androidx-activity = "1.13.0"
 androidx-core = "1.18.0"
 androidx-core-splashscreen = "1.0.1"
+# Pinned by Compose Multiplatform 1.11.1 — JetBrains publishes org.jetbrains.androidx.lifecycle:*
+# as KMP forks whose versions lag the Google-published androidx numbers.
+# Do NOT bump to 2.11.0 (or whatever the IDE suggests) without also bumping CMP.
 androidx-lifecycle = "2.11.0-beta01"
 androidx-securityCrypto = "1.1.0"
 coil = "3.4.0"
@@ -28,7 +31,15 @@ kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
 kotlinx-serialization = "1.11.0"
 ktor = "3.5.0"
+# Known misalignment: Compose Multiplatform 1.11.1 pins compose-material3 to 1.11.0-alpha07.
+# Running 1.12.0-alpha01 pulls compose.foundation/compose.ui up to 1.12.0-alpha01 transitively,
+# which the CMP plugin flags at build time ("Compose Multiplatform runtime dependencies' versions
+# don't match with plugin version"). Builds today; resolve by aligning when CMP 1.12.0 goes stable.
+# Do NOT bump to 1.12.0-alpha03 — that targets CMP 1.12.0-rc01 and widens the mismatch.
 material3 = "1.12.0-alpha01"
+# Pinned by Compose Multiplatform 1.11.1 — JetBrains publishes org.jetbrains.androidx.navigation:*
+# as a KMP fork whose version lags the Google-published androidx number.
+# Do NOT bump to 2.9.8 (or whatever the IDE suggests) without also bumping CMP.
 navigation-compose = "2.9.2"
 sqldelight = "2.3.2"
 supabase = "3.7.0"
