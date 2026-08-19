@@ -18,9 +18,6 @@ import jr.brian.inindy.presentation.createpost.CreatePostUiState.Companion.MAX_T
 import jr.brian.inindy.util.appLog
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class CreatePostViewModel(
     private val postRepository: PostRepository,
@@ -214,7 +212,7 @@ class CreatePostViewModel(
                 _uiState.value = _uiState.value.copy(addressSuggestions = emptyList())
                 return@launch
             }
-            delay(180L)
+            delay(180L.milliseconds)
             _uiState.value = _uiState.value.copy(isSearchingAddress = true)
             val result = addressSearch.search(query).getOrDefault(emptyList())
             _uiState.value = _uiState.value.copy(
@@ -328,26 +326,29 @@ class CreatePostViewModel(
             )
 
             // Existing images (edit mode) are CDN http URLs — skip re-upload
-            // and keep them as-is. Local device URIs get uploaded fresh. Order
-            // is preserved so the sort_order rows match what the user sees.
-            val uploadResults = coroutineScope {
-                state.images.map { uri ->
-                    async {
-                        if (uri.startsWith("http")) Result.success(uri)
-                        else mediaRepository.uploadPostImage(uri)
-                    }
-                }.awaitAll()
+            // and keep them as-is. Local device URIs upload one at a time:
+            // the presigned R2 URLs expire on a short window and ImageCompressor
+            // decodes a full bitmap per call, so fanning out risks both URL
+            // expiry on slow links and Android memory pressure. List append
+            // order matches input order — sort_order maps to index.
+            val cdnUrls = mutableListOf<String>()
+            var uploadFailure: Throwable? = null
+            for (uri in state.images) {
+                val result = if (uri.startsWith("http")) Result.success(uri)
+                else mediaRepository.uploadPostImage(uri)
+                if (result.isFailure) {
+                    uploadFailure = result.exceptionOrNull()
+                    break
+                }
+                cdnUrls.add(result.getOrThrow())
             }
-            val firstFailure = uploadResults.firstOrNull { it.isFailure }
-            if (firstFailure != null) {
+            if (uploadFailure != null) {
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
-                    submitError = firstFailure.exceptionOrNull().toUploadError(),
-                    images = emptyList()
+                    submitError = uploadFailure.toUploadError()
                 )
                 return@launch
             }
-            val cdnUrls = uploadResults.map { it.getOrThrow() }
 
             val request = CreatePostRequest(
                 title = state.title.trim(),

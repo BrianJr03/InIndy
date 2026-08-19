@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +66,7 @@ import jr.brian.inindy.resources.notifications_bell_unread_cd
 import jr.brian.inindy.ui.icons.NotificationsIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import jr.brian.inindy.ui.motion.Motion
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -84,20 +86,13 @@ fun ExploreScreen(
     refreshTrigger: Int = 0
 ) {
     val scope = rememberCoroutineScope()
-    // refreshTrigger is a monotonically-increasing counter bumped by
-    // CreatePost/EditPost submissions in RootNavGraph. Because ExploreScreen is
-    // disposed whenever the user visits any other root destination (PostDetail,
-    // Settings, Notifications, …), a naïve `LaunchedEffect(refreshTrigger)` re-
-    // launches with the current (already-past) value on every return trip and
-    // spuriously refreshes the feed. rememberSaveable persists the
-    // last-handled value across those disposals (scoped to this NavBackStackEntry's
-    // saved state), so only a genuine bump — i.e. `refreshTrigger` moved past
-    // what we last acted on — triggers Refresh + scroll-to-top.
     var lastHandledTrigger by rememberSaveable { mutableIntStateOf(refreshTrigger) }
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > lastHandledTrigger) {
             lastHandledTrigger = refreshTrigger
             onIntent(ExploreIntent.Refresh)
+            snapshotFlow { listState.layoutInfo.totalItemsCount }
+                .first { it > 0 }
             listState.animateScrollToItem(0)
         }
     }

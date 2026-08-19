@@ -86,14 +86,18 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // ── 5. Generate signed upload URL (expires in 60 seconds) ───────────
+    // ── 5. Generate signed upload URL (expires in 5 minutes) ───────────
+    // Client uploads run sequentially (up to 3 per post) so the previous
+    // 60s window could expire on slow connections before the third image
+    // started. 5 minutes covers the worst realistic case without giving
+    // an exfiltrated URL a meaningful reuse window.
     const command = new PutObjectCommand({
       Bucket: Deno.env.get("CLOUDFLARE_R2_BUCKET")!,
       Key: key,
       ContentType: contentType,
     });
 
-    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 60 });
+    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
 
     // ── 6. Build permanent CDN URL ───────────────────────────────────────
     const cdnBase = Deno.env.get("CLOUDFLARE_CDN_BASE")!;

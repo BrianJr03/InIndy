@@ -78,6 +78,7 @@ import jr.brian.inindy.domain.model.PostAudience
 import jr.brian.inindy.domain.model.Interest
 import jr.brian.inindy.presentation.createpost.CreatePostUiState
 import jr.brian.inindy.presentation.createpost.CreatePostViewModel
+import jr.brian.inindy.presentation.createpost.isSubmitEnabled
 import jr.brian.inindy.resources.Res
 import jr.brian.inindy.resources.create_post_address_placeholder
 import jr.brian.inindy.resources.create_post_audience_group
@@ -95,6 +96,7 @@ import jr.brian.inindy.resources.create_post_discard_confirm
 import jr.brian.inindy.resources.create_post_discard_dismiss
 import jr.brian.inindy.resources.create_post_discard_title
 import jr.brian.inindy.resources.create_post_discard_title_edit
+import jr.brian.inindy.resources.create_post_error_dismiss_cd
 import jr.brian.inindy.resources.create_post_end_after_start_error
 import jr.brian.inindy.resources.create_post_end_label
 import jr.brian.inindy.resources.create_post_end_time_title
@@ -238,8 +240,18 @@ fun CreatePostScreen(
                 onClose = handleClose,
                 onSubmit = viewModel::submit,
                 isSubmitting = state.isSubmitting,
-                isEditMode = state.isEditMode
+                isEditMode = state.isEditMode,
+                isSubmitEnabled = state.isSubmitEnabled
             )
+            // Persistent error banner directly under the top bar — the submit
+            // button is many screens above the previous inline error, so the
+            // user never saw it after a failed upload.
+            state.submitError?.let { error ->
+                SubmitErrorBanner(
+                    message = error,
+                    onDismiss = viewModel::clearError
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -310,13 +322,6 @@ fun CreatePostScreen(
                     onSetCount = viewModel::setMaxAttendees,
                     onSetNoLimit = viewModel::setNoLimit
                 )
-                state.submitError?.let { error ->
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
             }
         }
         SnackbarHost(
@@ -467,7 +472,8 @@ private fun CreatePostTopBar(
     onClose: () -> Unit,
     onSubmit: () -> Unit,
     isSubmitting: Boolean,
-    isEditMode: Boolean
+    isEditMode: Boolean,
+    isSubmitEnabled: Boolean
 ) {
     val titleRes = if (isEditMode) Res.string.create_post_edit_title else Res.string.create_post_title
     val submitRes = when {
@@ -498,11 +504,14 @@ private fun CreatePostTopBar(
         )
         Button(
             onClick = onSubmit,
+            enabled = isSubmitEnabled,
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
             )
         ) {
             Text(
@@ -510,6 +519,40 @@ private fun CreatePostTopBar(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
+        }
+    }
+}
+
+@Composable
+private fun SubmitErrorBanner(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f).padding(vertical = 8.dp)
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = CloseIcon,
+                    contentDescription = stringResource(Res.string.create_post_error_dismiss_cd),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }

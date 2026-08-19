@@ -80,7 +80,7 @@ data class CreatePostUiState(
 
     companion object {
         const val DESCRIPTION_MAX_LENGTH = 280
-        const val MAX_IMAGES = 3
+        const val MAX_IMAGES = 2
         const val MAX_TAGS = 3
     }
 }

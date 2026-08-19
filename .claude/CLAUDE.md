@@ -225,7 +225,7 @@ This is the single source of truth — use this extension, never replicate the l
 ## Media
 
 ### Photos only — no video at MVP
-- Photos: supported, required for posts (minimum 1, maximum 3)
+- Photos: supported, required for posts (minimum 1, maximum 2)
 - Videos: deferred to v2 — too costly and complex for MVP
 - Never implement video upload without explicit instruction
 

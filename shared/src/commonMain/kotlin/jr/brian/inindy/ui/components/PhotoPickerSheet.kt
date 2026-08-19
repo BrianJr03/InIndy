@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -26,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -37,20 +37,19 @@ import jr.brian.inindy.data.media.CameraResult
 import jr.brian.inindy.data.media.ImageCompressor
 import jr.brian.inindy.data.media.ImagePicker
 import jr.brian.inindy.resources.Res
-import jr.brian.inindy.resources.photo_picker_camera_icon_cd
 import jr.brian.inindy.resources.photo_picker_choose_gallery
 import jr.brian.inindy.resources.photo_picker_choose_gallery_with_count
 import jr.brian.inindy.resources.photo_picker_error_generic
 import jr.brian.inindy.resources.photo_picker_gallery_icon_cd
 import jr.brian.inindy.resources.photo_picker_open_settings
+import jr.brian.inindy.resources.photo_picker_partial_fail_count
 import jr.brian.inindy.resources.photo_picker_permission_blocked_body
 import jr.brian.inindy.resources.photo_picker_permission_blocked_title
 import jr.brian.inindy.resources.photo_picker_permission_cancel
 import jr.brian.inindy.resources.photo_picker_permission_denied
-import jr.brian.inindy.resources.photo_picker_take_photo
-import jr.brian.inindy.ui.icons.CameraAltIcon
 import jr.brian.inindy.ui.icons.PhotoLibraryIcon
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
@@ -73,21 +72,37 @@ fun PhotoPickerSheet(
     appSettingsOpener: AppSettingsOpener = koinInject()
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var pendingLaunch by remember { mutableStateOf<PendingLaunch?>(null) }
     var sheetVisible by remember { mutableStateOf(true) }
     var showBlockedDialog by remember { mutableStateOf(false) }
-    var transientMessage by remember { mutableStateOf<String?>(null) }
+    var transientMessage by remember { mutableStateOf<TransientMessage?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
 
     val permissionDeniedText = stringResource(Res.string.photo_picker_permission_denied)
     val genericErrorText = stringResource(Res.string.photo_picker_error_generic)
+    // Raw format template — %d is substituted inside handleGallery once we know
+    // the failure count. Fetching the raw string here (no args) keeps us out of
+    // the suspend/experimental getString path.
+    val partialFailTemplate = stringResource(Res.string.photo_picker_partial_fail_count)
+
+    // Drive the actual sheet hide animation before flipping sheetVisible, so
+    // sheetState never gets left stranded at Expanded with disposed anchors.
+    // Without this, ModalBottomSheet's own dismiss path (hide() → onDismissRequest
+    // when !isVisible) never fires the next time the sheet is re-shown, and scrim
+    // tap + swipe-down both stop working.
+    fun hideSheet(then: () -> Unit = {}) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) {
+                sheetVisible = false
+                then()
+            }
+        }
+    }
 
     if (sheetVisible) {
         ModalBottomSheet(
-            onDismissRequest = {
-                sheetVisible = false
-                onDismiss()
-            },
+            onDismissRequest = { hideSheet { onDismiss() } },
             sheetState = sheetState,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
@@ -107,8 +122,7 @@ fun PhotoPickerSheet(
 //                        containerColor = MaterialTheme.colorScheme.surface
 //                    ),
 //                    modifier = Modifier.clickable(enabled = !isProcessing) {
-//                        pendingLaunch = PendingLaunch.Camera
-//                        sheetVisible = false
+//                        hideSheet { pendingLaunch = PendingLaunch.Camera }
 //                    }
 //                )
 //                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -132,8 +146,7 @@ fun PhotoPickerSheet(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
                     modifier = Modifier.clickable(enabled = !isProcessing) {
-                        pendingLaunch = PendingLaunch.Gallery
-                        sheetVisible = false
+                        hideSheet { pendingLaunch = PendingLaunch.Gallery }
                     }
                 )
                 if (isProcessing) {
@@ -169,8 +182,10 @@ fun PhotoPickerSheet(
                             onDone = { onDismiss() },
                             reopenSheet = { sheetVisible = true },
                             showSnackbar = { msg ->
-                                sheetVisible = true
-                                transientMessage = msg
+                                // Show the dialog on top of nothing; reopen the sheet only
+                                // after the user acks it, so we don't stack a dialog over
+                                // a freshly-re-shown ModalBottomSheet.
+                                transientMessage = TransientMessage(msg) { sheetVisible = true }
                             },
                             showBlocked = {
                                 sheetVisible = true
@@ -188,10 +203,15 @@ fun PhotoPickerSheet(
                             onDone = { onDismiss() },
                             reopenSheet = { sheetVisible = true },
                             showSnackbar = { msg ->
-                                sheetVisible = true
-                                transientMessage = msg
+                                transientMessage = TransientMessage(msg) { sheetVisible = true }
                             },
-                            genericErrorText = genericErrorText
+                            showPartialFail = { msg ->
+                                // Photos already delivered — dismiss the whole picker
+                                // once the user acknowledges what didn't make it.
+                                transientMessage = TransientMessage(msg) { onDismiss() }
+                            },
+                            genericErrorText = genericErrorText,
+                            partialFailTemplate = partialFailTemplate
                         )
                     }
                 } finally {
@@ -201,11 +221,16 @@ fun PhotoPickerSheet(
     }
 
     transientMessage?.let { msg ->
+        val ack: () -> Unit = {
+            val after = msg.onDismiss
+            transientMessage = null
+            after()
+        }
         AlertDialog(
-            onDismissRequest = { transientMessage = null },
-            text = { Text(msg) },
+            onDismissRequest = ack,
+            text = { Text(msg.text) },
             confirmButton = {
-                TextButton(onClick = { transientMessage = null }) {
+                TextButton(onClick = ack) {
                     Text(stringResource(Res.string.photo_picker_permission_cancel))
                 }
             }
@@ -235,6 +260,11 @@ fun PhotoPickerSheet(
 }
 
 private enum class PendingLaunch { Camera, Gallery }
+
+private data class TransientMessage(
+    val text: String,
+    val onDismiss: () -> Unit = {}
+)
 
 private suspend fun handleCamera(
     mode: PhotoPickerMode,
@@ -278,7 +308,9 @@ private suspend fun handleGallery(
     onDone: () -> Unit,
     reopenSheet: () -> Unit,
     showSnackbar: (String) -> Unit,
-    genericErrorText: String
+    showPartialFail: (String) -> Unit,
+    genericErrorText: String,
+    partialFailTemplate: String
 ) {
     when (mode) {
         is PhotoPickerMode.Single -> {
@@ -301,14 +333,25 @@ private suspend fun handleGallery(
                 reopenSheet()
                 return
             }
+            var failedCount = 0
             val compressed = uris.mapNotNull { raw ->
-                runCatching { imageCompressor.compressToFile(raw) }.getOrNull()
+                runCatching { imageCompressor.compressToFile(raw) }
+                    .onFailure { failedCount++ }
+                    .getOrNull()
             }
-            if (compressed.isEmpty()) {
-                showSnackbar(genericErrorText)
-            } else {
-                onPhotosSelected(compressed)
-                onDone()
+            when {
+                compressed.isEmpty() -> showSnackbar(genericErrorText)
+                failedCount > 0 -> {
+                    // Partial success — deliver what we have, then surface a
+                    // message so the user knows some picks were dropped rather
+                    // than silently ending up with fewer photos than they chose.
+                    onPhotosSelected(compressed)
+                    showPartialFail(partialFailTemplate.replace("%d", failedCount.toString()))
+                }
+                else -> {
+                    onPhotosSelected(compressed)
+                    onDone()
+                }
             }
         }
     }
