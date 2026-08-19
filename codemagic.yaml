@@ -50,8 +50,10 @@ workflows:
       app_store_connect: admin_role
     environment:
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: jr.brian.inindy
+        provisioning_profiles:
+          - inindy_app_store_profile
+        certificates:
+          - inindy_distribution_cert
       groups:
         - inindy_secrets       # SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_SERVICE_INFO_PLIST
       vars:
