@@ -88,14 +88,20 @@ workflows:
         script: |
           PROFILE=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -1)
           PROFILE_UUID=$(security cms -D -i "$PROFILE" | plutil -extract UUID raw -)
-          plutil -create xml1 "$HOME/export_options.plist"
-          plutil -insert method -string app-store-connect "$HOME/export_options.plist"
-          plutil -insert teamID -string TRU2TKS3T4 "$HOME/export_options.plist"
-          plutil -insert signingStyle -string manual "$HOME/export_options.plist"
-          plutil -insert signingCertificate -string "Apple Distribution" "$HOME/export_options.plist"
-          plutil -insert provisioningProfiles -dictionary "$HOME/export_options.plist"
-          plutil -insert provisioningProfiles.jr\.brian\.inindy -string "$PROFILE_UUID" "$HOME/export_options.plist"
-          plutil -p "$HOME/export_options.plist"
+          python3 - "$PROFILE_UUID" <<'PYEOF'
+          import plistlib, sys, os
+          opts = {
+              "method": "app-store-connect",
+              "teamID": "TRU2TKS3T4",
+              "signingStyle": "manual",
+              "signingCertificate": "Apple Distribution",
+              "provisioningProfiles": {"jr.brian.inindy": sys.argv[1]},
+          }
+          path = os.path.expanduser("~/export_options.plist")
+          with open(path, "wb") as f:
+              plistlib.dump(opts, f)
+          print(open(path).read())
+          PYEOF
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
