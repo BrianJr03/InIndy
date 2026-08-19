@@ -93,11 +93,6 @@ workflows:
       - name: Write GoogleService-Info.plist
         script: |
           echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > "$CM_BUILD_DIR/iosApp/iosApp/GoogleService-Info.plist"
-      - name: Set build number
-        script: |
-          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APP_ID" || echo 0)
-          BUILD_NUMBER=$(($LATEST + 1))
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
       - name: Build iOS ipa
         script: |
           PROFILE=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -1)
