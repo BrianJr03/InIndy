@@ -84,16 +84,15 @@ workflows:
           LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APP_ID" || echo 0)
           BUILD_NUMBER=$(($LATEST + 1))
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
-      - name: Install code signing
-        script: |
-          xcode-project use-profiles
       - name: Build iOS ipa
         script: |
+          PROFILE=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision | head -1)
+          PROFILE_UUID=$(security cms -D -i "$PROFILE" | plutil -extract UUID raw -)
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
             --config Release \
-            --archive-flags "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+            --archive-flags "CURRENT_PROJECT_VERSION=$BUILD_NUMBER CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=TRU2TKS3T4 PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID CODE_SIGN_IDENTITY=\"Apple Distribution\""
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
