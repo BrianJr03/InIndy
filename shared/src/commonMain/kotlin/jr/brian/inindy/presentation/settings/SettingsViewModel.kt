@@ -3,6 +3,9 @@ package jr.brian.inindy.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.data.media.AppSettingsOpener
+import jr.brian.inindy.data.notification.NotificationPermissionManager
+import jr.brian.inindy.data.notification.NotificationPermissionResult
 import jr.brian.inindy.domain.model.RsvpReminderPref
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.NotificationSettingsRepository
@@ -31,13 +34,16 @@ data class SettingsUiState(
     val deleteAccount: DeleteAccountState = DeleteAccountState.Idle,
     val signOut: SignOutState = SignOutState.Idle,
     val feedInterestOrderingEnabled: Boolean = false,
-    val rsvpReminder: RsvpReminderPref = RsvpReminderPref.DAY_OF
+    val rsvpReminder: RsvpReminderPref = RsvpReminderPref.DAY_OF,
+    val notificationsBlocked: Boolean = false
 )
 
 class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val userPreferencesStore: UserPreferencesStore,
-    private val notificationSettingsRepository: NotificationSettingsRepository
+    private val notificationSettingsRepository: NotificationSettingsRepository,
+    private val notificationPermissionManager: NotificationPermissionManager,
+    private val appSettingsOpener: AppSettingsOpener
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -74,10 +80,38 @@ class SettingsViewModel(
     }
 
     fun setRsvpReminder(pref: RsvpReminderPref) {
-        _uiState.value = _uiState.value.copy(rsvpReminder = pref)
+        // Turning off never needs a permission — save straight through.
+        if (pref == RsvpReminderPref.NONE) {
+            _uiState.value = _uiState.value.copy(rsvpReminder = pref)
+            viewModelScope.launch {
+                notificationSettingsRepository.setRsvpReminder(pref)
+            }
+            return
+        }
+        // Turning on: if the OS-level permission is permanently denied, saving
+        // the pref would silently succeed while the user sees nothing — instead
+        // surface the blocked state so the UI can route them to system settings.
         viewModelScope.launch {
+            val result = runCatching { notificationPermissionManager.requestPermission() }
+                .getOrDefault(NotificationPermissionResult.Denied)
+            if (result == NotificationPermissionResult.PermanentlyDenied) {
+                _uiState.value = _uiState.value.copy(notificationsBlocked = true)
+                return@launch
+            }
+            _uiState.value = _uiState.value.copy(rsvpReminder = pref)
             notificationSettingsRepository.setRsvpReminder(pref)
         }
+    }
+
+    fun dismissNotificationsBlocked() {
+        if (_uiState.value.notificationsBlocked) {
+            _uiState.value = _uiState.value.copy(notificationsBlocked = false)
+        }
+    }
+
+    fun openAppSettings() {
+        appSettingsOpener.open()
+        dismissNotificationsBlocked()
     }
 
     fun signOut() {

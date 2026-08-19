@@ -3,6 +3,7 @@ package jr.brian.inindy.presentation.app
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jr.brian.inindy.data.local.UserPreferencesStore
+import jr.brian.inindy.data.notification.NotificationPermissionManager
 import jr.brian.inindy.domain.push.PushRegistrar
 import jr.brian.inindy.domain.repository.AuthRepository
 import jr.brian.inindy.domain.repository.AuthSessionState
@@ -18,7 +19,8 @@ class AppViewModel(
     private val authRepository: AuthRepository,
     private val userPreferencesStore: UserPreferencesStore,
     private val deepLinkBus: DeepLinkBus,
-    private val pushRegistrar: PushRegistrar
+    private val pushRegistrar: PushRegistrar,
+    private val notificationPermissionManager: NotificationPermissionManager
 ) : ViewModel() {
     private val _state = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = _state.asStateFlow()
@@ -60,7 +62,16 @@ class AppViewModel(
                         val destination = if (prefs.onboardingComplete) AppDestination.Main
                         else AppDestination.Onboarding
                         _state.update { it.copy(hasResolved = true, destination = destination) }
-                        viewModelScope.launch { pushRegistrar.registerCurrentToken() }
+                        viewModelScope.launch {
+                            // Prompt for OS notification permission at sign-in
+                            // (Android 13+ / iOS first-launch). Result is
+                            // ignored — a denied permission still yields a
+                            // valid FCM token, it just won't display until the
+                            // user enables notifications from settings, so
+                            // registration must run either way.
+                            runCatching { notificationPermissionManager.requestPermission() }
+                            pushRegistrar.registerCurrentToken()
+                        }
                     }
                     AuthSessionState.SignedOut -> {
                         _state.update { it.copy(hasResolved = true, destination = AppDestination.Auth) }

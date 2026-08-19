@@ -7,6 +7,7 @@ import jr.brian.inindy.data.media.AppSettingsOpener
 import jr.brian.inindy.data.media.CameraCapture
 import jr.brian.inindy.data.media.ImageCompressor
 import jr.brian.inindy.data.media.ImagePicker
+import jr.brian.inindy.data.notification.NotificationPermissionManager
 import jr.brian.inindy.data.remote.SupabaseClientProvider
 import jr.brian.inindy.data.remote.media.MediaRemoteDataSource
 import jr.brian.inindy.data.remote.media.MediaRemoteDataSourceImpl
@@ -24,6 +25,7 @@ actual val mediaModule: Module = module {
     single { AppSettingsOpener(androidContext()) }
     single { LocationPermissionManager(get()) }
     single { LocationProvider(androidContext(), get()) }
+    single { NotificationPermissionManager(get()) }
     single<MediaRemoteDataSource> {
         MediaRemoteDataSourceImpl(
             supabase = SupabaseClientProvider.client,

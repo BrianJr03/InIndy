@@ -85,6 +85,10 @@
     <string name="settings_rsvp_reminder_off">Off</string>
     <string name="settings_rsvp_reminder_day_of">Day of</string>
     <string name="settings_rsvp_reminder_hour_before">Hour before</string>
+    <string name="settings_notifications_blocked_title">Notifications are off</string>
+    <string name="settings_notifications_blocked_body">InIndy can't send reminders until you allow notifications in system settings.</string>
+    <string name="settings_notifications_open_settings">Open Settings</string>
+    <string name="settings_notifications_dismiss">Not now</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_sign_out_title">Log out</string>
     <string name="settings_sign_out_description">Sign out of your account on this device</string>

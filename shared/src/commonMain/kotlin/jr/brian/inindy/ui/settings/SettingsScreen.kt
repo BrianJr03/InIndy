@@ -75,6 +75,10 @@ import jr.brian.inindy.resources.settings_delete_account_dialog_confirm_hint
 import jr.brian.inindy.resources.settings_delete_account_dialog_title
 import jr.brian.inindy.resources.settings_delete_account_error_generic
 import jr.brian.inindy.resources.settings_delete_account_title
+import jr.brian.inindy.resources.settings_notifications_blocked_body
+import jr.brian.inindy.resources.settings_notifications_blocked_title
+import jr.brian.inindy.resources.settings_notifications_dismiss
+import jr.brian.inindy.resources.settings_notifications_open_settings
 import jr.brian.inindy.resources.settings_section_account
 import jr.brian.inindy.resources.settings_section_appearance
 import jr.brian.inindy.resources.settings_title
@@ -101,6 +105,9 @@ fun SettingsScreen(
         onSetFeedInterestOrdering = viewModel::setInterestOrdering,
         rsvpReminder = uiState.rsvpReminder,
         onSetRsvpReminder = viewModel::setRsvpReminder,
+        notificationsBlocked = uiState.notificationsBlocked,
+        onDismissNotificationsBlocked = viewModel::dismissNotificationsBlocked,
+        onOpenAppSettings = viewModel::openAppSettings,
         onSignOut = viewModel::signOut,
         onDeleteAccountConfirmed = viewModel::deleteAccount,
         onDismissDeleteError = viewModel::dismissError,
@@ -120,6 +127,9 @@ private fun SettingsContent(
     onSetFeedInterestOrdering: (Boolean) -> Unit,
     rsvpReminder: RsvpReminderPref,
     onSetRsvpReminder: (RsvpReminderPref) -> Unit,
+    notificationsBlocked: Boolean,
+    onDismissNotificationsBlocked: () -> Unit,
+    onOpenAppSettings: () -> Unit,
     onSignOut: () -> Unit,
     onDeleteAccountConfirmed: () -> Unit,
     onDismissDeleteError: () -> Unit,
@@ -240,6 +250,27 @@ private fun SettingsContent(
             onDismiss = {
                 if (deleteState !is DeleteAccountState.Deleting) {
                     isConfirmDialogVisible = false
+                }
+            }
+        )
+    }
+
+    if (notificationsBlocked) {
+        AlertDialog(
+            onDismissRequest = onDismissNotificationsBlocked,
+            title = { Text(text = stringResource(Res.string.settings_notifications_blocked_title)) },
+            text = { Text(text = stringResource(Res.string.settings_notifications_blocked_body)) },
+            confirmButton = {
+                TextButton(onClick = onOpenAppSettings) {
+                    Text(
+                        text = stringResource(Res.string.settings_notifications_open_settings),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissNotificationsBlocked) {
+                    Text(text = stringResource(Res.string.settings_notifications_dismiss))
                 }
             }
         )
@@ -524,6 +555,9 @@ private fun SettingsScreenLightPreview() {
             onSetFeedInterestOrdering = {},
             rsvpReminder = RsvpReminderPref.DAY_OF,
             onSetRsvpReminder = {},
+            notificationsBlocked = false,
+            onDismissNotificationsBlocked = {},
+            onOpenAppSettings = {},
             onSignOut = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
@@ -545,6 +579,9 @@ private fun SettingsScreenDarkPreview() {
             onSetFeedInterestOrdering = {},
             rsvpReminder = RsvpReminderPref.HOUR_BEFORE,
             onSetRsvpReminder = {},
+            notificationsBlocked = false,
+            onDismissNotificationsBlocked = {},
+            onOpenAppSettings = {},
             onSignOut = {},
             onDeleteAccountConfirmed = {},
             onDismissDeleteError = {}
