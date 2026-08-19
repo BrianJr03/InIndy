@@ -76,6 +76,14 @@ workflows:
         - pattern: "v*"
           include: true
     scripts:
+      - name: Configure Gradle memory
+        script: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8
+          kotlin.native.compiler.execution.strategy=in-process
+          EOF
+          cat ~/.gradle/gradle.properties
       - name: Write local.properties
         script: |
           cat > "$CM_BUILD_DIR/local.properties" <<EOF
