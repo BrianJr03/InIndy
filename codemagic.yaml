@@ -12,12 +12,6 @@ workflows:
       vars:
         PACKAGE_NAME: "jr.brian.inindy"
       java: 17
-    triggering:
-      events:
-        - tag
-      tag_patterns:
-        - pattern: "v*"
-          include: true
     scripts:
       - name: Write local.properties
         script: |
