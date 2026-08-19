@@ -63,6 +63,12 @@ workflows:
         APP_STORE_APP_ID: 6801234266
       xcode: latest
       java: 17
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.konan
+        - ~/Library/Caches/CocoaPods
+        - $HOME/Library/Developer/Xcode/DerivedData/**/SourcePackages
     triggering:
       events:
         - tag
