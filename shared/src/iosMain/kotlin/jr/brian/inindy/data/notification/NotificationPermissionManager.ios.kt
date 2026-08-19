@@ -2,7 +2,6 @@ package jr.brian.inindy.data.notification
 
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
-import platform.UIKit.UIApplication
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionBadge
 import platform.UserNotifications.UNAuthorizationOptionSound
@@ -11,8 +10,6 @@ import platform.UserNotifications.UNAuthorizationStatusDenied
 import platform.UserNotifications.UNAuthorizationStatusNotDetermined
 import platform.UserNotifications.UNAuthorizationStatusProvisional
 import platform.UserNotifications.UNUserNotificationCenter
-import platform.darwin.dispatch_async
-import platform.darwin.dispatch_get_main_queue
 
 actual class NotificationPermissionManager {
 
@@ -39,7 +36,6 @@ actual class NotificationPermissionManager {
                                 UNAuthorizationOptionSound
                             UNUserNotificationCenter.currentNotificationCenter()
                                 .requestAuthorizationWithOptions(options) { granted, _ ->
-                                    if (granted) registerForRemoteNotificationsOnMain()
                                     val result = if (granted) NotificationPermissionResult.Granted
                                     else NotificationPermissionResult.Denied
                                     if (cont.isActive) cont.resume(result)
@@ -64,10 +60,4 @@ actual class NotificationPermissionManager {
                     if (cont.isActive) cont.resume(granted)
                 }
         }
-
-    private fun registerForRemoteNotificationsOnMain() {
-        dispatch_async(dispatch_get_main_queue()) {
-            UIApplication.sharedApplication.registerForRemoteNotifications()
-        }
-    }
 }
