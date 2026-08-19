@@ -64,7 +64,7 @@ workflows:
         XCODE_PROJECT: "iosApp/iosApp.xcodeproj"
         XCODE_SCHEME: "iosApp"
         BUNDLE_ID: "jr.brian.inindy"
-        APP_STORE_APP_ID: 0000000000   # replace after creating the app in App Store Connect
+        APP_STORE_APP_ID: 6801234266
       xcode: latest
       java: 17
     triggering:
