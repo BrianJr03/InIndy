@@ -97,17 +97,23 @@ workflows:
               "signingCertificate": "Apple Distribution",
               "provisioningProfiles": {"jr.brian.inindy": sys.argv[1]},
           }
-          path = os.path.expanduser("~/export_options.plist")
-          with open(path, "wb") as f:
+          with open(os.path.expanduser("~/export_options.plist"), "wb") as f:
               plistlib.dump(opts, f)
-          print(open(path).read())
           PYEOF
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --config Release \
-            --export-options-plist "$HOME/export_options.plist" \
-            --archive-flags "CURRENT_PROJECT_VERSION=$BUILD_NUMBER CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=TRU2TKS3T4 PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID CODE_SIGN_IDENTITY=\"Apple Distribution\""
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/build/ios/InIndy.xcarchive" \
+            CURRENT_PROJECT_VERSION=$BUILD_NUMBER \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM=TRU2TKS3T4 \
+            PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+          xcodebuild -exportArchive \
+            -archivePath "$CM_BUILD_DIR/build/ios/InIndy.xcarchive" \
+            -exportOptionsPlist "$HOME/export_options.plist" \
+            -exportPath "$CM_BUILD_DIR/build/ios/ipa"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
