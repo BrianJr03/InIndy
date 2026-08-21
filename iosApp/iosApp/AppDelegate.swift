@@ -2,6 +2,7 @@ import UIKit
 import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
+import Shared
 
 class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNotificationCenterDelegate {
 
@@ -17,7 +18,21 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         application.registerForRemoteNotifications()
+
+        // Kick supabase-kt's realtime socket back to life when we foreground —
+        // NSURLSession tears the socket down while suspended and doesn't
+        // deliver the close callback to Ktor's Darwin engine.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppForegrounded),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
         return true
+    }
+
+    @objc private func handleAppForegrounded() {
+        AppForegroundIosKt.notifyAppForegrounded()
     }
 
     func application(

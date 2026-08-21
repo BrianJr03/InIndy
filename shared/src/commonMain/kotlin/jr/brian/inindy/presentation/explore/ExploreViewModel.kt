@@ -22,6 +22,7 @@ import jr.brian.inindy.util.appLog
 import jr.brian.inindy.util.currentTimeMillis
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +52,10 @@ class ExploreViewModel(
     private val searchQueryFlow = MutableSharedFlow<String>(extraBufferCapacity = 1)
     private var searchJob: Job? = null
     private var feedJob: Job? = null
+    // Filter tied to the current live feedJob. Guarantees ensureFeedSubscribed()
+    // is idempotent: repeated calls for the same filter (bootstrap, onResume,
+    // process death restore) do not tear down and re-create the subscription.
+    private var subscribedFilter: ExploreFilter? = null
     // Kept on viewModelScope (not feedJob) so a rapid second pull can't leave the spinner stuck on
     // when the feedJob for the prior refresh is cancelled by loadFeed().
     private var refreshClearJob: Job? = null
@@ -79,7 +84,7 @@ class ExploreViewModel(
                 refreshClearJob?.cancel()
                 refreshStartMs = currentTimeMillis()
                 _uiState.update { it.copy(isRefreshing = true) }
-                loadFeed()
+                refetchFeedOnce()
             }
             ExploreIntent.ToggleFilterDropdown -> {
                 _uiState.update {
@@ -115,7 +120,10 @@ class ExploreViewModel(
         }
     }
 
-    fun loadPosts() = loadFeed()
+    // Public entry point used by pull-to-refresh from the outer tab shell and
+    // by the error-state retry button. Re-fetches without touching the live
+    // subscription — the same rationale as ExploreIntent.Refresh.
+    fun loadPosts() = refetchFeedOnce()
 
     fun isRsvpd(postId: String): Boolean = rsvpPost.isRsvpd(postId)
 
@@ -196,7 +204,7 @@ class ExploreViewModel(
                 }
             }
             if (loadFeed) {
-                loadFeed()
+                ensureFeedSubscribed()
             }
         }
     }
@@ -219,51 +227,83 @@ class ExploreViewModel(
                 isRefreshing = false
             )
         }
-        loadFeed()
+        subscribedFilter = null   // force resubscribe for the new filter
+        ensureFeedSubscribed()
     }
 
-    private fun loadFeed() {
-        feedJob?.cancel()
+    // Keep exactly one live subscription per active filter. Repeat calls with
+    // the same filter (init → bootstrap → onResume) are no-ops. Refresh does
+    // NOT come through here — it uses a one-shot re-fetch (refetchFeedOnce)
+    // that leaves the subscription alive so the realtime socket keeps its
+    // channel joined between pull-to-refreshes.
+    private fun ensureFeedSubscribed() {
         val filter = _uiState.value.activeFilter
-        log.d { "loadFeed — filter: $filter, neighborhoodId: $neighborhoodId" }
-        val feedFlow = when (filter) {
-            is ExploreFilter.All,
-            is ExploreFilter.Neighborhood -> postRepository.observeNeighborhoodOnlyFeed(neighborhoodId)
-            is ExploreFilter.Group -> postRepository.observeGroupFeed(filter.groupId)
+        if (feedJob?.isActive == true && subscribedFilter == filter) {
+            log.d { "ensureFeedSubscribed — already subscribed to $filter, skipping" }
+            return
         }
+        subscribedFilter = filter
+        val previous = feedJob
         feedJob = viewModelScope.launch {
+            // Wait for the old subscription to fully unwind (its finally block
+            // calls removeChannel) before the new one calls channel(...) —
+            // otherwise the tear-down races the resubscribe and can leave the
+            // new channel wired into a dying socket.
+            previous?.cancelAndJoin()
+            log.d { "ensureFeedSubscribed — subscribing filter: $filter, neighborhoodId: $neighborhoodId" }
+            val feedFlow = when (filter) {
+                is ExploreFilter.All,
+                is ExploreFilter.Neighborhood -> postRepository.observeNeighborhoodOnlyFeed(neighborhoodId)
+                is ExploreFilter.Group -> postRepository.observeGroupFeed(filter.groupId)
+            }
             feedFlow.collect { result ->
-                result
-                    .onSuccess { posts ->
-                        log.d { "feed emission — ${posts.size} posts for filter: $filter" }
-                    }
-                    .onFailure { e ->
-                        if (e is CancellationException) return@collect
-                        log.e(e) { "feed emission FAILED — filter: $filter" }
-                    }
-                _uiState.update { current ->
-                    if (current.activeFilter != filter) return@update current
-                    val nextFeed = result.fold(
-                        onSuccess = { posts ->
-                            ExploreUiState.FeedState.Success(
-                                orderPostsFor(
-                                    filter = filter,
-                                    posts = posts,
-                                    interests = currentInterests,
-                                    interestOrderingEnabled = feedInterestOrderingEnabled
-                                )
-                            )
-                        },
-                        onFailure = { e ->
-                            if (e is CancellationException) return@update current
-                            ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
-                        }
-                    )
-                    current.copy(feed = nextFeed)
-                }
-                maybeScheduleRefreshClear()
+                applyFeedResult(filter, result)
             }
         }
+    }
+
+    private fun refetchFeedOnce() {
+        val filter = _uiState.value.activeFilter
+        viewModelScope.launch {
+            val result = when (filter) {
+                is ExploreFilter.All,
+                is ExploreFilter.Neighborhood -> postRepository.getNeighborhoodOnlyFeed(neighborhoodId)
+                is ExploreFilter.Group -> postRepository.getGroupFeed(filter.groupId)
+            }
+            applyFeedResult(filter, result)
+        }
+    }
+
+    private fun applyFeedResult(filter: ExploreFilter, result: Result<List<Post>>) {
+        result
+            .onSuccess { posts ->
+                log.d { "feed emission — ${posts.size} posts for filter: $filter" }
+            }
+            .onFailure { e ->
+                if (e is CancellationException) return
+                log.e(e) { "feed emission FAILED — filter: $filter" }
+            }
+        _uiState.update { current ->
+            if (current.activeFilter != filter) return@update current
+            val nextFeed = result.fold(
+                onSuccess = { posts ->
+                    ExploreUiState.FeedState.Success(
+                        orderPostsFor(
+                            filter = filter,
+                            posts = posts,
+                            interests = currentInterests,
+                            interestOrderingEnabled = feedInterestOrderingEnabled
+                        )
+                    )
+                },
+                onFailure = { e ->
+                    if (e is CancellationException) return@update current
+                    ExploreUiState.FeedState.Error(e.message ?: "Something went wrong")
+                }
+            )
+            current.copy(feed = nextFeed)
+        }
+        maybeScheduleRefreshClear()
     }
 
     private fun observeFeedOrderingPreferences() {

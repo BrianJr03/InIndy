@@ -6,6 +6,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.RealtimeChannel
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
@@ -23,9 +24,8 @@ import jr.brian.inindy.domain.model.User
 import jr.brian.inindy.domain.repository.PostDeletedException
 import jr.brian.inindy.domain.repository.PostRepository
 import jr.brian.inindy.util.appLog
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -43,7 +43,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
-@OptIn(ExperimentalUuidApi::class)
 class SupabasePostRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
@@ -79,7 +78,8 @@ class SupabasePostRepository(
     // Database → Replication → enable posts
     // Without this the flow never updates and the UI only refreshes on app restart
     private fun buildUserPostsFlow(userId: String): Flow<List<Post>> = channelFlow {
-        log.d { "observeUserPosts — subscribing for userId: $userId" }
+        val channelName = "posts-user-$userId"
+        log.d { "observeUserPosts — subscribing on $channelName" }
 
         suspend fun emitLatest() {
             val result = fetchUserPosts(userId)
@@ -89,31 +89,28 @@ class SupabasePostRepository(
 
         emitLatest()
 
-        val channel = supabase.channel("posts-user-$userId-${Uuid.random()}")
+        val channel = supabase.channel(channelName)
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = POSTS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
         }
-        launch {
+        // UNDISPATCHED so the callbackFlow body runs (registering the
+        // postgres callback) before subscribe() joins on the server — otherwise
+        // server messages that arrive between JOIN and first collect are
+        // dropped by the callback manager.
+        launch(start = CoroutineStart.UNDISPATCHED) {
             changes.collect { action ->
+                log.d { "$channelName ← $action" }
                 when (action) {
-                    is PostgresAction.Insert -> {
-                        log.d { "observeUserPosts — INSERT, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Update -> {
-                        log.d { "observeUserPosts — UPDATE, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Delete -> {
-                        log.d { "observeUserPosts — DELETE, re-fetching" }
-                        emitLatest()
-                    }
+                    is PostgresAction.Insert,
+                    is PostgresAction.Update,
+                    is PostgresAction.Delete -> emitLatest()
                     else -> {}
                 }
             }
         }
-        channel.subscribe()
+        launch { logChannelStatus(channelName, channel) }
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()
@@ -285,7 +282,8 @@ class SupabasePostRepository(
 
     override fun observeNeighborhoodOnlyFeed(neighborhoodId: String): Flow<Result<List<Post>>> =
         channelFlow {
-            log.d { "observeNeighborhoodOnlyFeed — subscribing for neighborhoodId: $neighborhoodId" }
+            val channelName = "posts-nh-$neighborhoodId"
+            log.d { "observeNeighborhoodOnlyFeed — subscribing on $channelName" }
 
             suspend fun emitLatest() {
                 send(getNeighborhoodOnlyFeed(neighborhoodId))
@@ -293,31 +291,24 @@ class SupabasePostRepository(
 
             emitLatest()
 
-            val channel = supabase.channel("posts-nh-$neighborhoodId-${Uuid.random()}")
+            val channel = supabase.channel(channelName)
             val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                 table = POSTS_TABLE
                 filter("neighborhood_id", FilterOperator.EQ, neighborhoodId)
             }
-            launch {
+            launch(start = CoroutineStart.UNDISPATCHED) {
                 changes.collect { action ->
+                    log.d { "$channelName ← $action" }
                     when (action) {
-                        is PostgresAction.Insert -> {
-                            log.d { "observeNeighborhoodOnlyFeed — INSERT, re-fetching" }
-                            emitLatest()
-                        }
-                        is PostgresAction.Update -> {
-                            log.d { "observeNeighborhoodOnlyFeed — UPDATE, re-fetching" }
-                            emitLatest()
-                        }
-                        is PostgresAction.Delete -> {
-                            log.d { "observeNeighborhoodOnlyFeed — DELETE, re-fetching" }
-                            emitLatest()
-                        }
+                        is PostgresAction.Insert,
+                        is PostgresAction.Update,
+                        is PostgresAction.Delete -> emitLatest()
                         else -> {}
                     }
                 }
             }
-            channel.subscribe()
+            launch { logChannelStatus(channelName, channel) }
+            channel.subscribe(blockUntilSubscribed = true)
 
             try {
                 awaitCancellation()
@@ -329,7 +320,8 @@ class SupabasePostRepository(
         }
 
     override fun observePost(postId: String): Flow<Result<Post>> = channelFlow {
-        log.d { "observePost — subscribing for postId: $postId" }
+        val channelName = "posts-detail-$postId"
+        log.d { "observePost — subscribing on $channelName" }
 
         suspend fun emitLatest() {
             send(getPostById(postId))
@@ -337,31 +329,24 @@ class SupabasePostRepository(
 
         emitLatest()
 
-        val channel = supabase.channel("posts-detail-$postId-${Uuid.random()}")
+        val channel = supabase.channel(channelName)
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = POSTS_TABLE
             filter("id", FilterOperator.EQ, postId)
         }
-        launch {
+        launch(start = CoroutineStart.UNDISPATCHED) {
             changes.collect { action ->
+                log.d { "$channelName ← $action" }
                 when (action) {
-                    is PostgresAction.Insert -> {
-                        log.d { "observePost — INSERT, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Update -> {
-                        log.d { "observePost — UPDATE, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Delete -> {
-                        log.d { "observePost — DELETE, emitting failure" }
-                        send(Result.failure(PostDeletedException()))
-                    }
+                    is PostgresAction.Insert,
+                    is PostgresAction.Update -> emitLatest()
+                    is PostgresAction.Delete -> send(Result.failure(PostDeletedException()))
                     else -> {}
                 }
             }
         }
-        channel.subscribe()
+        launch { logChannelStatus(channelName, channel) }
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()
@@ -373,7 +358,8 @@ class SupabasePostRepository(
     }
 
     override fun observeGroupFeed(groupId: String): Flow<Result<List<Post>>> = channelFlow {
-        log.d { "observeGroupFeed — subscribing for groupId: $groupId" }
+        val channelName = "posts-group-$groupId"
+        log.d { "observeGroupFeed — subscribing on $channelName" }
 
         suspend fun emitLatest() {
             send(getGroupFeed(groupId))
@@ -381,31 +367,24 @@ class SupabasePostRepository(
 
         emitLatest()
 
-        val channel = supabase.channel("posts-group-$groupId-${Uuid.random()}")
+        val channel = supabase.channel(channelName)
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = POSTS_TABLE
             filter("group_id", FilterOperator.EQ, groupId)
         }
-        launch {
+        launch(start = CoroutineStart.UNDISPATCHED) {
             changes.collect { action ->
+                log.d { "$channelName ← $action" }
                 when (action) {
-                    is PostgresAction.Insert -> {
-                        log.d { "observeGroupFeed — INSERT, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Update -> {
-                        log.d { "observeGroupFeed — UPDATE, re-fetching" }
-                        emitLatest()
-                    }
-                    is PostgresAction.Delete -> {
-                        log.d { "observeGroupFeed — DELETE, re-fetching" }
-                        emitLatest()
-                    }
+                    is PostgresAction.Insert,
+                    is PostgresAction.Update,
+                    is PostgresAction.Delete -> emitLatest()
                     else -> {}
                 }
             }
         }
-        channel.subscribe()
+        launch { logChannelStatus(channelName, channel) }
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()
@@ -413,6 +392,12 @@ class SupabasePostRepository(
             withContext(NonCancellable) {
                 supabase.realtime.removeChannel(channel)
             }
+        }
+    }
+
+    private suspend fun logChannelStatus(channelName: String, channel: RealtimeChannel) {
+        channel.status.collect { status ->
+            log.i { "$channelName status → $status" }
         }
     }
 

@@ -20,6 +20,7 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.GroupMessage
 import jr.brian.inindy.domain.repository.ChatEvent
 import jr.brian.inindy.domain.repository.GroupChatRepository
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -49,7 +50,8 @@ class SupabaseGroupChatRepository(
             table = MESSAGES_TABLE
             filter("group_id", FilterOperator.EQ, groupId)
         }
-        launch {
+        // UNDISPATCHED — see SupabasePostRepository for the same reasoning.
+        launch(start = CoroutineStart.UNDISPATCHED) {
             changes.collect { action ->
                 when (action) {
                     is PostgresAction.Insert -> {
@@ -78,7 +80,7 @@ class SupabaseGroupChatRepository(
                 }
             }
         }
-        channel.subscribe()
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()
@@ -98,12 +100,14 @@ class SupabaseGroupChatRepository(
 
         val channel = supabase.channel(typingChannelName(groupId))
         val typing = channel.broadcastFlow<TypingEvent>(event = BROADCAST_TYPING)
-        launch {
+        // UNDISPATCHED — broadcastFlow registers its callback on collect, and
+        // typing bursts can arrive during the JOIN → SUBSCRIBED window.
+        launch(start = CoroutineStart.UNDISPATCHED) {
             typing.collect { event ->
                 if (event.userId != myUserId) send(event.userId)
             }
         }
-        channel.subscribe()
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()

@@ -16,8 +16,7 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.Notification
 import jr.brian.inindy.domain.repository.NotificationRepository
 import jr.brian.inindy.util.appLog
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +28,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-@OptIn(ExperimentalUuidApi::class)
 class SupabaseNotificationRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
@@ -45,19 +43,23 @@ class SupabaseNotificationRepository(
             return@channelFlow
         }
 
+        val channelName = "notifications-$userId"
+
         suspend fun emitLatest() {
             send(fetchNotifications(userId))
         }
 
         emitLatest()
 
-        val channel = supabase.channel("notifications-$userId-${Uuid.random()}")
+        val channel = supabase.channel(channelName)
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = NOTIFICATIONS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
         }
-        launch {
+        // UNDISPATCHED — see SupabasePostRepository for the same reasoning.
+        launch(start = CoroutineStart.UNDISPATCHED) {
             changes.collect { action ->
+                log.d { "$channelName ← $action" }
                 when (action) {
                     is PostgresAction.Insert,
                     is PostgresAction.Update,
@@ -66,7 +68,10 @@ class SupabaseNotificationRepository(
                 }
             }
         }
-        channel.subscribe()
+        launch {
+            channel.status.collect { log.i { "$channelName status → $it" } }
+        }
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()

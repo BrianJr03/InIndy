@@ -27,6 +27,7 @@ import jr.brian.inindy.util.currentTimeMillis
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -83,19 +84,32 @@ class SupabaseGroupRepository(
     // Database → Replication → enable group_members
     // Without this the flow never updates and the UI only refreshes on app restart
     private fun buildUserGroupsFlow(userId: String): Flow<List<Group>> = channelFlow {
+        val channelName = "group-members-$userId"
+
         suspend fun emitLatest() {
             send(fetchUserGroups(userId).getOrElse { emptyList() })
         }
 
         emitLatest()
 
-        val channel = supabase.channel("group-members-$userId-${Uuid.random()}")
+        val channel = supabase.channel(channelName)
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = GROUP_MEMBERS_TABLE
             filter("user_id", FilterOperator.EQ, userId)
         }
-        launch { changes.collect { emitLatest() } }
-        channel.subscribe()
+        // UNDISPATCHED so the postgres callback is registered on the channel
+        // before subscribe() joins on the server — otherwise the initial batch
+        // of server messages can arrive before the collector wires up.
+        launch(start = CoroutineStart.UNDISPATCHED) {
+            changes.collect {
+                log.d { "$channelName ← $it" }
+                emitLatest()
+            }
+        }
+        launch {
+            channel.status.collect { log.i { "$channelName status → $it" } }
+        }
+        channel.subscribe(blockUntilSubscribed = true)
 
         try {
             awaitCancellation()
