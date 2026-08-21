@@ -7,6 +7,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.RealtimeChannel
 import io.github.jan.supabase.realtime.broadcast
 import io.github.jan.supabase.realtime.broadcastFlow
 import io.github.jan.supabase.realtime.channel
@@ -20,12 +21,15 @@ import jr.brian.inindy.domain.CurrentUserProvider
 import jr.brian.inindy.domain.model.GroupMessage
 import jr.brian.inindy.domain.repository.ChatEvent
 import jr.brian.inindy.domain.repository.GroupChatRepository
+import jr.brian.inindy.util.appLog
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -36,6 +40,17 @@ class SupabaseGroupChatRepository(
     private val supabase: SupabaseClient,
     private val currentUserProvider: CurrentUserProvider
 ) : GroupChatRepository {
+
+    private val log = appLog("SupabaseGroupChatRepository")
+
+    // Live typing channels keyed by groupId, populated by observeTyping once
+    // its channel is SUBSCRIBED and cleared in its finally block.
+    // broadcastTyping looks up the channel here so it can push over the same
+    // socket the flow is listening on — a fresh supabase.channel(name) built
+    // on the fly is unsubscribed and falls back to the HTTP broadcast endpoint,
+    // which requires RLS on realtime.messages that this project does not set.
+    private val typingChannels = mutableMapOf<String, RealtimeChannel>()
+    private val typingChannelsMutex = Mutex()
 
     override fun observeMessages(groupId: String): Flow<ChatEvent> = channelFlow {
         // Initial load (with sender join).
@@ -108,11 +123,19 @@ class SupabaseGroupChatRepository(
             }
         }
         channel.subscribe(blockUntilSubscribed = true)
+        typingChannelsMutex.withLock { typingChannels[groupId] = channel }
 
         try {
             awaitCancellation()
         } finally {
             withContext(NonCancellable) {
+                typingChannelsMutex.withLock {
+                    // Only clear if the entry is still ours; a rapid
+                    // resubscribe could have swapped it out already.
+                    if (typingChannels[groupId] === channel) {
+                        typingChannels.remove(groupId)
+                    }
+                }
                 supabase.realtime.removeChannel(channel)
             }
         }
@@ -150,8 +173,23 @@ class SupabaseGroupChatRepository(
 
     override suspend fun broadcastTyping(groupId: String): Result<Unit> = runCatching {
         val userId = currentUserProvider.get().userId ?: return@runCatching
-        val channel = supabase.channel(typingChannelName(groupId))
+        // Send over the channel observeTyping already subscribed. Building a
+        // fresh supabase.channel(name) here gives an UNSUBSCRIBED channel, so
+        // broadcast falls back to the HTTP endpoint which requires RLS on
+        // realtime.messages that this project does not set — the request 401s
+        // and typing indicators never reach the other device.
+        val channel = typingChannelsMutex.withLock { typingChannels[groupId] }
+        if (channel == null) {
+            // Typing is throttled and best-effort — dropping until observeTyping
+            // has finished subscribing is the right call.
+            log.d { "broadcastTyping — no subscribed channel for $groupId yet, dropping" }
+            return@runCatching
+        }
         channel.broadcast(event = BROADCAST_TYPING, message = TypingEvent(userId))
+    }.onFailure { e ->
+        // Don't let broadcast failures die silently — the whole point of Bug 2
+        // being latent was runCatching eating the 401 from the HTTP fallback.
+        log.w(e) { "broadcastTyping FAILED — groupId: $groupId" }
     }
 
     override suspend fun unreadCounts(): Result<Map<String, Int>> = runCatching {

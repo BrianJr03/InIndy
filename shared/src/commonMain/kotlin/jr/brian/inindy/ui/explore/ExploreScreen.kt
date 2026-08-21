@@ -41,7 +41,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -67,7 +68,6 @@ import jr.brian.inindy.ui.icons.NotificationsIcon
 import jr.brian.inindy.ui.icons.SettingsIcon
 import jr.brian.inindy.ui.motion.Motion
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -85,14 +85,24 @@ fun ExploreScreen(
     listState: LazyListState = rememberLazyListState(),
     refreshTrigger: Int = 0
 ) {
-    val scope = rememberCoroutineScope()
     var lastHandledTrigger by rememberSaveable { mutableIntStateOf(refreshTrigger) }
+    // Set true when the user pulls to refresh; cleared once we scroll to the
+    // top on refresh completion. Scoped to this screen instance (not saveable)
+    // because a pull that never resolves before process death shouldn't force
+    // a scroll on the next launch.
+    var pendingScrollAfterRefresh by remember { mutableStateOf(false) }
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > lastHandledTrigger) {
             lastHandledTrigger = refreshTrigger
             onIntent(ExploreIntent.Refresh)
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it > 0 }
+            listState.animateScrollToItem(0)
+        }
+    }
+    LaunchedEffect(uiState.isRefreshing) {
+        if (pendingScrollAfterRefresh && !uiState.isRefreshing) {
+            pendingScrollAfterRefresh = false
             listState.animateScrollToItem(0)
         }
     }
@@ -108,10 +118,8 @@ fun ExploreScreen(
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
                 onRefresh = {
+                    pendingScrollAfterRefresh = true
                     onIntent(ExploreIntent.Refresh)
-                    scope.launch {
-                        listState.animateScrollToItem(0)
-                    }
                 },
                 modifier = Modifier.fillMaxSize()
             ) {
